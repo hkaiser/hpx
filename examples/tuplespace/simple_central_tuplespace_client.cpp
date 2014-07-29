@@ -39,9 +39,36 @@ void print_tuple(const tuple_type& tuple)
     hpx::cout<<")";
 }
 
+void simple_central_tuplespace_store_load_test(
+        const std::string& tuplespace_symbol_name) {
+   examples::simple_central_tuplespace central_tuplespace;
 
+   if(!central_tuplespace.connect(tuplespace_symbol_name))
+   {
+       hpx::cerr << "locality " << hpx::get_locality_id() << ": " 
+           << "FAIL to connect " << tuplespace_symbol_name << hpx::endl;
+       return;
+   }
 
-void simple_central_tuplespace_test(const std::string& tuplespace_symbol_name, const tuple_type tuple)
+   boost::posix_time::ptime now = 
+       boost::posix_time::second_clock::local_time();
+   std::string file_name = std::string("TupleSpace") + 
+       std::string("_") + boost::posix_time::to_iso_string(now);
+
+   central_tuplespace.store_sync(file_name);
+
+   examples::simple_central_tuplespace copy_central_tuplespace;
+   copy_central_tuplespace.load_sync(file_name);
+
+   // how to verify two tuplespace?
+   // print out status?
+
+}
+
+HPX_PLAIN_ACTION(simple_central_tuplespace_store_load_test, simple_central_tuplespace_store_load_test_action);
+
+void simple_central_tuplespace_test(
+    const std::string& tuplespace_symbol_name, const tuple_type tuple)
 {
    examples::simple_central_tuplespace central_tuplespace;
 
@@ -135,6 +162,18 @@ int hpx_main()
 
         std::vector<hpx::lcos::future<void> > futures;
 
+        BOOST_FOREACH(hpx::naming::id_type const& node, localities)
+        {
+            // Asynchronously start a new task. The task is encapsulated in a
+            // future, which we can query to determine if the task has
+            // completed.
+            typedef simple_central_tuplespace_store_load_test_action action_type;
+            futures.push_back(hpx::async<action_type>
+                    (node, tuplespace_symbol_name));
+        }
+        hpx::wait_all(futures);
+
+        futures.clear();
         BOOST_FOREACH(hpx::naming::id_type const& node, localities)
         {
             // Asynchronously start a new task. The task is encapsulated in a

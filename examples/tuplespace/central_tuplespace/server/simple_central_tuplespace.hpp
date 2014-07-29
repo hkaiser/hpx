@@ -14,6 +14,10 @@
 #include <hpx/util/high_resolution_timer.hpp>
 #include <hpx/include/local_lcos.hpp>
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+
 #include "tuples_warehouse.hpp"
 
 // #define TS_DEBUG
@@ -80,7 +84,7 @@ namespace examples { namespace server
             ///////////////////////////////////////////////////////////////////////
             // Exposed functionality of this component.
 
-            //[simple_accumulator_methods
+            //[simple_central_tuplespace_server_methods
 
             // put tuple into tuplespace
             // out function
@@ -161,6 +165,71 @@ namespace examples { namespace server
                 return result; 
             }
 
+            // store the tuplespace into disk
+            int store(std::string const& file_name)
+            {
+                std::string stored_name;
+
+                if (!file_name.empty()) {
+                    stored_name = file_name;
+                } else {
+                    boost::posix_time::ptime now = boost::posix_time::second_clock::local_time();
+                    stored_name = std::string("TupleSpace") + std::string("_") + 
+                        boost::posix_time::to_iso_string(now);
+                }
+
+                std::ofstream ofs(stored_name, std::ios::binary);
+                if (!ofs.is_open()) {
+                    return -1;
+                }
+
+                std::vector<char> out_buffer;
+
+                // save tuplespace into archive
+                {
+                    mutex_type::scoped_lock l(mtx_); 
+
+                    hpx::util::portable_binary_oarchive oa(out_buffer);
+                    oa << (*this);
+                }
+
+                // out_buffer will contain the byte sequence
+                ofs << out_buffer.size();
+                ofs.write(out_buffer.data(), out_buffer.size());
+
+                return 0;
+            }
+
+            // load tuplespace from disk
+            int load(std::string const& file_name)
+            {
+                if (!file_name.empty()) {
+                    return -1;
+                }
+
+
+                std::ifstream ifs(file_name, std::ios::binary);
+                if (!ifs.is_open()) {
+                    return -1;
+                }
+
+                std::vector<char> in_buffer;
+
+                std::size_t size = 0;
+                ifs >> size;
+                in_buffer.resize(size);
+                ifs.read(in_buffer.data(), size);
+
+                {
+                    mutex_type::scoped_lock l(mtx_); 
+
+                    hpx::util::portable_binary_iarchive ia(in_buffer, size);
+                    ia >> (*this);
+                }
+
+                return 0;
+            }
+
             //]
 
 
@@ -174,12 +243,24 @@ namespace examples { namespace server
             HPX_DEFINE_COMPONENT_ACTION(simple_central_tuplespace, write);
             HPX_DEFINE_COMPONENT_CONST_ACTION(simple_central_tuplespace, read);
             HPX_DEFINE_COMPONENT_ACTION(simple_central_tuplespace, take);
+            HPX_DEFINE_COMPONENT_ACTION(simple_central_tuplespace, store);
+            HPX_DEFINE_COMPONENT_ACTION(simple_central_tuplespace, load);
             //]
 
             //[simple_central_tuplespace_server_data_member
         private:
+
+            friend class boost::serialization::access;
+            template<class Archive>
+            void serialize(Archive & ar, const unsigned int version)
+            {
+                ar & tuples_;
+                ar & file_name_;
+            }
+
             tuples_type tuples_;
             mutable mutex_type mtx_;
+            std::string file_name_;
             //]
     };
 }} // examples::server
@@ -197,6 +278,14 @@ HPX_REGISTER_ACTION_DECLARATION(
 HPX_REGISTER_ACTION_DECLARATION(
     examples::server::simple_central_tuplespace::take_action,
     simple_central_tuplespace_take_action);
+
+HPX_REGISTER_ACTION_DECLARATION(
+    examples::server::simple_central_tuplespace::store_action,
+    simple_central_tuplespace_store_action);
+
+HPX_REGISTER_ACTION_DECLARATION(
+    examples::server::simple_central_tuplespace::load_action,
+    simple_central_tuplespace_load_action);
 //]
 
 #undef TS_DEBUG

@@ -159,8 +159,60 @@ namespace examples
             return this->base_type::take_sync(this->get_gid(), tp, timeout);
         }
 
+        ///////////////////////////////////////////////////////////////////////
+        /// store the tuplespace into disk.
+        ///
+        /// \note This function has fire-and-forget semantics. It will not wait
+        ///       for the action to be executed. Instead, it will return
+        ///       immediately after the action has has been dispatched.
+        //[simple_central_tuplespace_client_store_async
+        hpx::lcos::future<int> store_async(const std::string& file_name)
+        {
+            HPX_ASSERT(this->get_gid());
+            file_name_ = file_name;
+            return this->base_type::store_async(this->get_gid(), file_name);
+        }
+        //]
+
+        /// store the tuplespace into disk.
+        ///
+        /// \note This function is fully synchronous.
+        int store_sync(const std::string& file_name)
+        {
+            HPX_ASSERT(this->get_gid());
+            file_name_ = file_name;
+            return this->base_type::store_sync(this->get_gid(), file_name);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+        /// load the tuplespace from disk.
+        ///
+        /// \note This function has fire-and-forget semantics. It will not wait
+        ///       for the action to be executed. Instead, it will return
+        ///       immediately after the action has has been dispatched.
+        //[simple_central_tuplespace_client_load_async
+        hpx::lcos::future<int> load_async(const std::string& file_name)
+        {
+            HPX_ASSERT(this->get_gid());
+            file_name_ = file_name;
+            return this->base_type::load_async(this->get_gid(), file_name);
+        }
+        //]
+
+        /// load the tuplespace into disk.
+        ///
+        /// \note This function is fully synchronous.
+        int load_sync(const std::string& file_name)
+        {
+            HPX_ASSERT(this->get_gid());
+            file_name_ = file_name;
+            return this->base_type::load_sync(this->get_gid(), file_name);
+        }
+
+
     private:
         std::string symbol_name_;
+        std::string file_name_;
     };
 } // examples
 
