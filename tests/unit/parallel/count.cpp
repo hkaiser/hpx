@@ -5,7 +5,7 @@
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
-#include <hpx/include/algorithm.hpp>
+#include <hpx/include/parallel_count.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include "test_utils.hpp"
@@ -19,11 +19,11 @@ void test_count(ExPolicy const& policy, IteratorTag)
     typedef std::vector<std::size_t>::iterator base_iterator;
     typedef test::test_iterator<base_iterator, IteratorTag> iterator;
 
-    std::vector<std::size_t> c(100007);
+    std::vector<std::size_t> c(10007);
     //assure rand() does not evalulate to zero
     std::iota(boost::begin(c), boost::end(c), std::rand()+1);
 
-    boost::int64_t find_count = (std::rand() % 30) + 1;
+    std::size_t find_count = (std::rand() % 30) + 1;
     for (std::size_t i = 0; i != find_count && i != c.size(); ++i)
     {
         c[i] = 0;
@@ -46,7 +46,7 @@ void test_count(hpx::parallel::task_execution_policy, IteratorTag)
     //assure rand() does not evaluate to zero
     std::iota(boost::begin(c), boost::end(c), std::rand()+1);
 
-    boost::int64_t find_count = (std::rand() % 30) + 1;
+    std::size_t find_count = (std::rand() % 30) + 1;
     for (std::size_t i = 0; i != find_count && i != c.size(); ++i)
     {
         c[i] = 0;
@@ -66,12 +66,12 @@ void test_count()
     using namespace hpx::parallel;
     test_count(seq, IteratorTag());
     test_count(par, IteratorTag());
-    test_count(vec, IteratorTag());
+    test_count(par_vec, IteratorTag());
     test_count(task, IteratorTag());
 
     test_count(execution_policy(seq), IteratorTag());
     test_count(execution_policy(par), IteratorTag());
-    test_count(execution_policy(vec), IteratorTag());
+    test_count(execution_policy(par_vec), IteratorTag());
     test_count(execution_policy(task), IteratorTag());
 }
 
@@ -156,9 +156,10 @@ template <typename IteratorTag>
 void test_count_exception()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
-    //  std::terminate shall be called. therefore we do not test exceptions
-    //  with a vector execution policy
+
+    // If the execution policy object is of type parallel_vector_execution_policy,
+    // std::terminate shall be called. Therefore we do not test exceptions
+    // with a vector execution policy.
     test_count_exception(seq, IteratorTag());
     test_count_exception(par, IteratorTag());
     test_count_exception(task, IteratorTag());
@@ -246,9 +247,10 @@ template <typename IteratorTag>
 void test_count_bad_alloc()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
-    //  std::terminate shall be called. therefore we do not test exceptions
-    //  with a vector execution policy
+
+    // If the execution policy object is of type parallel_vector_execution_policy,
+    // std::terminate shall be called. therefore we do not test exceptions
+    // with a vector execution policy
     test_count_bad_alloc(seq, IteratorTag());
     test_count_bad_alloc(par, IteratorTag());
     test_count_bad_alloc(task, IteratorTag());

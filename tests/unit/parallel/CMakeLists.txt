@@ -4,22 +4,30 @@
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 set(tests
+    all_of
+    any_of
     copy
     copyif
     copyn
     count
     countif
+    equal
+    equal_binary
     fill
     filln
     foreach
-    foreach_futures
     foreachn
     move
+    none_of
     reduce_
     swapranges
+    task_region
     transform
     transform_binary
+	transform_reduce
    )
+
+set(task_region_FLAGS DEPENDENCIES iostreams_component)
 
 foreach(test ${tests})
   set(sources

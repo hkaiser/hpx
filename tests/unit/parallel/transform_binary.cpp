@@ -5,7 +5,7 @@
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
-#include <hpx/include/algorithm.hpp>
+#include <hpx/include/parallel_transform.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include "test_utils.hpp"
@@ -30,7 +30,7 @@ void test_transform_binary(ExPolicy const& policy, IteratorTag)
             return v1 + v2;
         };
 
-    base_iterator outiter = hpx::parallel::transform(policy,
+    hpx::parallel::transform(policy,
         iterator(boost::begin(c1)), iterator(boost::end(c1)),
         boost::begin(c2), boost::begin(d1), add);
 
@@ -94,12 +94,12 @@ void test_transform_binary()
 
     test_transform_binary(seq, IteratorTag());
     test_transform_binary(par, IteratorTag());
-    test_transform_binary(vec, IteratorTag());
+    test_transform_binary(par_vec, IteratorTag());
     test_transform_binary(task, IteratorTag());
 
     test_transform_binary(execution_policy(seq), IteratorTag());
     test_transform_binary(execution_policy(par), IteratorTag());
-    test_transform_binary(execution_policy(vec), IteratorTag());
+    test_transform_binary(execution_policy(par_vec), IteratorTag());
     test_transform_binary(execution_policy(task), IteratorTag());
 }
 
@@ -127,7 +127,7 @@ void test_transform_binary_exception(ExPolicy const& policy, IteratorTag)
 
     bool caught_exception = false;
     try {
-        base_iterator outiter = hpx::parallel::transform(policy,
+        hpx::parallel::transform(policy,
             iterator(boost::begin(c1)), iterator(boost::end(c1)),
             boost::begin(c2), boost::begin(d1),
             [](std::size_t v1, std::size_t v2) {
@@ -191,7 +191,7 @@ template <typename IteratorTag>
 void test_transform_binary_exception()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_transform_binary_exception(seq, IteratorTag());
@@ -227,7 +227,7 @@ void test_transform_binary_bad_alloc(ExPolicy const& policy, IteratorTag)
 
     bool caught_bad_alloc = false;
     try {
-        base_iterator outiter = hpx::parallel::transform(policy,
+        hpx::parallel::transform(policy,
             iterator(boost::begin(c1)), iterator(boost::end(c1)),
             boost::begin(c2), boost::begin(d1),
             [](std::size_t v1, std::size_t v2) {
@@ -287,7 +287,7 @@ template <typename IteratorTag>
 void test_transform_binary_bad_alloc()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_transform_binary_bad_alloc(seq, IteratorTag());

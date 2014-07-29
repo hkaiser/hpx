@@ -4,6 +4,7 @@
 # Copyright (c)      2011 Bryce Lelbach
 # Copyright (c)      2011 Vinay C Amatya
 # Copyright (c)      2013 Jeroen Habraken
+# Copyright (c)      2014 Andreas Schäfer
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -192,14 +193,13 @@ else()
     "64" ADVANCED)
 endif()
 
-if (NOT DEFINED LIB)
-  set(LIB "lib")
-endif(NOT DEFINED LIB)
+set(LIB "lib"
+    CACHE STRING "library subdirectory, good for multilib installs (e.g. lib, lib)")
 ###############################################################################
 if(UNIX)
-  hpx_link_directories("${CMAKE_BINARY_DIR}/lib/hpx")
+  hpx_link_directories("${CMAKE_BINARY_DIR}/${LIB}/hpx")
 else()
-  hpx_link_directories("${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib/hpx")
+  hpx_link_directories("${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${LIB}/hpx")
 endif()
 
 ###############################################################################
@@ -261,9 +261,10 @@ if(GCC_VERSION AND NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     hpx_error("gcc_config" "GCC 4.4.5 or higher is required. Specify HPX_IGNORE_GCC_VERSION=ON to overwrite this error.")
   endif()
 elseif(MSVC)
-  if(NOT (MSVC11 OR MSVC12))
-    hpx_error("msvc_config" "MSVC x64 2012 or higher is required.")
-  elseif(NOT CMAKE_CL_64)
+  if(NOT (MSVC11 OR MSVC12 OR MSVC13))
+    hpx_error("msvc_config" "MSVC 2012 or higher is required.")
+  endif()
+  if(NOT CMAKE_CL_64)
     hpx_warn("msvc_config" "MSVC (32Bit) will compile but will fail running larger applications because of limitations in the Windows OS.")
   endif()
 endif()
@@ -467,7 +468,7 @@ hpx_include(SetOutputPaths)
 # RPATH configuration
 ################################################################################
 if(NOT MSVC)
-  set(HPX_RPATH "${CMAKE_INSTALL_PREFIX}/${LIB}/hpx:${CMAKE_BINARY_DIR}/lib/hpx"
+  set(HPX_RPATH "${CMAKE_INSTALL_PREFIX}/${LIB}/hpx:${CMAKE_BINARY_DIR}/${LIB}/hpx"
       CACHE STRING "Base RPATH for linking" FORCE)
 endif()
 
@@ -539,9 +540,7 @@ if(NOT MSVC)
   else()
     hpx_add_config_define(HPX_THREAD_GUARD_PAGE 0)
   endif()
-endif()
 
-if(NOT MSVC)
   hpx_option(HPX_USE_MMAP BOOL "Use mmap for stack allocation (default: ON)" ON ADVANCED)
   if(HPX_USE_MMAP)
     hpx_add_config_define(HPX_USE_MMAP)
@@ -931,35 +930,42 @@ endif()
 ################################################################################
 # Scheduler configuration
 ################################################################################
-hpx_option(HPX_ALL_SCHEDULERS BOOL "Enables all schedulers, overrides individual configuration options (default: OFF)" OFF ADVANCED)
+hpx_option(HPX_ALL_SCHEDULERS BOOL
+  "Enables all schedulers, overrides individual configuration options (default: OFF)" OFF ADVANCED)
 
-hpx_option(HPX_LOCAL_SCHEDULER BOOL "Enable the use of --queueing=local (default: OFF)" OFF ADVANCED)
-
+hpx_option(HPX_LOCAL_SCHEDULER BOOL
+  "Enable the use of --queueing=local (default: OFF)" OFF ADVANCED)
 if(HPX_LOCAL_SCHEDULER OR HPX_ALL_SCHEDULERS)
   hpx_add_config_define(HPX_LOCAL_SCHEDULER)
 endif()
 
-hpx_option(HPX_STATIC_PRIORITY_SCHEDULER BOOL "Enable the use of --queueing=static (default: OFF)" OFF ADVANCED)
-
+hpx_option(HPX_STATIC_PRIORITY_SCHEDULER BOOL
+  "Enable the use of --queueing=static (default: OFF)" OFF ADVANCED)
 if(HPX_STATIC_PRIORITY_SCHEDULER OR HPX_ALL_SCHEDULERS)
   hpx_add_config_define(HPX_STATIC_PRIORITY_SCHEDULER)
 endif()
 
-hpx_option(HPX_HIERARCHY_SCHEDULER BOOL "Enable the use of --queueing=hierarchy (default: OFF)" OFF ADVANCED)
-
+hpx_option(HPX_HIERARCHY_SCHEDULER BOOL
+  "Enable the use of --queueing=hierarchy (default: OFF)" OFF ADVANCED)
 if(HPX_HIERARCHY_SCHEDULER OR HPX_ALL_SCHEDULERS)
   hpx_add_config_define(HPX_HIERARCHY_SCHEDULER)
 endif()
 
-hpx_option(HPX_PERIODIC_PRIORITY_SCHEDULER BOOL "Enable the use of --queueing=periodic (default: OFF)" OFF ADVANCED)
+hpx_option(HPX_ABP_SCHEDULER BOOL
+  "Enable the use of --queueing=priority_abp (default: OFF)" OFF ADVANCED)
+if(HPX_ABP_SCHEDULER OR HPX_ALL_SCHEDULERS)
+  hpx_add_config_define(HPX_ABP_SCHEDULER)
+endif()
 
+hpx_option(HPX_PERIODIC_PRIORITY_SCHEDULER BOOL
+  "Enable the use of --queueing=periodic (default: OFF)" OFF ADVANCED)
 if(HPX_PERIODIC_PRIORITY_SCHEDULER OR HPX_ALL_SCHEDULERS)
   hpx_add_config_define(HPX_PERIODIC_PRIORITY_SCHEDULER)
 endif()
 
+# Google Perftools
 hpx_option(HPX_GOOGLE_PERFTOOLS BOOL
-           "Compile HPX with google perftools (Default: ON)" ON ADVANCED)
-
+  "Compile HPX with google perftools (Default: ON)" ON ADVANCED)
 if(HPX_GOOGLE_PERFTOOLS)
   find_package(HPX_GooglePerftools)
   if(GOOGLE_PERFTOOLS_FOUND)
@@ -1011,8 +1017,8 @@ if(MSVC)
 
   # VS2013 and above know how to do link time constant data segment folding
   # VS2013 update 2 and above know how to remove debug information for
-  # non-referenced functions and data (-Zc:inline)
-  if(MSVC12)
+  #     non-referenced functions and data (-Zc:inline)
+  if(MSVC12 OR MSVC13)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Zc:inline")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -Gw -Zc:inline")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Gw -Zc:inline")
@@ -1068,7 +1074,7 @@ if(MSVC)
       hpx_add_config_define(BOOST_RESULT_OF_USE_DECLTYPE)
     endif()
 
-    if(MSVC12)
+    if(MSVC12 OR MSVC13)
       hpx_option(HPX_HAVE_CXX11_ALIAS_TEMPLATES BOOL "Compiler supports C++11 alias templates (default: ON)." ON ADVANCED)
     else()
       hpx_option(HPX_HAVE_CXX11_ALIAS_TEMPLATES BOOL "Compiler supports C++11 alias templates (default: OFF)." OFF ADVANCED)
@@ -1083,7 +1089,7 @@ if(MSVC)
       hpx_add_config_define(HPX_HAVE_CXX11_DEFAULTED_DELETED_FUNCTIONS)
     endif()
 
-    if(MSVC12)
+    if(MSVC12 OR MSVC13)
       hpx_option(HPX_HAVE_CXX11_VARIADIC_TEMPLATES BOOL "Compiler supports C++11 variadic templates (default: ON)." ON ADVANCED)
     else()
       hpx_option(HPX_HAVE_CXX11_VARIADIC_TEMPLATES BOOL "Compiler supports C++11 variadic templates (default: OFF)." OFF ADVANCED)
@@ -1123,7 +1129,7 @@ if(MSVC)
       hpx_info("C++11" "HPX_UTIL_FUNCTION is enabled: even while std::function is available it will not be used.")
     endif()
 
-    if(MSVC12)
+    if(MSVC12 OR MSVC13)
       hpx_option(HPX_HAVE_CXX11_STD_INITIALIZER_LIST BOOL "Compiler supports C++11 std::initializer_list (default: ON)." ON ADVANCED)
     else()
       hpx_option(HPX_HAVE_CXX11_STD_INITIALIZER_LIST BOOL "Compiler supports C++11 std::initializer_list (default: OFF)." OFF ADVANCED)
@@ -1144,10 +1150,12 @@ if(MSVC)
     # which is benign
     hpx_append_flag(-wd4307)
 
-    #MSVC2012/2013 are overeager to report 'qualifier applied to function type has no meaning; ignored'
+    # MSVC2012/2013/2014 are overeager to report 'qualifier applied to function
+    # type has no meaning; ignored'
     hpx_append_flag(-wd4180)
 
-    # OpenMPI triggers a lot of forcing value to bool 'true' or 'false' (performance warning)
+    # OpenMPI triggers a lot of forcing value to bool 'true' or 'false'
+    # (performance warning)
     if(MPI_FOUND)
       hpx_append_flag(-wd4800)
     endif()
@@ -1170,6 +1178,7 @@ if(MSVC)
   hpx_add_config_define(_SCL_SECURE_NO_DEPRECATE)
   hpx_add_config_define(_CRT_SECURE_NO_DEPRECATE)
   hpx_add_config_define(_CRT_NONSTDC_NO_WARNINGS)
+  hpx_add_config_define(_WINSOCK_DEPRECATED_NO_WARNINGS)
 
   ##############################################################################
   # Boost
@@ -1905,7 +1914,7 @@ endif()
 # External build system support (FindHPX.cmake and pkg-config).
 ################################################################################
 set(HPX_LINK_DIRECTORIES
-    "${CMAKE_INSTALL_PREFIX}/lib/hpx" ${HPX_LINK_DIRECTORIES})
+    "${CMAKE_INSTALL_PREFIX}/${LIB}/hpx" ${HPX_LINK_DIRECTORIES})
 set(HPX_INCLUDE_DIRECTORIES
     "${CMAKE_INSTALL_PREFIX}/include" ${HPX_INCLUDE_DIRECTORIES}
     "${CMAKE_INSTALL_PREFIX}/include/hpx/external")
@@ -2024,31 +2033,31 @@ endif()
 
 if(NOT ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug"))
     configure_file("${hpx_SOURCE_DIR}/cmake/templates/hpx_application.pc.in"
-                   "${output_dir}/lib/pkgconfig/hpx_application.pc"
+                   "${output_dir}/${LIB}/pkgconfig/hpx_application.pc"
                    @ONLY)
     configure_file("${hpx_SOURCE_DIR}/cmake/templates/hpx_component.pc.in"
-                   "${output_dir}/lib/pkgconfig/hpx_component.pc"
+                   "${output_dir}/${LIB}/pkgconfig/hpx_component.pc"
                    @ONLY)
 else()
     configure_file("${hpx_SOURCE_DIR}/cmake/templates/hpx_application_debug.pc.in"
-                   "${output_dir}/lib/pkgconfig/hpx_application_debug.pc"
+                   "${output_dir}/${LIB}/pkgconfig/hpx_application_debug.pc"
                    @ONLY)
 
     configure_file("${hpx_SOURCE_DIR}/cmake/templates/hpx_component_debug.pc.in"
-                   "${output_dir}/lib/pkgconfig/hpx_component_debug.pc"
+                   "${output_dir}/${LIB}/pkgconfig/hpx_component_debug.pc"
                    @ONLY)
 endif()
 
 if(NOT HPX_NO_INSTALL)
   if(NOT ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug"))
-    install(FILES "${output_dir}/lib/pkgconfig/hpx_application.pc"
+    install(FILES "${output_dir}/${LIB}/pkgconfig/hpx_application.pc"
             DESTINATION ${LIB}/pkgconfig)
-    install(FILES "${output_dir}/lib/pkgconfig/hpx_component.pc"
+    install(FILES "${output_dir}/${LIB}/pkgconfig/hpx_component.pc"
             DESTINATION ${LIB}/pkgconfig)
   else()
-    install(FILES "${output_dir}/lib/pkgconfig/hpx_application_debug.pc"
+    install(FILES "${output_dir}/${LIB}/pkgconfig/hpx_application_debug.pc"
             DESTINATION ${LIB}/pkgconfig)
-    install(FILES "${output_dir}/lib/pkgconfig/hpx_component_debug.pc"
+    install(FILES "${output_dir}/${LIB}/pkgconfig/hpx_component_debug.pc"
             DESTINATION ${LIB}/pkgconfig)
   endif()
 endif()

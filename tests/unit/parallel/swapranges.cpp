@@ -5,7 +5,7 @@
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
-#include <hpx/include/algorithm.hpp>
+#include <hpx/include/parallel_swap_ranges.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include "test_utils.hpp"
@@ -24,7 +24,7 @@ void test_swap_ranges(ExPolicy const& policy, IteratorTag)
     std::iota(boost::begin(c), boost::end(c), std::rand());
     std::fill(boost::begin(d), boost::end(d), std::rand());
 
-    base_iterator res = hpx::parallel::swap_ranges(policy,
+    hpx::parallel::swap_ranges(policy,
         iterator(boost::begin(c)), iterator(boost::end(c)), boost::begin(d));
 
     //equal begins at one, therefore counter is started at 1
@@ -88,12 +88,12 @@ void test_swap_ranges()
     using namespace hpx::parallel;
     test_swap_ranges(seq, IteratorTag());
     test_swap_ranges(par, IteratorTag());
-    test_swap_ranges(vec, IteratorTag());
+    test_swap_ranges(par_vec, IteratorTag());
     test_swap_ranges(task, IteratorTag());
 
     test_swap_ranges(execution_policy(seq), IteratorTag());
     test_swap_ranges(execution_policy(par), IteratorTag());
-    test_swap_ranges(execution_policy(vec), IteratorTag());
+    test_swap_ranges(execution_policy(par_vec), IteratorTag());
     test_swap_ranges(execution_policy(task), IteratorTag());
 }
 
@@ -120,7 +120,7 @@ void test_swap_ranges_exception(ExPolicy const& policy, IteratorTag)
 
     bool caught_exception = false;
     try {
-        base_iterator outiter = hpx::parallel::swap_ranges(policy,
+        hpx::parallel::swap_ranges(policy,
             decorated_iterator(
                 boost::begin(c),
                 [](){ throw std::runtime_error("test"); }),
@@ -181,15 +181,15 @@ template <typename IteratorTag>
 void test_swap_ranges_exception()
 {
     using namespace hpx::parallel;
-
+    //If the execution policy object is of type vector_execution_policy,
+    //  std::terminate shall be called. therefore we do not test exceptions
+    //  with a vector execution policy
     test_swap_ranges_exception(seq, IteratorTag());
     test_swap_ranges_exception(par, IteratorTag());
-    test_swap_ranges_exception(vec, IteratorTag());
     test_swap_ranges_exception(task, IteratorTag());
 
     test_swap_ranges_exception(execution_policy(seq), IteratorTag());
     test_swap_ranges_exception(execution_policy(par), IteratorTag());
-    test_swap_ranges_exception(execution_policy(vec), IteratorTag());
     test_swap_ranges_exception(execution_policy(task), IteratorTag());
 }
 
@@ -216,7 +216,7 @@ void test_swap_ranges_bad_alloc(ExPolicy const& policy, IteratorTag)
 
     bool caught_bad_alloc = false;
     try {
-        base_iterator outiter = hpx::parallel::swap_ranges(policy,
+        hpx::parallel::swap_ranges(policy,
             decorated_iterator(
                 boost::begin(c),
                 [](){ throw std::bad_alloc(); }),
@@ -274,15 +274,15 @@ template <typename IteratorTag>
 void test_swap_ranges_bad_alloc()
 {
     using namespace hpx::parallel;
-
+    //If the execution policy object is of type vector_execution_policy,
+    //  std::terminate shall be called. therefore we do not test exceptions
+    //  with a vector execution policy
     test_swap_ranges_bad_alloc(seq, IteratorTag());
     test_swap_ranges_bad_alloc(par, IteratorTag());
-    test_swap_ranges_bad_alloc(vec, IteratorTag());
     test_swap_ranges_bad_alloc(task, IteratorTag());
 
     test_swap_ranges_bad_alloc(execution_policy(seq), IteratorTag());
     test_swap_ranges_bad_alloc(execution_policy(par), IteratorTag());
-    test_swap_ranges_bad_alloc(execution_policy(vec), IteratorTag());
     test_swap_ranges_bad_alloc(execution_policy(task), IteratorTag());
 }
 

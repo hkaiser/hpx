@@ -5,7 +5,7 @@
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
-#include <hpx/include/algorithm.hpp>
+#include <hpx/include/parallel_copy_if.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include "test_utils.hpp"
@@ -25,7 +25,7 @@ void test_copy_if(ExPolicy const& policy, IteratorTag)
     std::iota(boost::begin(c), middle, std::rand());
     std::fill(middle, boost::end(c), -1);
 
-    base_iterator outiter = hpx::parallel::copy_if(policy,
+    hpx::parallel::copy_if(policy,
         iterator(boost::begin(c)), iterator(boost::end(c)),
         boost::begin(d), [](int i){return !(i<0);});
 
@@ -99,7 +99,7 @@ void test_copy_if_outiter(ExPolicy const& policy, IteratorTag)
     std::iota(boost::begin(c), middle, std::rand());
     std::fill(middle, boost::end(c), -1);
 
-    auto outiter = hpx::parallel::copy_if(policy,
+    hpx::parallel::copy_if(policy,
         iterator(boost::begin(c)), iterator(boost::end(c)),
         std::back_inserter(d), [](int i){return !(i<0);});
 
@@ -149,22 +149,22 @@ void test_copy_if()
 
     test_copy_if(seq, IteratorTag());
     test_copy_if(par, IteratorTag());
-    test_copy_if(vec, IteratorTag());
+    test_copy_if(par_vec, IteratorTag());
     test_copy_if(task, IteratorTag());
 
     test_copy_if(execution_policy(seq), IteratorTag());
     test_copy_if(execution_policy(par), IteratorTag());
-    test_copy_if(execution_policy(vec), IteratorTag());
+    test_copy_if(execution_policy(par_vec), IteratorTag());
     test_copy_if(execution_policy(task), IteratorTag());
 
     test_copy_if_outiter(seq, IteratorTag());
     test_copy_if_outiter(par, IteratorTag());
-    test_copy_if_outiter(vec, IteratorTag());
+    test_copy_if_outiter(par_vec, IteratorTag());
     test_copy_if_outiter(task, IteratorTag());
 
     test_copy_if_outiter(execution_policy(seq), IteratorTag());
     test_copy_if_outiter(execution_policy(par), IteratorTag());
-    test_copy_if_outiter(execution_policy(vec), IteratorTag());
+    test_copy_if_outiter(execution_policy(par_vec), IteratorTag());
     test_copy_if_outiter(execution_policy(task), IteratorTag());
 
 }
@@ -191,7 +191,7 @@ void test_copy_if_exception(ExPolicy const& policy, IteratorTag)
 
     bool caught_exception = false;
     try {
-        base_iterator outiter = hpx::parallel::copy_if(policy,
+        hpx::parallel::copy_if(policy,
             iterator(boost::begin(c)), iterator(boost::end(c)), boost::begin(d),
             [](std::size_t v) {
                 throw std::runtime_error("test");
@@ -251,7 +251,7 @@ template <typename IteratorTag>
 void test_copy_if_exception()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_copy_if_exception(seq, IteratorTag());
@@ -285,7 +285,7 @@ void test_copy_if_bad_alloc(ExPolicy const& policy, IteratorTag)
 
     bool caught_bad_alloc = false;
     try {
-        base_iterator outiter = hpx::parallel::copy_if(policy,
+        hpx::parallel::copy_if(policy,
             iterator(boost::begin(c)), iterator(boost::end(c)), boost::begin(d),
             [](std::size_t v) {
                 throw std::bad_alloc();
@@ -343,7 +343,7 @@ template <typename IteratorTag>
 void test_copy_if_bad_alloc()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_copy_if_bad_alloc(seq, IteratorTag());

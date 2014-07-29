@@ -34,7 +34,7 @@ namespace hpx { namespace lcos
                 boost::shared_ptr<when_each<Sequence, F> > when,
                 threads::thread_id_type const& id)
             {
-                when->f_(future);
+                when->f_(std::move(future));
 
                 if (when->count_.fetch_add(1) + 1 == when->needed_count_)
                 {
@@ -47,7 +47,7 @@ namespace hpx { namespace lcos
             template <typename Future>
             void operator()(Future& future) const
             {
-                std::size_t counter = when_->count_.load(boost::memory_order_acquire);
+                std::size_t counter = when_->count_.load(boost::memory_order_seq_cst);
                 if (counter < when_->needed_count_ && !future.is_ready()) {
                     // handle future only if not enough futures are ready yet
                     // also, do not touch any futures which are already ready
@@ -65,7 +65,7 @@ namespace hpx { namespace lcos
                 }
                 else {
                     ++when_->count_;
-                    when_->f_(future);    // invoke callback right away
+                    when_->f_(std::move(future));    // invoke callback right away
                 }
             }
 
@@ -133,7 +133,7 @@ namespace hpx { namespace lcos
                 }
 
                 // all futures should be ready
-                HPX_ASSERT(count_.load(boost::memory_order_acquire) == needed_count_);
+                HPX_ASSERT(count_.load(boost::memory_order_seq_cst) == needed_count_);
             }
 
             argument_type lazy_values_;
@@ -295,7 +295,7 @@ namespace hpx { namespace lcos
             argument_type;
         typedef void result_type;
         typedef typename util::decay<F>::type func_type;
-        typedef detail::when_each<result_type, func_type> when_each_type;
+        typedef detail::when_each<argument_type, func_type> when_each_type;
 
         argument_type lazy_values(BOOST_PP_ENUM(N, HPX_WHEN_EACH_ACQUIRE_FUTURE, _));
 

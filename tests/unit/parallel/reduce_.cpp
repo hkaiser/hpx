@@ -5,7 +5,7 @@
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
-#include <hpx/include/numeric.hpp>
+#include <hpx/include/parallel_reduce.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include "test_utils.hpp"
@@ -68,12 +68,12 @@ void test_reduce1()
 
     test_reduce1(seq, IteratorTag());
     test_reduce1(par, IteratorTag());
-    test_reduce1(vec, IteratorTag());
+    test_reduce1(par_vec, IteratorTag());
     test_reduce1(task, IteratorTag());
 
     test_reduce1(execution_policy(seq), IteratorTag());
     test_reduce1(execution_policy(par), IteratorTag());
-    test_reduce1(execution_policy(vec), IteratorTag());
+    test_reduce1(execution_policy(par_vec), IteratorTag());
     test_reduce1(execution_policy(task), IteratorTag());
 }
 
@@ -132,12 +132,12 @@ void test_reduce2()
 
     test_reduce2(seq, IteratorTag());
     test_reduce2(par, IteratorTag());
-    test_reduce2(vec, IteratorTag());
+    test_reduce2(par_vec, IteratorTag());
     test_reduce2(task, IteratorTag());
 
     test_reduce2(execution_policy(seq), IteratorTag());
     test_reduce2(execution_policy(par), IteratorTag());
-    test_reduce2(execution_policy(vec), IteratorTag());
+    test_reduce2(execution_policy(par_vec), IteratorTag());
     test_reduce2(execution_policy(task), IteratorTag());
 }
 
@@ -148,7 +148,6 @@ void reduce_test2()
     test_reduce2<std::input_iterator_tag>();
 }
 
-#if !defined(BOOST_NO_CXX11_FUNCTION_TEMPLATE_DEFAULT_ARGS)
 ///////////////////////////////////////////////////////////////////////////////
 template <typename ExPolicy, typename IteratorTag>
 void test_reduce3(ExPolicy const& policy, IteratorTag)
@@ -178,12 +177,6 @@ void test_reduce3(hpx::parallel::task_execution_policy, IteratorTag)
     std::vector<std::size_t> c(10007);
     std::iota(boost::begin(c), boost::end(c), std::rand());
 
-    std::size_t const val(42);
-    auto op =
-        [val](std::size_t v1, std::size_t v2) {
-            return v1 + v2 + val;
-        };
-
     hpx::future<std::size_t> f =
         hpx::parallel::reduce(hpx::parallel::task,
             iterator(boost::begin(c)), iterator(boost::end(c)));
@@ -201,12 +194,12 @@ void test_reduce3()
 
     test_reduce3(seq, IteratorTag());
     test_reduce3(par, IteratorTag());
-    test_reduce3(vec, IteratorTag());
+    test_reduce3(par_vec, IteratorTag());
     test_reduce3(task, IteratorTag());
 
     test_reduce3(execution_policy(seq), IteratorTag());
     test_reduce3(execution_policy(par), IteratorTag());
-    test_reduce3(execution_policy(vec), IteratorTag());
+    test_reduce3(execution_policy(par_vec), IteratorTag());
     test_reduce3(execution_policy(task), IteratorTag());
 }
 
@@ -216,7 +209,6 @@ void reduce_test3()
     test_reduce3<std::forward_iterator_tag>();
     test_reduce3<std::input_iterator_tag>();
 }
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 template <typename ExPolicy, typename IteratorTag>
@@ -293,7 +285,7 @@ template <typename IteratorTag>
 void test_reduce_exception()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_reduce_exception(seq, IteratorTag());
@@ -383,7 +375,7 @@ template <typename IteratorTag>
 void test_reduce_bad_alloc()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_reduce_bad_alloc(seq, IteratorTag());
@@ -407,9 +399,8 @@ int hpx_main()
 {
     reduce_test1();
     reduce_test2();
-#if !defined(BOOST_NO_CXX11_FUNCTION_TEMPLATE_DEFAULT_ARGS)
     reduce_test3();
-#endif
+
     reduce_exception_test();
     reduce_bad_alloc_test();
     return hpx::finalize();
@@ -428,5 +419,3 @@ int main(int argc, char* argv[])
 
     return hpx::util::report_errors();
 }
-
-

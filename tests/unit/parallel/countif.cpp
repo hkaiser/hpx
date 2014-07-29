@@ -5,7 +5,7 @@
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
-#include <hpx/include/algorithm.hpp>
+#include <hpx/include/parallel_count_if.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include "test_utils.hpp"
@@ -27,7 +27,7 @@ void test_count_if(ExPolicy const& policy, IteratorTag)
         iterator(boost::begin(c)), iterator(boost::end(c)),
         [](std::size_t x) { return x < 50; });
 
-    HPX_TEST_EQ(num_items, 50);
+    HPX_TEST_EQ(num_items, 50u);
 }
 
 template <typename IteratorTag>
@@ -55,12 +55,12 @@ void test_count_if()
     using namespace hpx::parallel;
     test_count_if(seq, IteratorTag());
     test_count_if(par, IteratorTag());
-    test_count_if(vec, IteratorTag());
+    test_count_if(par_vec, IteratorTag());
     test_count_if(task, IteratorTag());
 
     test_count_if(execution_policy(seq), IteratorTag());
     test_count_if(execution_policy(par), IteratorTag());
-    test_count_if(execution_policy(vec), IteratorTag());
+    test_count_if(execution_policy(par_vec), IteratorTag());
     test_count_if(execution_policy(task), IteratorTag());
 }
 
@@ -146,7 +146,7 @@ template <typename IteratorTag>
 void test_count_if_exception()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_count_if_exception(seq, IteratorTag());
@@ -235,7 +235,7 @@ template <typename IteratorTag>
 void test_count_if_bad_alloc()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_count_if_bad_alloc(seq, IteratorTag());

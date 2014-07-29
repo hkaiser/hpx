@@ -5,7 +5,7 @@
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
-#include <hpx/include/algorithm.hpp>
+#include <hpx/include/parallel_move.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include "test_utils.hpp"
@@ -24,12 +24,12 @@ void test_move(ExPolicy const& policy, IteratorTag)
     std::vector<std::size_t> c(10007);
     std::vector<std::size_t> d(c.size());
     std::iota(boost::begin(c), boost::end(c), std::rand());
-    base_iterator res = hpx::parallel::move(policy,
+    hpx::parallel::move(policy,
         iterator(boost::begin(c)), iterator(boost::end(c)), boost::begin(d));
 
     //copy contents of d back into c for testing
     std::copy(boost::begin(d), boost::end(d), boost::begin(d));
-    
+
     std::size_t count = 0;
     HPX_TEST(std::equal(boost::begin(c), boost::end(c), boost::begin(d),
         [&count](std::size_t v1, std::size_t v2) {
@@ -38,7 +38,7 @@ void test_move(ExPolicy const& policy, IteratorTag)
             return v1 == v2;
         }));
     HPX_TEST_EQ(count, d.size());
-    
+
 }
 
 template <typename IteratorTag>
@@ -54,7 +54,7 @@ void test_move(hpx::parallel::task_execution_policy, IteratorTag)
     hpx::future<base_iterator> f =
         hpx::parallel::move(hpx::parallel::task,
             iterator(boost::begin(c)), iterator(boost::end(c)), boost::begin(d));
- 
+
     hpx::future<void> g = f.then(
         [&d, &c](hpx::future<void> f)
         {
@@ -85,12 +85,12 @@ void test_outiter_move(ExPolicy const& policy, IteratorTag)
     std::vector<std::size_t> c(10007);
     std::vector<std::size_t> d(0);
     std::iota(boost::begin(c), boost::end(c), std::rand());
-    outiterator res = hpx::parallel::move(policy,
+    hpx::parallel::move(policy,
         iterator(boost::begin(c)), iterator(boost::end(c)), std::back_inserter(d));
 
     //copy contents of d back into c for testing
     std::copy(boost::begin(d), boost::end(d), boost::begin(d));
-    
+
     std::size_t count = 0;
     HPX_TEST(std::equal(boost::begin(c), boost::end(c), boost::begin(d),
         [&count](std::size_t v1, std::size_t v2) {
@@ -99,7 +99,7 @@ void test_outiter_move(ExPolicy const& policy, IteratorTag)
             return v1 == v2;
         }));
     HPX_TEST_EQ(count, d.size());
-    
+
 }
 
 template <typename IteratorTag>
@@ -116,7 +116,7 @@ void test_outiter_move(hpx::parallel::task_execution_policy, IteratorTag)
     hpx::future<outiterator> f =
         hpx::parallel::move(hpx::parallel::task,
         iterator(boost::begin(c)), iterator(boost::end(c)), std::back_inserter(d));
- 
+
     hpx::future<void> g = f.then(
         [&d, &c](hpx::future<void> f)
         {
@@ -141,23 +141,23 @@ void test_move()
     using namespace hpx::parallel;
     test_move(seq, IteratorTag());
     test_move(par, IteratorTag());
-    test_move(vec, IteratorTag());
+    test_move(par_vec, IteratorTag());
     test_move(task, IteratorTag());
 
     test_move(execution_policy(seq), IteratorTag());
     test_move(execution_policy(par), IteratorTag());
-    test_move(execution_policy(vec), IteratorTag());
+    test_move(execution_policy(par_vec), IteratorTag());
     test_move(execution_policy(task), IteratorTag());
 
     //output iterator test
     test_outiter_move(seq, IteratorTag());
     test_outiter_move(par, IteratorTag());
-    test_outiter_move(vec, IteratorTag());
+    test_outiter_move(par_vec, IteratorTag());
     test_outiter_move(task, IteratorTag());
 
     test_outiter_move(execution_policy(seq), IteratorTag());
     test_outiter_move(execution_policy(par), IteratorTag());
-    test_outiter_move(execution_policy(vec), IteratorTag());
+    test_outiter_move(execution_policy(par_vec), IteratorTag());
     test_outiter_move(execution_policy(task), IteratorTag());
 }
 
@@ -185,7 +185,7 @@ void test_move_exception(ExPolicy const& policy, IteratorTag)
 
     bool caught_exception = false;
     try {
-        base_iterator outiter = hpx::parallel::move(policy,
+        hpx::parallel::move(policy,
             decorated_iterator(
                 boost::begin(c),
                 [](){ throw std::runtime_error("test"); }),
@@ -246,7 +246,7 @@ template <typename IteratorTag>
 void test_move_exception()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_move_exception(seq, IteratorTag());
@@ -282,7 +282,7 @@ void test_move_bad_alloc(ExPolicy const& policy, IteratorTag)
 
     bool caught_bad_alloc = false;
     try {
-        base_iterator outiter = hpx::parallel::move(policy,
+        hpx::parallel::move(policy,
             decorated_iterator(
                 boost::begin(c),
                 [](){ throw std::bad_alloc(); }),
@@ -340,7 +340,7 @@ template <typename IteratorTag>
 void test_move_bad_alloc()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_move_bad_alloc(seq, IteratorTag());

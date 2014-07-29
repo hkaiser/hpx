@@ -341,6 +341,8 @@ namespace detail
             if (state_ == empty) {
                 cond_.wait(l, "future_data::wait", ec);
                 if (ec) return;
+
+                HPX_ASSERT(state_ != empty);
             }
 
             if (&ec != &throws)
@@ -353,19 +355,23 @@ namespace detail
             typename mutex_type::scoped_lock l(mtx_);
 
             // block if this entry is empty
-            if (state_ == empty) {
+            if (state_ == empty && p > boost::posix_time::seconds(0)) {
                 threads::thread_state_ex_enum const reason =
                     cond_.wait_for(l, p, "future_data::wait_for", ec);
                 if (ec) return future_status::uninitialized;
 
-                return (reason == threads::wait_signaled) ?
-                    future_status::timeout : future_status::ready; //-V110
+                if (reason == threads::wait_signaled)
+                    return future_status::timeout;
+
+                HPX_ASSERT(state_ != empty);
+                return future_status::ready;
             }
 
             if (&ec != &throws)
                 ec = make_success_code();
 
-            return future_status::ready; //-V110
+            return is_ready_locked() ?
+                future_status::ready : future_status::timeout; //-V110
         }
 
         virtual BOOST_SCOPED_ENUM(future_status)
@@ -379,8 +385,11 @@ namespace detail
                     cond_.wait_until(l, at, "future_data::wait_until", ec);
                 if (ec) return future_status::uninitialized;
 
-                return (reason == threads::wait_signaled) ?
-                    future_status::timeout : future_status::ready; //-V110
+                if (reason == threads::wait_signaled)
+                    return future_status::timeout;
+
+                HPX_ASSERT(state_ != empty);
+                return future_status::ready;
             }
 
             if (&ec != &throws)
@@ -412,12 +421,6 @@ namespace detail
         {
             typename mutex_type::scoped_lock l(mtx_);
             return state_ != empty && data_.stores_error();
-        }
-
-        BOOST_SCOPED_ENUM(future_status) get_status() const
-        {
-            typename mutex_type::scoped_lock l(mtx_);
-            return state_ != empty ? future_status::ready : future_status::deferred; //-V110
         }
 
     protected:
@@ -540,18 +543,30 @@ namespace detail
         }
 
         virtual BOOST_SCOPED_ENUM(future_status)
-        wait_for(boost::posix_time::time_duration const& /*p*/, error_code& /*ec*/ = throws)
+        wait_for(boost::posix_time::time_duration const& p, error_code& ec = throws)
         {
-            return future_status::deferred; //-V110
+            if (!started_test())
+                return future_status::deferred; //-V110
+            else
+                return this->future_data<Result>::wait_for(p, ec);
         }
 
         virtual BOOST_SCOPED_ENUM(future_status)
-        wait_until(boost::posix_time::ptime const& /*at*/, error_code& /*ec*/ = throws)
+        wait_until(boost::posix_time::ptime const& at, error_code& ec = throws)
         {
-            return future_status::deferred; //-V110
+            if (!started_test())
+                return future_status::deferred; //-V110
+            else
+                return this->future_data<Result>::wait_until(at, ec);
         };
 
     private:
+        bool started_test() const
+        {
+            typename mutex_type::scoped_lock l(this->mtx_);
+            return started_;
+        }
+
         bool started_test_and_set()
         {
             typename mutex_type::scoped_lock l(this->mtx_);
@@ -583,7 +598,8 @@ namespace detail
         }
 
         // run in a separate thread
-        void apply(threads::thread_priority priority,
+        void apply(BOOST_SCOPED_ENUM(launch) policy,
+            threads::thread_priority priority,
             threads::thread_stacksize stacksize, error_code& ec)
         {
             check_started();
@@ -596,6 +612,13 @@ namespace detail
             if (sched_) {
                 sched_->add(util::bind(&task_base::run_impl, this_),
                     desc ? desc : "task_base::apply", threads::pending, false,
+                    stacksize, ec);
+            }
+            else if (policy == launch::fork) {
+                threads::register_thread_plain(
+                    util::bind(&task_base::run_impl, this_),
+                    desc ? desc : "task_base::apply", threads::pending, false,
+                    threads::thread_priority_boost, get_worker_thread_num(),
                     stacksize, ec);
             }
             else {

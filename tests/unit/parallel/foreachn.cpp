@@ -5,7 +5,7 @@
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
-#include <hpx/include/algorithm.hpp>
+#include <hpx/include/parallel_for_each_n.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include "test_utils.hpp"
@@ -74,12 +74,12 @@ void test_for_each_n()
 
     test_for_each_n(seq, IteratorTag());
     test_for_each_n(par, IteratorTag());
-    test_for_each_n(vec, IteratorTag());
+    test_for_each_n(par_vec, IteratorTag());
     test_for_each_n(task, IteratorTag());
 
     test_for_each_n(execution_policy(seq), IteratorTag());
     test_for_each_n(execution_policy(par), IteratorTag());
-    test_for_each_n(execution_policy(vec), IteratorTag());
+    test_for_each_n(execution_policy(par_vec), IteratorTag());
     test_for_each_n(execution_policy(task), IteratorTag());
 }
 
@@ -104,7 +104,7 @@ void test_for_each_n_exception(ExPolicy const& policy, IteratorTag)
 
     bool caught_exception = false;
     try {
-        iterator result = hpx::parallel::for_each_n(policy,
+        hpx::parallel::for_each_n(policy,
             iterator(boost::begin(c)), c.size(),
             [](std::size_t& v) {
                 throw std::runtime_error("test");
@@ -161,7 +161,7 @@ template <typename IteratorTag>
 void test_for_each_n_exception()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_for_each_n_exception(seq, IteratorTag());
@@ -194,7 +194,7 @@ void test_for_each_n_bad_alloc(ExPolicy const& policy, IteratorTag)
 
     bool caught_bad_alloc = false;
     try {
-        iterator result = hpx::parallel::for_each_n(policy,
+        hpx::parallel::for_each_n(policy,
             iterator(boost::begin(c)), c.size(),
             [](std::size_t& v) {
                 throw std::bad_alloc();
@@ -247,7 +247,7 @@ template <typename IteratorTag>
 void test_for_each_n_bad_alloc()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_for_each_n_bad_alloc(seq, IteratorTag());

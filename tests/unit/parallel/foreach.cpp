@@ -5,7 +5,7 @@
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
-#include <hpx/include/algorithm.hpp>
+#include <hpx/include/parallel_for_each.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include "test_utils.hpp"
@@ -72,12 +72,12 @@ void test_for_each()
 
     test_for_each(seq, IteratorTag());
     test_for_each(par, IteratorTag());
-    test_for_each(vec, IteratorTag());
+    test_for_each(par_vec, IteratorTag());
     test_for_each(task, IteratorTag());
 
     test_for_each(execution_policy(seq), IteratorTag());
     test_for_each(execution_policy(par), IteratorTag());
-    test_for_each(execution_policy(vec), IteratorTag());
+    test_for_each(execution_policy(par_vec), IteratorTag());
     test_for_each(execution_policy(task), IteratorTag());
 }
 
@@ -187,7 +187,7 @@ template <typename IteratorTag>
 void test_for_each_exception()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_for_each_exception(seq, IteratorTag());
@@ -273,7 +273,7 @@ template <typename IteratorTag>
 void test_for_each_bad_alloc()
 {
     using namespace hpx::parallel;
-    //If the execution policy object is of type vector_execution_policy, 
+    //If the execution policy object is of type vector_execution_policy,
     //  std::terminate shall be called. therefore we do not test exceptions
     //  with a vector execution policy
     test_for_each_bad_alloc(seq, IteratorTag());
