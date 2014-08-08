@@ -177,7 +177,7 @@ namespace hpx { namespace parallel { namespace util
                     workitems.reserve(count / chunk_size + 1);
 
                     threads::executor exec = policy.get_executor();
-                    while (count > chunk_size)
+                    for (/**/; count > chunk_size; count -= chunk_size)
                     {
                         if (exec)
                         {
@@ -189,7 +189,6 @@ namespace hpx { namespace parallel { namespace util
                             workitems.push_back(hpx::async(hpx::launch::fork,
                                 f1, first, chunk_size));
                         }
-                        count -= chunk_size;
                         std::advance(first, chunk_size);
                     }
 
@@ -197,6 +196,60 @@ namespace hpx { namespace parallel { namespace util
                     if (count != 0)
                     {
                         f1(first, count);
+                        std::advance(first, count);
+                    }
+                }
+                catch (...) {
+                    detail::handle_local_exceptions<ExPolicy>::call(
+                        boost::current_exception(), errors);
+                }
+
+                // wait for all tasks to finish
+                hpx::wait_all(workitems);
+                detail::handle_local_exceptions<ExPolicy>::call(
+                    workitems, errors);
+
+                return first;
+            }
+
+            template <typename FwdIter, typename F1, typename Data>
+            static FwdIter call(ExPolicy const& policy, FwdIter first,
+                std::size_t count, F1 && f1, std::size_t chunk_size,
+                Data && data)
+            {
+                typename Data::const_iterator data_it = boost::begin(data);
+
+                std::vector<hpx::future<Result> > workitems;
+                std::list<boost::exception_ptr> errors;
+
+                try {
+                    // estimate a chunk size based on number of cores used
+                    chunk_size = get_static_chunk_size(policy, workitems, f1,
+                        first, count, chunk_size);
+
+                    // schedule every chunk on a separate thread
+                    workitems.reserve(count / chunk_size + 1);
+
+                    threads::executor exec = policy.get_executor();
+                    for (/**/; count > chunk_size; count -= chunk_size)
+                    {
+                        if (exec)
+                        {
+                            workitems.push_back(hpx::async(exec, f1,
+                                *data_it++, first, chunk_size));
+                        }
+                        else
+                        {
+                            workitems.push_back(hpx::async(hpx::launch::fork,
+                                f1, *data_it++, first, chunk_size));
+                        }
+                        std::advance(first, chunk_size);
+                    }
+
+                    // execute last chunk directly
+                    if (count != 0)
+                    {
+                        f1(*data_it++, first, count);
                         std::advance(first, count);
                     }
                 }
@@ -236,35 +289,72 @@ namespace hpx { namespace parallel { namespace util
                     workitems.reserve(count / chunk_size + 1);
 
                     threads::executor exec = policy.get_executor();
-                    while (count > chunk_size)
+                    std::size_t upper = count + chunk_size - 1;
+                    for (std::size_t p = 0; p < upper; p += chunk_size)
                     {
                         if (exec)
                         {
-                            workitems.push_back(hpx::async(exec, f1, first,
-                                chunk_size));
+                            workitems.push_back(hpx::async(exec,
+                                f1, first, chunk_size));
                         }
                         else
                         {
-                            workitems.push_back(hpx::async(hpx::launch::fork, f1,
-                                first, chunk_size));
+                            workitems.push_back(hpx::async(hpx::launch::fork,
+                                f1, first, chunk_size));
                         }
-                        count -= chunk_size;
-                        std::advance(first, chunk_size);
+                        std::advance(first, (std::min)(count, p+chunk_size)-p);
                     }
+                }
+                catch (...) {
+                    detail::handle_local_exceptions<task_execution_policy>::call(
+                        boost::current_exception(), errors);
+                }
 
-                    // add last chunk
-                    if (count != 0)
+                // wait for all tasks to finish
+                return hpx::lcos::local::dataflow(
+                    [first, errors](std::vector<hpx::future<Result> > && r) mutable
+                    {
+                        detail::handle_local_exceptions<task_execution_policy>
+                            ::call(r, errors);
+                        return first;
+                    },
+                    std::move(workitems));
+            }
+
+            template <typename FwdIter, typename F1, typename Data>
+            static hpx::future<FwdIter> call_with_data(
+                task_execution_policy const& policy,
+                FwdIter first, std::size_t count, F1 && f1,
+                std::size_t chunk_size, Data && data)
+            {
+                typename Data::const_iterator data_it = boost::begin(data);
+
+                std::vector<hpx::future<Result> > workitems;
+                std::list<boost::exception_ptr> errors;
+
+                try {
+                    // estimate a chunk size based on number of cores used
+                    chunk_size = get_static_chunk_size(policy, workitems, f1,
+                        first, count, chunk_size);
+
+                    // schedule every chunk on a separate thread
+                    workitems.reserve(count / chunk_size + 1);
+
+                    threads::executor exec = policy.get_executor();
+                    std::size_t upper = count + chunk_size - 1;
+                    for (std::size_t p = 0; p < upper; p += chunk_size)
                     {
                         if (exec)
                         {
-                            workitems.push_back(hpx::async(exec, f1, first, count));
+                            workitems.push_back(hpx::async(exec,
+                                f1, *data_it++, first, chunk_size));
                         }
                         else
                         {
-                            workitems.push_back(hpx::async(hpx::launch::fork, f1,
-                                first, count));
+                            workitems.push_back(hpx::async(hpx::launch::fork,
+                                f1, *data_it++, first, chunk_size));
                         }
-                        std::advance(first, count);
+                        std::advance(first, (std::min)(count, p+chunk_size)-p);
                     }
                 }
                 catch (...) {
@@ -297,10 +387,21 @@ namespace hpx { namespace parallel { namespace util
         {
             template <typename FwdIter, typename F1>
             static FwdIter call(ExPolicy const& policy, FwdIter first,
-                std::size_t count, F1 && f1)
+                std::size_t count, F1 && f1, std::size_t chunk_size = 0)
             {
                 return foreach_n_static_partitioner<ExPolicy, Result>::call(
-                    policy, first, count, std::forward<F1>(f1), 0);
+                    policy, first, count, std::forward<F1>(f1), chunk_size);
+            }
+
+            template <typename FwdIter, typename F1, typename Data>
+            static FwdIter call(ExPolicy const& policy, FwdIter first,
+                std::size_t count, F1 && f1, std::size_t chunk_size,
+                Data && data)
+            {
+                return foreach_n_static_partitioner<ExPolicy, Result>::
+                    call_with_data(
+                        policy, first, count, std::forward<F1>(f1), chunk_size,
+                        std::forward<Data>(data));
             }
         };
 
@@ -310,12 +411,25 @@ namespace hpx { namespace parallel { namespace util
         {
             template <typename FwdIter, typename F1>
             static hpx::future<FwdIter> call(
-                task_execution_policy const& policy,
-                FwdIter first, std::size_t count, F1 && f1)
+                task_execution_policy const& policy, FwdIter first,
+                std::size_t count, F1 && f1, std::size_t chunk_size = 0)
             {
                 return foreach_n_static_partitioner<
                         task_execution_policy, Result
-                    >::call(policy, first, count, std::forward<F1>(f1), 0);
+                    >::call(policy, first, count, std::forward<F1>(f1),
+                        chunk_size);
+            }
+
+            template <typename FwdIter, typename F1, typename Data>
+            static FwdIter call(ExPolicy const& policy, FwdIter first,
+                std::size_t count, F1 && f1, std::size_t chunk_size,
+                Data && data)
+            {
+                return foreach_n_static_partitioner<
+                        task_execution_policy, Result
+                    >::call_with_data(policy, first, count,
+                        std::forward<F1>(f1), chunk_size,
+                        std::forward<Data>(data));
             }
         };
 
@@ -424,7 +538,7 @@ namespace hpx { namespace parallel { namespace util
                     workitems.reserve(count / chunk_size + 1);
 
                     threads::executor exec = policy.get_executor();
-                    while (count > chunk_size)
+                    for (/**/; count > chunk_size; count -= chunk_size)
                     {
                         if (exec)
                         {
@@ -436,7 +550,6 @@ namespace hpx { namespace parallel { namespace util
                             workitems.push_back(hpx::async(hpx::launch::fork, f1,
                                 first, chunk_size));
                         }
-                        count -= chunk_size;
                         std::advance(first, chunk_size);
                     }
 
@@ -478,21 +591,20 @@ namespace hpx { namespace parallel { namespace util
                     workitems.reserve(count / chunk_size + 1);
 
                     threads::executor exec = policy.get_executor();
-                    while (count > chunk_size)
+                    for (/**/; count > chunk_size;
+                         count -= chunk_size, base_idx += chunk_size)
                     {
                         if (exec)
                         {
-                            workitems.push_back(hpx::async(exec, f1, base_idx,
-                                first, chunk_size));
+                            workitems.push_back(hpx::async(exec,
+                                f1, base_idx, first, chunk_size));
                         }
                         else
                         {
                             workitems.push_back(hpx::async(hpx::launch::fork,
                                 f1, base_idx, first, chunk_size));
                         }
-                        count -= chunk_size;
                         std::advance(first, chunk_size);
-                        base_idx += chunk_size;
                     }
 
                     // execute last chunk directly
@@ -537,35 +649,20 @@ namespace hpx { namespace parallel { namespace util
                     workitems.reserve(count / chunk_size + 1);
 
                     threads::executor exec = policy.get_executor();
-                    while (count > chunk_size)
+                    std::size_t upper = count + chunk_size - 1;
+                    for (std::size_t p = 0; p < upper; p += chunk_size)
                     {
                         if (exec)
                         {
-                            workitems.push_back(hpx::async(exec, f1, first,
-                                chunk_size));
+                            workitems.push_back(hpx::async(exec,
+                                f1, first, chunk_size));
                         }
                         else
                         {
                             workitems.push_back(hpx::async(hpx::launch::fork,
                                 f1, first, chunk_size));
                         }
-                        count -= chunk_size;
-                        std::advance(first, chunk_size);
-                    }
-
-                    // add last chunk
-                    if (count != 0)
-                    {
-                        if (exec)
-                        {
-                            workitems.push_back(hpx::async(exec, f1, first, count));
-                        }
-                        else
-                        {
-                            workitems.push_back(hpx::async(hpx::launch::fork,
-                                f1, first, count));
-                        }
-                        std::advance(first, count);
+                        std::advance(first, (std::min)(count, p+chunk_size)-p);
                     }
                 }
                 catch (...) {
@@ -603,7 +700,9 @@ namespace hpx { namespace parallel { namespace util
                     workitems.reserve(count / chunk_size + 1);
 
                     threads::executor exec = policy.get_executor();
-                    while (count > chunk_size)
+                    std::size_t upper = count + chunk_size - 1;
+                    for (std::size_t p = 0; p < upper;
+                         p += chunk_size, base_idx += chunk_size)
                     {
                         if (exec)
                         {
@@ -615,25 +714,7 @@ namespace hpx { namespace parallel { namespace util
                             workitems.push_back(hpx::async(hpx::launch::fork,
                                 f1, base_idx, first, chunk_size));
                         }
-                        count -= chunk_size;
-                        std::advance(first, chunk_size);
-                        base_idx += chunk_size;
-                    }
-
-                    // add last chunk
-                    if (count != 0)
-                    {
-                        if (exec)
-                        {
-                            workitems.push_back(hpx::async(exec, f1, base_idx,
-                                first, count));
-                        }
-                        else
-                        {
-                            workitems.push_back(hpx::async(hpx::launch::fork,
-                                f1, base_idx, first, count));
-                        }
-                        std::advance(first, count);
+                        std::advance(first, (std::min)(count, p+chunk_size)-p);
                     }
                 }
                 catch (...) {

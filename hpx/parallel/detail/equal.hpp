@@ -105,9 +105,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                             it, part_count, tok,
                             [&f, &tok](reference t)
                             {
-                                if (!f(hpx::util::get<0>(t), hpx::util::get<1>(t))){
+                                if (!f(hpx::util::get<0>(t), hpx::util::get<1>(t)))
                                     tok.cancel();
-                                }
                             });
                         return !tok.was_cancelled();
                     },

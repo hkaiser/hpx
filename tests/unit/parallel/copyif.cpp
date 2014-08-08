@@ -20,32 +20,34 @@ void test_copy_if(ExPolicy const& policy, IteratorTag)
     typedef test::test_iterator<base_iterator, IteratorTag> iterator;
 
     std::vector<int> c(10007);
-    std::vector<int> d(c.size());
-    auto middle = boost::begin(c) + c.size()/2;
-    std::iota(boost::begin(c), middle, std::rand());
-    std::fill(middle, boost::end(c), -1);
+    std::vector<int> d1(10007), d2;
+    std::iota(boost::begin(c), boost::end(c), std::rand());
+
+    base_iterator fill_begin = boost::begin(c);
+    base_iterator fill_end = fill_begin;
+
+    std::size_t fill_begin_idx = std::rand() % (c.size()/2);
+    std::advance(fill_begin, fill_begin_idx);
+
+    std::size_t fill_end_idx = fill_begin_idx + std::rand() % (c.size()/2);
+    std::advance(fill_end, fill_end_idx);
+
+    std::fill(fill_begin, fill_end, -1);
 
     hpx::parallel::copy_if(policy,
         iterator(boost::begin(c)), iterator(boost::end(c)),
-        boost::begin(d), [](int i){return !(i<0);});
+        boost::begin(d1), [](int i){ return !(i < 0); });
 
-    std::size_t count = 0;
-    HPX_TEST(std::equal(boost::begin(c), middle, boost::begin(d),
+    std::copy_if(
+        boost::begin(c), boost::end(c), std::back_inserter(d2),
+        [](int i){ return !(i < 0); });
+    d1.resize(d2.size());
+
+    HPX_TEST(std::equal(boost::begin(d1), boost::end(d1), boost::begin(d2),
         [&count](int v1, int v2) {
             HPX_TEST_EQ(v1, v2);
-            ++count;
             return v1 == v2;
         }));
-
-    HPX_TEST(std::equal(middle,boost::end(c),
-        boost::begin(d) + (1 + d.size()/2),
-        [&count](int v1, int v2) {
-            HPX_TEST_NEQ(v1,v2);
-            ++count;
-            return v1!=v2;
-    }));
-
-    HPX_TEST_EQ(count, d.size());
 }
 
 template <typename IteratorTag>
@@ -55,36 +57,39 @@ void test_copy_if(hpx::parallel::task_execution_policy, IteratorTag)
     typedef test::test_iterator<base_iterator, IteratorTag> iterator;
 
     std::vector<int> c(10007);
-    std::vector<int> d(c.size());
-    auto middle = boost::begin(c) + c.size()/2;
-    std::iota(boost::begin(c), middle, std::rand());
-    std::fill(middle, boost::end(c), -1);
+    std::vector<int> d1(10007), d2;
+    std::iota(boost::begin(c), boost::end(c), std::rand());
 
-    hpx::future<base_iterator> f =
+    base_iterator fill_begin = boost::begin(c);
+    base_iterator fill_end = fill_begin;
+
+    std::size_t fill_begin_idx = std::rand() % (c.size()/2);
+    std::advance(fill_begin, fill_begin_idx);
+
+    std::size_t fill_end_idx = fill_begin_idx + std::rand() % (c.size()/2);
+    std::advance(fill_end, fill_end_idx);
+
+    std::fill(fill_begin, fill_end, -1);
+
+    auto f =
         hpx::parallel::copy_if(hpx::parallel::task,
             iterator(boost::begin(c)), iterator(boost::end(c)),
-            boost::begin(d), [](int i){return !(i<0);});
+            boost::begin(d1), [](int i){ return !(i < 0); });
     f.wait();
 
-    std::size_t count = 0;
-    HPX_TEST(std::equal(boost::begin(c), middle, boost::begin(d),
+    std::copy_if(
+        boost::begin(c), boost::end(c), std::back_inserter(d2),
+        [](int i){ return !(i < 0); });
+    HPX_TEST_EQ(d1.size(), d2.size());
+
+    HPX_TEST(std::equal(boost::begin(d1), boost::end(d1), boost::begin(d2),
         [&count](int v1, int v2) {
             HPX_TEST_EQ(v1, v2);
-            ++count;
             return v1 == v2;
         }));
-
-    HPX_TEST(std::equal(middle,boost::end(c),
-        boost::begin(d) + (1 + d.size()/2),
-        [&count](int v1, int v2) {
-            HPX_TEST_NEQ(v1,v2);
-            ++count;
-            return v1!=v2;
-    }));
-
-    HPX_TEST_EQ(count, d.size());
 }
 
+///////////////////////////////////////////////////////////////////////////////
 template <typename ExPolicy, typename IteratorTag>
 void test_copy_if_outiter(ExPolicy const& policy, IteratorTag)
 {
@@ -94,23 +99,34 @@ void test_copy_if_outiter(ExPolicy const& policy, IteratorTag)
     typedef test::test_iterator<base_iterator, IteratorTag> iterator;
 
     std::vector<int> c(10007);
-    std::vector<int> d(0);
-    auto middle = boost::begin(c) + c.size()/2;
-    std::iota(boost::begin(c), middle, std::rand());
-    std::fill(middle, boost::end(c), -1);
+    std::vector<int> d1, d2;
+    std::iota(boost::begin(c), boost::end(c), std::rand());
+
+    base_iterator fill_begin = boost::begin(c);
+    base_iterator fill_end = fill_begin;
+
+    std::size_t fill_begin_idx = std::rand() % (c.size()/2);
+    std::advance(fill_begin, fill_begin_idx);
+
+    std::size_t fill_end_idx = fill_begin_idx + std::rand() % (c.size()/2);
+    std::advance(fill_end, fill_end_idx);
+
+    std::fill(fill_begin, fill_end, -1);
 
     hpx::parallel::copy_if(policy,
         iterator(boost::begin(c)), iterator(boost::end(c)),
         std::back_inserter(d), [](int i){return !(i<0);});
 
-    HPX_TEST(std::equal(boost::begin(c), middle, boost::begin(d),
+    std::copy_if(
+        boost::begin(c), boost::end(c), std::back_inserter(d2),
+        [](int i){ return !(i < 0); });
+    HPX_TEST_EQ(d1.size(), d2.size());
+
+    HPX_TEST(std::equal(boost::begin(d1), boost::begin(d1), boost::begin(d2),
         [](int v1, int v2) {
             HPX_TEST_EQ(v1, v2);
             return v1 == v2;
         }));
-
-    //assure D is half the size of C
-    HPX_TEST_EQ(c.size()/2, d.size());
 }
 
 template <typename IteratorTag>
@@ -120,10 +136,19 @@ void test_copy_if_outiter(hpx::parallel::task_execution_policy, IteratorTag)
     typedef test::test_iterator<base_iterator, IteratorTag> iterator;
 
     std::vector<int> c(10007);
-    std::vector<int> d(0);
-    auto middle = boost::begin(c) + c.size()/2;
-    std::iota(boost::begin(c), middle, std::rand());
-    std::fill(middle, boost::end(c), -1);
+    std::vector<int> d1, d2;
+    std::iota(boost::begin(c), boost::end(c), std::rand());
+
+    base_iterator fill_begin = boost::begin(c);
+    base_iterator fill_end = fill_begin;
+
+    std::size_t fill_begin_idx = std::rand() % (c.size()/2);
+    std::advance(fill_begin, fill_begin_idx);
+
+    std::size_t fill_end_idx = fill_begin_idx + std::rand() % (c.size()/2);
+    std::advance(fill_end, fill_end_idx);
+
+    std::fill(fill_begin, fill_end, -1);
 
     auto f =
         hpx::parallel::copy_if(hpx::parallel::task,
@@ -131,17 +156,19 @@ void test_copy_if_outiter(hpx::parallel::task_execution_policy, IteratorTag)
             std::back_inserter(d), [](int i){return !(i<0);});
     f.wait();
 
-    HPX_TEST(std::equal(boost::begin(c), middle, boost::begin(d),
+    std::copy_if(
+        boost::begin(c), boost::end(c), std::back_inserter(d2),
+        [](int i){ return !(i < 0); });
+    HPX_TEST_EQ(d1.size(), d2.size());
+
+    HPX_TEST(std::equal(boost::begin(d1), boost::begin(d1), boost::begin(d2),
         [](int v1, int v2) {
             HPX_TEST_EQ(v1, v2);
             return v1 == v2;
         }));
-
-    HPX_TEST_EQ(c.size()/2, d.size());
 }
 
-
-
+///////////////////////////////////////////////////////////////////////////////
 template <typename IteratorTag>
 void test_copy_if()
 {
@@ -195,7 +222,7 @@ void test_copy_if_exception(ExPolicy const& policy, IteratorTag)
             iterator(boost::begin(c)), iterator(boost::end(c)), boost::begin(d),
             [](std::size_t v) {
                 throw std::runtime_error("test");
-                return v;
+                return true;
             });
         HPX_TEST(false);
     }
@@ -228,7 +255,7 @@ void test_copy_if_exception(hpx::parallel::task_execution_policy, IteratorTag)
                 boost::begin(d),
                 [](std::size_t v) {
                     throw std::runtime_error("test");
-                    return v;
+                    return true;
                 });
         f.get();
 
@@ -289,7 +316,7 @@ void test_copy_if_bad_alloc(ExPolicy const& policy, IteratorTag)
             iterator(boost::begin(c)), iterator(boost::end(c)), boost::begin(d),
             [](std::size_t v) {
                 throw std::bad_alloc();
-                return v;
+                return true;
             });
 
         HPX_TEST(false);
@@ -322,7 +349,7 @@ void test_copy_if_bad_alloc(hpx::parallel::task_execution_policy, IteratorTag)
             boost::begin(d),
             [](std::size_t v) {
                 throw std::bad_alloc();
-                return v;
+                return true;
             });
 
         f.get();
@@ -362,7 +389,7 @@ void copy_if_bad_alloc_test()
     test_copy_if_bad_alloc<std::input_iterator_tag>();
 }
 
-
+///////////////////////////////////////////////////////////////////////////////
 int hpx_main()
 {
     copy_if_test();
