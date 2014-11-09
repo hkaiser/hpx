@@ -18,6 +18,7 @@
 #include <hpx/util/unwrapped.hpp>
 #include <hpx/util/serialize_buffer.hpp>
 #include <hpx/util/activate_counters.hpp>
+#include <hpx/util/skip_iterator.hpp>
 #include <hpx/util/zip_iterator.hpp>
 #include <hpx/util/assert.hpp>
 

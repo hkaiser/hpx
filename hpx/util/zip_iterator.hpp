@@ -10,10 +10,18 @@
 #include <hpx/hpx_fwd.hpp>
 #include <hpx/util/tuple.hpp>
 #include <hpx/util/detail/pack.hpp>
+#include <hpx/util/result_of.hpp>
+#include <hpx/util/serialize_sequence.hpp>
+#include <hpx/traits/segemented_iterator_traits.hpp>
 
 #include <boost/fusion/algorithm/iteration/for_each.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/utility/enable_if.hpp>
+
+#include <boost/mpl/assert.hpp>
+#include <boost/mpl/bool.hpp>
+#include <boost/mpl/fold.hpp>
+#include <boost/mpl/and.hpp>
 
 #include <iterator>
 
@@ -44,7 +52,11 @@ namespace hpx { namespace util
         ///////////////////////////////////////////////////////////////////////
         template <typename T, typename U>
         struct zip_iterator_category_impl
-        {};
+        {
+            BOOST_MPL_ASSERT_MSG(false,
+                unknown_combination_of_iterator_categories,
+                (T, U));
+        };
 
         // random_access_iterator_tag
         template <>
@@ -348,6 +360,15 @@ namespace hpx { namespace util
             }
 
         private:
+            friend class boost::serialization::access;
+
+            template <typename Archive>
+            void serialize(Archive& ar, unsigned)
+            {
+                util::serialize_sequence(ar, iterators_);
+            }
+
+        private:
             IteratorTuple iterators_;
         };
     }
@@ -364,6 +385,10 @@ namespace hpx { namespace util
         explicit zip_iterator(Ts const&... vs)
           : base_type(util::tie(vs...))
         {}
+
+        explicit zip_iterator(tuple<Ts...> && t)
+          : base_type(std::move(t))
+        {}
     };
 
     template <typename ...Ts>
@@ -374,6 +399,215 @@ namespace hpx { namespace util
 
         return result_type(std::forward<Ts>(vs)...);
     }
+}}
+
+namespace hpx { namespace traits
+{
+    namespace functional
+    {
+        struct get_segment_iterator
+        {
+            template <typename T>
+            struct result;
+
+            template <typename This, typename Iter>
+            struct result<This(Iter)>
+            {
+                typedef
+                    typename segmented_iterator_traits<Iter>::segment_iterator
+                    type;
+            };
+
+            template <typename Iter>
+            typename result<get_segment_iterator(Iter)>::type
+            operator()(Iter iter) const
+            {
+                return segmented_iterator_traits<Iter>::segment(iter);
+            };
+        };
+
+        struct get_local_iterator
+        {
+            template <typename T>
+            struct result;
+
+            template <typename This, typename Iter>
+            struct result<This(Iter)>
+            {
+                typedef
+                    typename segmented_iterator_traits<Iter>::local_iterator
+                    type;
+            };
+
+            template <typename Iter>
+            typename result<get_local_iterator(Iter)>::type
+            operator()(Iter iter) const
+            {
+                return segmented_iterator_traits<Iter>::local(iter);
+            };
+        };
+
+        struct get_begin
+        {
+            template <typename T>
+            struct result;
+
+            template <typename This, typename SegIter>
+            struct result<This(SegIter)>
+            {
+                typedef
+                    typename segmented_iterator_traits<SegIter>::local_iterator
+                    type;
+            };
+
+            template <typename SegIter>
+            typename result<get_begin(SegIter)>::type
+            operator()(SegIter iter) const
+            {
+                return segmented_iterator_traits<SegIter>::begin(iter);
+            };
+        };
+
+        struct get_end
+        {
+            template <typename T>
+            struct result;
+
+            template <typename This, typename SegIter>
+            struct result<This(SegIter)>
+            {
+                typedef
+                    typename segmented_iterator_traits<SegIter>::local_iterator
+                    type;
+            };
+
+            template <typename SegIter>
+            typename result<get_end(SegIter)>::type
+            operator()(SegIter iter) const
+            {
+                return segmented_iterator_traits<SegIter>::end(iter);
+            };
+        };
+
+        ///////////////////////////////////////////////////////////////////////
+        template <typename ...Ts>
+        struct all_of
+          : boost::mpl::fold<
+                util::tuple<Ts...>, boost::mpl::true_,
+                boost::mpl::and_<boost::mpl::_1, boost::mpl::_2>
+            >::type
+        {};
+
+        ///////////////////////////////////////////////////////////////////////
+        template <typename F, typename T>
+        struct element_result_of : util::result_of<F(T)> {};
+
+        template <typename F, typename Iter>
+        struct lift_zipped_iterators;
+
+        template <typename F, typename ...Ts>
+        struct lift_zipped_iterators<F, util::zip_iterator<Ts...> >
+        {
+            typedef
+                util::tuple<typename element_result_of<F, Ts>::type...>
+                result_type;
+
+            template <std::size_t ...Is>
+            static result_type
+            call(util::detail::pack_c<std::size_t, Is...>,
+                util::tuple<Ts...> const& t)
+            {
+                return util::make_tuple(F()(util::get<Is>(t))...);
+            }
+
+            static result_type
+            call(util::zip_iterator<Ts...> const& iter)
+            {
+                typedef typename util::zip_iterator<
+                        Ts...
+                    >::iterator_tuple_type tuple_type;
+
+                return call(typename util::detail::make_index_pack<
+                            util::tuple_size<tuple_type>::value
+                        >::type(), iter.get_iterator_tuple());
+            }
+        };
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // A zip_iterator represents a segmented iterator if all of the zipped
+    // iterators are segmented iterators themselves.
+    template <typename ...Ts>
+    struct segmented_iterator_traits<
+        util::zip_iterator<Ts...>,
+        typename boost::enable_if<
+            typename functional::all_of<
+                typename segmented_iterator_traits<Ts>::is_segmented_iterator...
+            >::type
+        >::type>
+    {
+        typedef boost::mpl::true_ is_segmented_iterator;
+
+        typedef util::zip_iterator<Ts...> iterator;
+        typedef util::zip_iterator<
+                typename segmented_iterator_traits<Ts>::segment_iterator...
+            > segment_iterator;
+        typedef util::zip_iterator<
+                typename segmented_iterator_traits<Ts>::local_iterator...
+            > local_iterator;
+
+        //  Conceptually this function is supposed to denote which segment
+        //  the iterator is currently pointing to (i.e. just global iterator).
+        static segment_iterator segment(iterator iter)
+        {
+            return segment_iterator(
+                functional::lift_zipped_iterators<
+                        functional::get_segment_iterator, iterator
+                    >::call(iter));
+        }
+
+        //  This function should specify which is the current segment and
+        //  the exact position to which local iterator is pointing.
+        static local_iterator local(iterator iter)
+        {
+            return local_iterator(
+                functional::lift_zipped_iterators<
+                        functional::get_local_iterator, iterator
+                    >::call(iter));
+        }
+
+        //  This function should specify the local iterator which is at the
+        //  beginning of the partition.
+        static local_iterator begin(segment_iterator const& iter)
+        {
+            return local_iterator(
+                functional::lift_zipped_iterators<
+                        functional::get_begin, segment_iterator
+                    >::call(iter));
+        }
+
+        //  This function should specify the local iterator which is at the
+        //  end of the partition.
+        static local_iterator end(segment_iterator const& iter)
+        {
+            return local_iterator(
+                functional::lift_zipped_iterators<
+                        functional::get_end, segment_iterator
+                    >::call(iter));
+        }
+
+        // Extract the base id for the segment referenced by the given segment
+        // iterator.
+        static id_type get_id(segment_iterator const& iter)
+        {
+            typedef typename util::tuple_element<
+                    0, typename iterator::iterator_tuple_type
+                >::type first_base_iterator;
+            typedef segmented_iterator_traits<first_base_iterator> traits;
+
+            return traits::get_id(util::get<0>(iter.get_iterator_tuple()));
+        }
+    };
 }}
 
 #endif

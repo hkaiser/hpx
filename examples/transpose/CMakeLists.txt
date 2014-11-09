@@ -7,10 +7,11 @@
 set(example_programs
   transpose_serial
   transpose_serial_block
+  transpose_serial_vector
   transpose_smp
   transpose_smp_block
+  transpose_smp_vector
   transpose
-  transpose_serial_vector
 )
 
 foreach(example_program ${example_programs})

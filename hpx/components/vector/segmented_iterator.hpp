@@ -710,6 +710,70 @@ namespace hpx
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace traits
 {
+    ///////////////////////////////////////////////////////////////////////////
+    template <typename T, typename BaseIter>
+    struct segmented_iterator_traits<segment_vector_iterator<T, BaseIter> >
+    {
+        typedef boost::mpl::false_ is_segmented_iterator;
+
+        typedef segment_vector_iterator<T, BaseIter> segment_iterator;
+        typedef local_vector_iterator<T> local_iterator;
+
+        //  This function should specify the local iterator which is at the
+        //  beginning of the partition.
+        static local_iterator begin(segment_iterator const& seg_iter)
+        {
+            if (seg_iter.is_at_end())       // avoid dereferencing end iterator
+                return local_iterator();
+
+            return local_iterator(seg_iter.base()->partition_, 0,
+                seg_iter.base()->local_data_);
+        }
+
+        //  This function should specify the local iterator which is at the
+        //  end of the partition.
+        static local_iterator end(segment_iterator const& seg_iter)
+        {
+            if (seg_iter.is_at_end())       // avoid dereferencing end iterator
+                return local_iterator();
+
+            return local_iterator(seg_iter.base()->partition_,
+                seg_iter.base()->size_);
+        }
+    };
+
+    template <typename T, typename BaseIter>
+    struct segmented_iterator_traits<const_segment_vector_iterator<T, BaseIter> >
+    {
+        typedef boost::mpl::false_ is_segmented_iterator;
+
+        typedef segment_vector_iterator<T, BaseIter> segment_iterator;
+        typedef const_local_vector_iterator<T> local_iterator;
+
+        //  This function should specify the local iterator which is at the
+        //  beginning of the partition.
+        static local_iterator begin(segment_iterator const& seg_iter)
+        {
+            if (seg_iter.is_at_end())       // avoid dereferencing end iterator
+                return local_iterator();
+
+            return local_iterator(seg_iter.base()->partition_, 0,
+                seg_iter.base()->local_data_);
+        }
+
+        //  This function should specify the local iterator which is at the
+        //  end of the partition.
+        static local_iterator end(segment_iterator const& seg_iter)
+        {
+            if (seg_iter.is_at_end())       // avoid dereferencing end iterator
+                return local_iterator();
+
+            return local_iterator(seg_iter.base()->partition_,
+                seg_iter.base()->size_);
+        }
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
     template <typename T>
     struct segmented_iterator_traits<vector_iterator<T> >
     {
@@ -767,6 +831,13 @@ namespace hpx { namespace traits
 
             return local_iterator(seg_iter.base()->partition_,
                 seg_iter.base()->size_);
+        }
+
+        // Extract the base id for the segment referenced by the given segment
+        // iterator.
+        static id_type get_id(segment_iterator const& iter)
+        {
+            return iter->get_id();
         }
     };
 
@@ -827,6 +898,13 @@ namespace hpx { namespace traits
 
             return local_iterator(seg_iter.base()->partition_,
                 seg_iter.base()->size_);
+        }
+
+        // Extract the base id for the segment referenced by the given segment
+        // iterator.
+        static id_type get_id(segment_iterator const& iter)
+        {
+            return iter->get_id();
         }
     };
 }}
