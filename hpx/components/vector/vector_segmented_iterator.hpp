@@ -24,6 +24,7 @@
 #include <iterator>
 #include <limits>
 
+#include <boost/shared_ptr.hpp>
 #include <boost/integer.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/iterator/iterator_adaptor.hpp>
@@ -204,6 +205,9 @@ namespace hpx
 
     public:
         typedef std::size_t size_type;
+
+        typedef typename vector<T>::partition_client_type partition_client;
+        typedef typename vector<T>::partition_server_type partition_server;
 
         // constructors
         local_vector_iterator()

@@ -208,6 +208,9 @@ namespace hpx
                 T, typename partitions_vector_type::const_iterator
             > const_local_segment_iterator;
 
+        typedef partition_vector<T> partition_client_type;
+        typedef server::partition_vector<T> partition_server_type;
+
     private:
         friend class vector_iterator<T>;
         friend class const_vector_iterator<T>;
