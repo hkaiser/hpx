@@ -1,5 +1,5 @@
 //  Copyright (c) 2014 Anuj R. Sharma
-//  Copyright (c) 2014 Hartmut Kaiser
+//  Copyright (c) 2014-2015 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http:// ww.boost.org/LICENSE_1_0.txt)
@@ -46,13 +46,10 @@ namespace hpx
     template <typename T> class vector_iterator;
     template <typename T> class const_vector_iterator;
 
-    template <typename T, typename BaseIter>
-    class segment_vector_iterator;
-    template <typename T, typename BaseIter>
-    class const_segment_vector_iterator;
+    template <typename T> class segment_vector_iterator;
+    template <typename T> class const_segment_vector_iterator;
 
-    template <typename T, typename BaseIter>
-    class local_segment_vector_iterator;
+    template <typename T> class local_segment_vector_iterator;
 
     namespace server
     {
@@ -447,19 +444,29 @@ namespace hpx
 
     ///////////////////////////////////////////////////////////////////////////
     /// This class implement the segmented iterator for the hpx::vector
-    template <typename T, typename BaseIter>
+    ///
+    /// Conceptually this iterator is a ReadableIterator (its operator* can't
+    /// be used for assignment), even while the iterator category is
+    /// random_access. For that reason we use only the const_iterators of
+    /// the partition vector as the base iterator.
+    ///
+    template <typename T>
     class segment_vector_iterator
       : public boost::iterator_adaptor<
-            segment_vector_iterator<T, BaseIter>, BaseIter
+            segment_vector_iterator<T>,
+            typename vector<T>::partitions_vector_type::const_iterator
         >
     {
     private:
+        typedef typename vector<T>::partitions_vector_type::const_iterator
+            base_iterator_type;
         typedef boost::iterator_adaptor<
-                segment_vector_iterator<T, BaseIter>, BaseIter
+                segment_vector_iterator<T>, base_iterator_type
             > base_type;
 
     public:
-        segment_vector_iterator(BaseIter const& it, vector<T>* data = 0)
+        segment_vector_iterator(base_iterator_type const& it,
+                vector<T>* data = 0)
           : base_type(it), data_(data)
         {}
 
@@ -476,19 +483,23 @@ namespace hpx
         vector<T>* data_;
     };
 
-    template <typename T, typename BaseIter>
+    template <typename T>
     class const_segment_vector_iterator
       : public boost::iterator_adaptor<
-            const_segment_vector_iterator<T, BaseIter>, BaseIter
+            const_segment_vector_iterator<T>,
+            typename vector<T>::partitions_vector_type::const_iterator
         >
     {
     private:
+        typedef typename vector<T>::partitions_vector_type::const_iterator
+            base_iterator_type;
         typedef boost::iterator_adaptor<
-                const_segment_vector_iterator<T, BaseIter>, BaseIter
+                const_segment_vector_iterator<T>, base_iterator_type
             > base_type;
 
     public:
-        const_segment_vector_iterator(BaseIter const& it, vector<T> const* data = 0)
+        const_segment_vector_iterator(base_iterator_type const& it,
+                vector<T> const* data = 0)
           : base_type(it), data_(data)
         {}
 
@@ -529,27 +540,35 @@ namespace hpx
     }
 
     /// This class implement the local segmented iterator for the hpx::vector
-    template <typename T, typename BaseIter>
+    ///
+    /// Conceptually this iterator is a ReadableIterator (its operator* can't
+    /// be used for assignment). For that reason we use only the
+    /// const_iterators of the partition vector as the base iterator.
+    ///
+    template <typename T>
     class local_segment_vector_iterator
       : public boost::iterator_adaptor<
-            local_segment_vector_iterator<T, BaseIter>, BaseIter,
+            local_segment_vector_iterator<T>,
+            typename vector<T>::partitions_vector_type::const_iterator,
             std::vector<T>, std::forward_iterator_tag
         >
     {
     private:
+        typedef typename vector<T>::partitions_vector_type::const_iterator
+            base_iterator_type;
         typedef boost::iterator_adaptor<
-                local_segment_vector_iterator<T, BaseIter>, BaseIter,
+                local_segment_vector_iterator<T>, base_iterator_type,
                 std::vector<T>, std::forward_iterator_tag
             > base_type;
-        typedef detail::is_requested_locality<BaseIter> predicate;
+        typedef detail::is_requested_locality<base_iterator_type> predicate;
 
     public:
-        local_segment_vector_iterator(BaseIter const& end)
+        local_segment_vector_iterator(base_iterator_type const& end)
           : base_type(end), predicate_(), end_(end)
         {}
 
         local_segment_vector_iterator(
-                BaseIter const& it, BaseIter const& end,
+                base_iterator_type const& it, base_iterator_type const& end,
                 boost::uint32_t locality_id)
           : base_type(it), predicate_(locality_id), end_(end)
         {
@@ -590,7 +609,7 @@ namespace hpx
     private:
         boost::shared_ptr<server::partition_vector<T> > data_;
         predicate predicate_;
-        BaseIter end_;
+        base_iterator_type end_;
     };
 
     ///////////////////////////////////////////////////////////////////////////

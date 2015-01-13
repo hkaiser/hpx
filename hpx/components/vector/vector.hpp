@@ -194,19 +194,11 @@ namespace hpx
         typedef local_vector_iterator<T> local_iterator;
         typedef const_local_vector_iterator<T> const_local_iterator;
 
-        typedef segment_vector_iterator<
-                T, typename partitions_vector_type::iterator
-            > segment_iterator;
-        typedef const_segment_vector_iterator<
-                T, typename partitions_vector_type::const_iterator
-            > const_segment_iterator;
+        typedef segment_vector_iterator<T> segment_iterator;
+        typedef const_segment_vector_iterator<T> const_segment_iterator;
 
-        typedef local_segment_vector_iterator<
-                T, typename partitions_vector_type::iterator
-            > local_segment_iterator;
-        typedef local_segment_vector_iterator<
-                T, typename partitions_vector_type::const_iterator
-            > const_local_segment_iterator;
+        typedef local_segment_vector_iterator<T> local_segment_iterator;
+        typedef local_segment_iterator const_local_segment_iterator;
 
         typedef partition_vector<T> partition_client_type;
         typedef server::partition_vector<T> partition_server_type;
@@ -215,10 +207,10 @@ namespace hpx
         friend class vector_iterator<T>;
         friend class const_vector_iterator<T>;
 
-        friend class segment_vector_iterator<
-            T, typename partitions_vector_type::iterator>;
-        friend class const_segment_vector_iterator<
-            T, typename partitions_vector_type::const_iterator>;
+        friend class segment_vector_iterator<T>;
+        friend class const_segment_vector_iterator<T>;
+
+        friend class local_segment_vector_iterator<T>;
 
         std::size_t get_partition_size() const
         {
@@ -1520,7 +1512,7 @@ namespace hpx
         // Return global segment iterator
         segment_iterator segment_begin()
         {
-            return segment_iterator(partitions_.begin(), this);
+            return segment_iterator(partitions_.cbegin(), this);
         }
 
         const_segment_iterator segment_begin() const
@@ -1535,7 +1527,7 @@ namespace hpx
 
         segment_iterator segment_end()
         {
-            return segment_iterator(partitions_.end());
+            return segment_iterator(partitions_.cend());
         }
 
         const_segment_iterator segment_end() const
