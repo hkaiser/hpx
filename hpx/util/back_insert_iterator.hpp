@@ -124,20 +124,74 @@ namespace hpx { namespace util
 
     ///////////////////////////////////////////////////////////////////////////
     template <typename Container>
-    class back_insert_iterator
+    class local_segment_back_insert_iterator
     {
-    public:
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
+    ///
+    /// Conceptually this iterator is a ReadableIterator (its operator* can't
+    /// be used for assignment), even while the iterator category is
+    /// output_iterator_tag.
+    ///
+    template <typename Container>
+    class segment_back_insert_iterator
+    {
+        typedef typename Container::value_type value_type;
+        typedef typename Container::segment_iterator base_iterator_type;
+
         typedef std::output_iterator_tag iterator_category;
-        typedef void value_type;
+        typedef Container container_type;
         typedef void difference_type;
         typedef void pointer;
         typedef void reference;
 
+        explicit segment_back_insert_iterator(base_iterator_type const& it,
+                Container* data = 0)
+          : it_(it), data_(data)
+        {}
+
+        segment_back_insert_iterator& operator*()
+        {
+            return *this;
+        }
+
+        segment_back_insert_iterator& operator++()
+        {
+            ++it_;
+            return *this;
+        }
+
+        segment_back_insert_iterator operator++(int)
+        {
+            segment_back_insert_iterator curr(it_, data_);
+            ++it_;
+            return curr;
+        }
+
+        Container* get_data() { return data_; }
+        Container const* get_data() const { return data_; }
+
+    protected:
+        base_iterator_type it_;
+        Container *data_;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
+    template <typename Container>
+    class back_insert_iterator
+    {
+    public:
         typedef Container container_type;
+
+        typedef std::output_iterator_tag iterator_category;
+        typedef void difference_type;
+        typedef void pointer;
+        typedef void reference;
         typedef typename Container::value_type value_type;
 
-        typedef typename Container::segment_iterator segment_iterator;
-        typedef typename Container::local_segment_iterator local_segment_iterator;
+        typedef segment_back_insert_iterator<Container> segment_iterator;
+        typedef local_segment_back_insert_iterator<Container> local_segment_iterator;
         typedef local_back_insert_iterator<Container> local_iterator;
         typedef typename Container::local_raw_iterator local_raw_iterator;
 
@@ -172,8 +226,8 @@ namespace hpx { namespace util
             return *this;
         }
 
-        Container& get_data() { return *container; }
-        Container const& get_data() const { return *container; }
+        Container* get_data() { return container; }
+        Container const* get_data() const { return container; }
 
     protected:
         Container *container;
@@ -194,7 +248,7 @@ namespace hpx { namespace traits
     struct segmented_iterator_traits<
             back_insert_iterator<Cont>,
             typename boost::enable_if<
-                segmented_iterator_traits<
+                typename segmented_iterator_traits<
                     typename Cont::iterator
                 >::is_segmented_iterator
             >::type
@@ -216,8 +270,9 @@ namespace hpx { namespace traits
         //  the iterator is currently pointing to (i.e. just global iterator).
         static segment_iterator segment(iterator iter)
         {
-            typename iterator::container_type& cont = iter.get_data();
-            return cont.get_segment_iterator(cont.size());
+            typename iterator::container_type* cont = iter.get_data();
+            return segment_iterator(
+                cont->get_segment_iterator(cont->size()), cont);
         }
 
         //  This function should specify which is the current segment and
