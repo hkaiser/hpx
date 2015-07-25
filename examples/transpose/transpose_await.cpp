@@ -189,6 +189,10 @@ hpx::future<sub_block> transpose_phase(
     const boost::uint64_t from_phase = b;
     const boost::uint64_t A_offset = from_phase * block_size;
 
+    std::vector<hpx::future<sub_block> > to, from;
+    to.reserve(num_blocks);
+    from.reserve(num_blocks);
+
     auto phase_range = boost::irange(
         static_cast<boost::uint64_t>(0), num_blocks);
     for(boost::uint64_t phase: phase_range)
@@ -196,12 +200,18 @@ hpx::future<sub_block> transpose_phase(
         const boost::uint64_t from_block = phase;
         const boost::uint64_t B_offset = phase * block_size;
 
-        hpx::future<sub_block> from =
-            A[from_block].get_sub_block(A_offset, block_size);
-        hpx::future<sub_block> to =
-            B[b].get_sub_block(B_offset, block_size);
+//         hpx::future<sub_block> from =
+            from.push_back(A[from_block].get_sub_block(A_offset, block_size));
+//         hpx::future<sub_block> to =
+            to.push_back(B[b].get_sub_block(B_offset, block_size));
+    }
 
-        transpose(__await from, __await to, block_order, tile_size);
+    for(boost::uint64_t phase: phase_range)
+    {
+        const boost::uint64_t from_block = phase;
+        const boost::uint64_t B_offset = phase * block_size;
+
+        transpose(__await std::move(from[phase]), __await std::move(to[phase]), block_order, tile_size);
     }
 
     return sub_block();
@@ -319,7 +329,7 @@ int hpx_main(boost::program_options::variables_map& vm)
                     ).get();
                 });
 
-            double elapsed = t.elapsed();
+            double elapsed = t.elapsed_nanoseconds();
 
             if(iter > 0 || iterations == 1) // Skip the first iteration
             {
@@ -343,10 +353,10 @@ int hpx_main(boost::program_options::variables_map& vm)
                 avgtime = avgtime/static_cast<double>(
                     (std::max)(iterations-1, static_cast<boost::uint64_t>(1)));
                 std::cout
-                  << "Rate (MB/s): " << 1.e-6 * bytes/mintime << ", "
-                  << "Avg time (s): " << avgtime << ", "
-                  << "Min time (s): " << mintime << ", "
-                  << "Max time (s): " << maxtime << "\n";
+                  << "Rate (MB/s): " << 1.e3 * bytes/mintime << ", "
+                  << "Avg time (s): " << avgtime*1e-9 << ", "
+                  << "Min time (s): " << mintime*1e-9 << ", "
+                  << "Max time (s): " << maxtime*1e-9 << "\n";
 
                 if(verbose)
                     std::cout << "Squared errors: " << errsq << "\n";

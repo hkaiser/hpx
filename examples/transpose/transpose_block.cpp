@@ -315,7 +315,7 @@ int hpx_main(boost::program_options::variables_map& vm)
 
             hpx::wait_all(block_futures);
 
-            double elapsed = t.elapsed();
+            double elapsed = t.elapsed_nanoseconds();
 
             if(iter > 0 || iterations == 1) // Skip the first iteration
             {
@@ -339,10 +339,10 @@ int hpx_main(boost::program_options::variables_map& vm)
                 avgtime = avgtime/static_cast<double>(
                     (std::max)(iterations-1, static_cast<boost::uint64_t>(1)));
                 std::cout
-                  << "Rate (MB/s): " << 1.e-6 * bytes/mintime << ", "
-                  << "Avg time (s): " << avgtime << ", "
-                  << "Min time (s): " << mintime << ", "
-                  << "Max time (s): " << maxtime << "\n";
+                  << "Rate (MB/s): " << 1e3 * bytes/mintime << ", "
+                  << "Avg time (s): " << avgtime*10e-9 << ", "
+                  << "Min time (s): " << mintime*10e-9 << ", "
+                  << "Max time (s): " << maxtime*10e-9 << "\n";
 
                 if(verbose)
                     std::cout << "Squared errors: " << errsq << "\n";
