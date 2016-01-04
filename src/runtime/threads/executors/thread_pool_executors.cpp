@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2015 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -355,6 +355,12 @@ namespace hpx { namespace threads { namespace executors { namespace detail
         stats.queue_length_ = scheduler_.get_queue_length();
         stats.tasks_scheduled_ = tasks_scheduled_.load();
         stats.tasks_completed_ = tasks_completed_.load();
+    }
+
+    template <typename Scheduler>
+    char const* thread_pool_executor<Scheduler>::get_description() const
+    {
+        return scheduler_.get_description();
     }
 
     // Return the requested policy element
