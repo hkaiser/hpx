@@ -10,6 +10,7 @@
 #include <hpx/runtime/naming/address.hpp>
 #include <hpx/runtime/threads/thread_enums.hpp>
 #include <hpx/runtime/threads/thread_init_data.hpp>
+#include <hpx/runtime/threads/thread_helpers.hpp>
 
 namespace hpx { namespace traits
 {
@@ -26,7 +27,7 @@ namespace hpx { namespace traits
                     threads::thread_init_data& data,
                     threads::thread_state_enum initial_state)
             {
-                hpx::threads::register_work_plain(data, initial_state); //-V106
+                hpx::threads::register_work_plain(data, initial_state, throws); //-V106
             }
 
             // forward the call if the component implements the function

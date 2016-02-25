@@ -561,8 +561,7 @@ endif()
 
 # If APEX is defined, the action timers need thread debug info.
 if(HPX_WITH_APEX)
-    hpx_add_config_define(HPX_HAVE_THREAD_DESCRIPTION)
-    set(HPX_HAVE_THREAD_DESCRIPTION ON CACHE INTERNAL "")
+  hpx_add_config_define(HPX_HAVE_THREAD_DESCRIPTION)
 endif()
 
 if(HPX_WITH_THREAD_DEBUG_INFO)
@@ -620,7 +619,7 @@ if(HPX_WITH_LOCAL_DATAFLOW_COMPATIBILITY)
   hpx_add_config_define(HPX_HAVE_LOCAL_DATAFLOW_COMPATIBILITY)
 endif()
 
-# BADBAD: This enables an overload of swap is necessary to work around the
+# BADBAD: This enables an overload of swap which is necessary to work around the
 #         problems caused by zip_iterator not being a real random access iterator.
 #         Dereferencing zip_iterator does not yield a true reference but
 #         only a temporary tuple holding true references.

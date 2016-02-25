@@ -149,11 +149,6 @@ namespace hpx
 #else
         strm << "  HPX_HAVE_NATIVE_TLS=OFF\n";
 #endif
-#if defined(HPX_HAVE_STACKTRACES)
-        strm << "  HPX_HAVE_STACKTRACES=ON\n";
-#else
-        strm << "  HPX_HAVE_STACKTRACES=OFF\n";
-#endif
 #if defined(HPX_HAVE_COMPRESSION_BZIP2)
         strm << "  HPX_HAVE_COMPRESSION_BZIP2=ON\n";
 #else
@@ -184,16 +179,16 @@ namespace hpx
 #else
         strm << "  HPX_HAVE_PARCELPORT_MPI=OFF\n";
 #endif
-#if defined(HPX_HAVE_PARCELPORT_IPC)
-        strm << "  HPX_HAVE_PARCELPORT_IPC=ON\n";
-#else
-        strm << "  HPX_HAVE_PARCELPORT_IPC=OFF\n";
-#endif
-#if defined(HPX_HAVE_PARCELPORT_IBVERBS)
-        strm << "  HPX_HAVE_PARCELPORT_IBVERBS=ON\n";
-#else
-        strm << "  HPX_HAVE_PARCELPORT_IBVERBS=OFF\n";
-#endif
+// #if defined(HPX_HAVE_PARCELPORT_IPC)
+//         strm << "  HPX_HAVE_PARCELPORT_IPC=ON\n";
+// #else
+//         strm << "  HPX_HAVE_PARCELPORT_IPC=OFF\n";
+// #endif
+// #if defined(HPX_HAVE_PARCELPORT_IBVERBS)
+//         strm << "  HPX_HAVE_PARCELPORT_IBVERBS=ON\n";
+// #else
+//         strm << "  HPX_HAVE_PARCELPORT_IBVERBS=OFF\n";
+// #endif
 #if defined(HPX_HAVE_VERIFY_LOCKS)
         strm << "  HPX_HAVE_VERIFY_LOCKS=ON\n";
 #else
@@ -204,11 +199,35 @@ namespace hpx
 #else
         strm << "  HPX_HAVE_HWLOC=OFF\n";
 #endif
+#if defined(HPX_HAVE_APEX)
+        strm << "  HPX_HAVE_APEX=ON\n";
+#else
+        strm << "  HPX_HAVE_APEX=OFF\n";
+#endif
 #if defined(HPX_HAVE_ITTNOTIFY)
         strm << "  HPX_HAVE_ITTNOTIFY=ON\n";
 #else
         strm << "  HPX_HAVE_ITTNOTIFY=OFF\n";
 #endif
+
+// thread related configuration
+#if defined(HPX_HAVE_STACKTRACES)
+        strm << "  HPX_HAVE_STACKTRACES=ON\n";
+#else
+        strm << "  HPX_HAVE_STACKTRACES=OFF\n";
+#endif
+
+#if defined(HPX_WITH_THREAD_DEBUG_INFO)
+        strm << "  HPX_WITH_THREAD_DEBUG_INFO=ON\n";
+#else
+        strm << "  HPX_WITH_THREAD_DEBUG_INFO=OFF\n";
+#endif
+#if defined(HPX_HAVE_THREAD_DESCRIPTION)
+        strm << "  HPX_HAVE_THREAD_DESCRIPTION=ON\n";
+#else
+        strm << "  HPX_HAVE_THREAD_DESCRIPTION=OFF\n";
+#endif
+
 #if defined(HPX_MSVC)
 #if defined(HPX_HAVE_FIBER_BASED_COROUTINES)
         strm << "  HPX_HAVE_FIBER_BASED_COROUTINES=ON\n";
@@ -239,10 +258,10 @@ namespace hpx
         strm << "  HPX_AGAS_LOCAL_CACHE_SIZE="
              << HPX_AGAS_LOCAL_CACHE_SIZE << "\n";
 #endif
-#if defined(HPX_HAVE_PARCELPORT_IPC) && defined(HPX_PARCEL_IPC_DATA_BUFFER_CACHE_SIZE)
-        strm << "  HPX_PARCEL_IPC_DATA_BUFFER_CACHE_SIZE="
-             << HPX_PARCEL_IPC_DATA_BUFFER_CACHE_SIZE << "\n";
-#endif
+// #if defined(HPX_HAVE_PARCELPORT_IPC) && defined(HPX_PARCEL_IPC_DATA_BUFFER_CACHE_SIZE)
+//         strm << "  HPX_PARCEL_IPC_DATA_BUFFER_CACHE_SIZE="
+//              << HPX_PARCEL_IPC_DATA_BUFFER_CACHE_SIZE << "\n";
+// #endif
 #if defined(HPX_HAVE_MALLOC)
         strm << "  HPX_HAVE_MALLOC=" << HPX_HAVE_MALLOC << "\n";
 #endif
