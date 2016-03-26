@@ -41,8 +41,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
 
             template<typename ExPolicy, typename Pred>
             static bool
-            sequential(ExPolicy, FwdIter first, FwdIter last,
-                Pred && pred)
+            sequential(ExPolicy, FwdIter first, FwdIter last, Pred && pred)
             {
                 return std::is_sorted(first, last, std::forward<Pred>(pred));
             }
@@ -75,9 +74,10 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                                     tok.cancel();
                                 }
                             });
+
+                        // trail now points one past the current grouping
+                        // unless canceled
                         FwdIter i = trail++;
-                        //trail now points one past the current grouping
-                        //unless cancelled
                         if (!tok.was_cancelled() && trail != last)
                         {
                             return !pred(*trail, *i);
@@ -252,8 +252,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
 
             template<typename ExPolicy, typename Pred>
             static FwdIter
-            sequential(ExPolicy, FwdIter first, FwdIter last,
-                Pred && pred)
+            sequential(ExPolicy, FwdIter first, FwdIter last, Pred && pred)
             {
                 return std::is_sorted_until(first, last,
                     std::forward<Pred>(pred));
@@ -277,13 +276,12 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                 if (count <= 1)
                     return result::get(std::move(last));
 
-
                 util::cancellation_token<difference_type> tok(count);
                 return util::partitioner<ExPolicy, FwdIter, void>::
                 call_with_index(
                     std::forward<ExPolicy>(policy), first, count, 1,
                     [tok, pred, last](std::size_t base_idx, FwdIter part_begin,
-                    std::size_t part_size) mutable
+                        std::size_t part_size) mutable
                     {
                         FwdIter trail = part_begin++;
                         util::loop_idx_n(++base_idx, part_begin,
@@ -298,8 +296,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
 
                         FwdIter i = trail++;
 
-                        //trail now points one past the current grouping
-                        //unless canceled
+                        // trail now points one past the current grouping
+                        // unless canceled
                         if (!tok.was_cancelled(base_idx + part_size)
                             && trail != last)
                         {
@@ -309,7 +307,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                             }
                         }
                     },
-                    [first, tok](std::vector<hpx::future<void> > &&) mutable -> FwdIter
+                    [first, tok](std::vector<hpx::future<void> > &&) mutable
+                    ->  FwdIter
                     {
                         difference_type loc = tok.get_data();
                         std::advance(first, loc);
@@ -454,9 +453,6 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
             std::forward<ExPolicy>(policy), is_seq(), first, last,
             std::less<value_type>());
     }
-
-
-
 }}}
 
 #endif

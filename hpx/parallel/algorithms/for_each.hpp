@@ -29,7 +29,6 @@
 #include <iterator>
 #include <type_traits>
 
-#include <boost/utility/enable_if.hpp>
 #include <boost/type_traits/is_base_of.hpp>
 #include <boost/type_traits/is_same.hpp>
 
