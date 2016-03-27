@@ -43,5 +43,11 @@ HPX_REGISTER_ACTION(
 HPX_REGISTER_ACTION(
     central_tuplespace_type::wrapped_type::load_action,
     simple_central_tuplespace_load_action);
+HPX_REGISTER_ACTION(
+    central_tuplespace_type::wrapped_type::print_action,
+    simple_central_tuplespace_print_action);
+HPX_REGISTER_ACTION(
+    central_tuplespace_type::wrapped_type::clear_action,
+    simple_central_tuplespace_clear_action);
 //]
 

@@ -20,7 +20,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace threads
 {
-#if HPX_DEBUG_THREAD_POOL != 0
+#ifdef HPX_DEBUG_THREAD_POOL
     enum guard_value
     {
         initial_value = 0xcc,           // memory has been initialized
@@ -51,7 +51,7 @@ namespace hpx { namespace threads
                 "could not allocate memory for thread_data");
         }
 
-#if HPX_DEBUG_THREAD_POOL != 0
+#ifdef HPX_DEBUG_THREAD_POOL
         using namespace std;    // some systems have memset in namespace std
         memset (ret, initial_value, sizeof(thread_data));
 #endif
@@ -68,7 +68,7 @@ namespace hpx { namespace threads
             thread_pool* pool = pt->pool_;
             HPX_ASSERT(pool);
 
-#if HPX_DEBUG_THREAD_POOL != 0
+#ifdef HPX_DEBUG_THREAD_POOL
             using namespace std;    // some systems have memset in namespace std
             memset (static_cast<void*>(pt), freed_value, sizeof(thread_data)); //-V598
 #endif
@@ -80,7 +80,7 @@ namespace hpx { namespace threads
     {
         if (0 != p)
         {
-#if HPX_DEBUG_THREAD_POOL != 0
+#ifdef HPX_DEBUG_THREAD_POOL
             using namespace std;    // some systems have memset in namespace std
             memset (p, freed_value, sizeof(thread_data));
 #endif
@@ -91,15 +91,15 @@ namespace hpx { namespace threads
     void thread_data_base::run_thread_exit_callbacks()
     {
         mutex_type::scoped_lock l(this);
-        while (exit_funcs_)
+
+        while(!exit_funcs_.empty())
         {
-            detail::thread_exit_callback_node* const current_node = exit_funcs_;
-            exit_funcs_ = current_node->next_;
-            if (!current_node->f_.empty())
             {
-                (current_node->f_)();
+                hpx::util::scoped_unlock<mutex_type::scoped_lock> ul(l);
+                if(!exit_funcs_.back().empty())
+                    exit_funcs_.back()();
             }
-            delete current_node;
+            exit_funcs_.pop_back();
         }
         ran_exit_funcs_ = true;
     }
@@ -108,11 +108,12 @@ namespace hpx { namespace threads
     {
         mutex_type::scoped_lock l(this);
         if (ran_exit_funcs_ || get_state() == terminated)
+        {
             return false;
+        }
 
-        detail::thread_exit_callback_node* new_node =
-            new detail::thread_exit_callback_node(f, exit_funcs_);
-        exit_funcs_ = new_node;
+        exit_funcs_.push_back(f);
+
         return true;
     }
 
@@ -121,23 +122,20 @@ namespace hpx { namespace threads
         mutex_type::scoped_lock l(this);
 
         // Exit functions should have been executed.
-        HPX_ASSERT(!exit_funcs_ || ran_exit_funcs_);
+        HPX_ASSERT(exit_funcs_.empty() || ran_exit_funcs_);
 
-        while (exit_funcs_)
-        {
-            detail::thread_exit_callback_node* const current_node = exit_funcs_;
-            exit_funcs_ = current_node->next_;
-            delete current_node;
-        }
+        exit_funcs_.clear();
     }
 
     bool thread_data_base::interruption_point(bool throw_on_interrupt)
     {
-        mutex_type::scoped_lock l(this);
+        // We do not protect enabled_interrupt_ and requested_interrupt_
+        // from concurrent access here (which creates a benign data race) in
+        // order to avoid infinite recursion. This function is called by
+        // this_thread::suspend which causes problems if the lock would call
+        // suspend itself.
         if (enabled_interrupt_ && requested_interrupt_)
         {
-            l.unlock();
-
             // Verify that there are no more registered locks for this
             // OS-thread. This will throw if there are still any locks
             // held.
@@ -201,7 +199,7 @@ namespace hpx { namespace threads
             );
     }
 
-#if !HPX_THREAD_MAINTAIN_PARENT_REFERENCE
+#ifndef HPX_THREAD_MAINTAIN_PARENT_REFERENCE
     thread_id_repr_type get_parent_id()
     {
         return threads::invalid_thread_id_repr;
@@ -244,7 +242,7 @@ namespace hpx { namespace threads
 
     naming::address::address_type get_self_component_id()
     {
-#if !HPX_THREAD_MAINTAIN_TARGET_ADDRESS
+#ifndef HPX_THREAD_MAINTAIN_TARGET_ADDRESS
         return 0;
 #else
         thread_self* self = get_self_ptr();

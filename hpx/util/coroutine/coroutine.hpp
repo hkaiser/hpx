@@ -181,14 +181,14 @@ namespace hpx { namespace util { namespace coroutines
         return m_pimpl->get_thread_id();
     }
 
-#if HPX_THREAD_MAINTAIN_PHASE_INFORMATION
+#if defined(HPX_THREAD_MAINTAIN_PHASE_INFORMATION)
     std::size_t get_thread_phase() const
     {
         return m_pimpl->get_thread_phase();
     }
 #endif
 
-#if HPX_THREAD_MAINTAIN_LOCAL_STORAGE
+#if defined(HPX_THREAD_MAINTAIN_LOCAL_STORAGE)
     std::size_t get_thread_data() const
     {
         return m_pimpl.get() ? m_pimpl->get_thread_data() : 0;
@@ -234,7 +234,7 @@ namespace hpx { namespace util { namespace coroutines
 
 #undef HPX_COROUTINE_GENERATE_ARGUMENT_N_TYPE
 
-#if defined(HPX_GENERIC_COROUTINES)
+#if defined(HPX_HAVE_GENERIC_CONTEXT_COROUTINES)
 
 #define HPX_COROUTINE_PARAM_WITH_DEFAULT(z, n, type_prefix)                   \
     typename boost::call_traits<                                              \
@@ -336,7 +336,7 @@ namespace hpx { namespace util { namespace coroutines
       return !empty() && !exited() && !waiting();
     }
 
-#if defined(HPX_GENERIC_COROUTINES)
+#if defined(HPX_HAVE_GENERIC_CONTEXT_COROUTINES)
     result_type call_impl(arg_slot_type args) {
       HPX_ASSERT(m_pimpl);
       m_pimpl->bind_args(&args);

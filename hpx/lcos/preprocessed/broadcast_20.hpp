@@ -171,7 +171,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -242,7 +242,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -301,7 +301,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -727,7 +727,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -798,7 +798,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -857,7 +857,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -1283,7 +1283,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -1354,7 +1354,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -1413,7 +1413,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -1839,7 +1839,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -1910,7 +1910,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -1969,7 +1969,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -2395,7 +2395,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -2466,7 +2466,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -2525,7 +2525,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -2951,7 +2951,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -3022,7 +3022,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -3081,7 +3081,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -3507,7 +3507,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -3578,7 +3578,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -3637,7 +3637,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -4063,7 +4063,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -4134,7 +4134,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -4193,7 +4193,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -4619,7 +4619,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -4690,7 +4690,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -4749,7 +4749,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -5175,7 +5175,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -5246,7 +5246,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -5305,7 +5305,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -5731,7 +5731,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -5802,7 +5802,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -5861,7 +5861,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -6287,7 +6287,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -6358,7 +6358,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -6417,7 +6417,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -6843,7 +6843,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -6914,7 +6914,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -6973,7 +6973,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -7399,7 +7399,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -7470,7 +7470,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -7529,7 +7529,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -7955,7 +7955,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -8026,7 +8026,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -8085,7 +8085,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -8511,7 +8511,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -8582,7 +8582,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -8641,7 +8641,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -9067,7 +9067,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -9138,7 +9138,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -9197,7 +9197,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -9623,7 +9623,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -9694,7 +9694,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -9753,7 +9753,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -10179,7 +10179,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -10250,7 +10250,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -10309,7 +10309,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -10735,7 +10735,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -10806,7 +10806,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -10865,7 +10865,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id
@@ -11291,7 +11291,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -11362,7 +11362,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     broadcast_futures.push_back(
                         hpx::async_colocated<broadcast_impl_action>(
@@ -11421,7 +11421,7 @@ namespace hpx { namespace lcos
                 {
                     HPX_ASSERT(ids.size() >= applied);
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
                     hpx::id_type id(ids_next[0]);
                     hpx::apply_colocated<broadcast_impl_action>(
                         id

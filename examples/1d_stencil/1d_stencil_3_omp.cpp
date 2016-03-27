@@ -21,6 +21,9 @@
 #include <vector>
 #include <cstdlib>
 
+#include <omp.h>
+
+#include "print_time_results.hpp"
 ///////////////////////////////////////////////////////////////////////////////
 // Timer with nanosecond resolution
 inline boost::uint64_t now()
@@ -31,6 +34,7 @@ inline boost::uint64_t now()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+bool header = true; // print csv heading
 double k = 0.5;     // heat transfer coefficient
 double dt = 1.;     // time step
 double dx = 1.;     // grid spacing
@@ -101,9 +105,7 @@ struct stepper
 
         next[0] = heat(left[size-1], middle[0], middle[1]);
 
-        // Visual Studio requires OMP loop variables to be signed :/
-        # pragma omp parallel for
-        for (boost::int64_t i = 1; i < boost::int64_t(size-1); ++i)
+        for (std::size_t i = 1; i != size-1; ++i)
             next[i] = heat(middle[i-1], middle[i], middle[i+1]);
 
         next[size-1] = heat(middle[size-2], middle[size-1], right[0]);
@@ -121,7 +123,11 @@ struct stepper
             s.resize(np);
 
         // Initial conditions: f(0, i) = i
-        for (std::size_t i = 0; i != np; ++i)
+        # pragma omp parallel
+        {
+        // Visual Studio requires OMP loop variables to be signed :/
+        # pragma omp for schedule(static)
+        for (boost::int64_t i = 0; i < (boost::int64_t)np; ++i)
             U[0][i] = partition_data(nx, double(i));
 
         // Actual time step loop
@@ -130,10 +136,12 @@ struct stepper
             space const& current = U[t % 2];
             space& next = U[(t + 1) % 2];
 
-            for (std::size_t i = 0; i != np; ++i)
+            // Visual Studio requires OMP loop variables to be signed :/
+            # pragma omp for schedule(static)
+            for (boost::int64_t i = 0; i < (boost::int64_t)np; ++i)
                 next[i] = heat_part(current[idx(i-1, np)], current[i], current[idx(i+1, np)]);
         }
-
+        }
         // Return the solution at time-step 'nt'.
         return U[nt % 2];
     }
@@ -145,6 +153,10 @@ int hpx_main(boost::program_options::variables_map& vm)
     boost::uint64_t np = vm["np"].as<boost::uint64_t>();   // Number of partitions.
     boost::uint64_t nx = vm["nx"].as<boost::uint64_t>();   // Number of grid points.
     boost::uint64_t nt = vm["nt"].as<boost::uint64_t>();   // Number of steps.
+    
+    if (vm.count("no-header"))
+        header = false;
+
 
     // Create the stepper object
     stepper step;
@@ -155,15 +167,19 @@ int hpx_main(boost::program_options::variables_map& vm)
     // Execute nt time steps on nx grid points and print the final solution.
     stepper::space solution = step.do_work(np, nx, nt);
 
+    boost::uint64_t elapsed = now() - t;
+
     // Print the final solution
     if (vm.count("results"))
     {
         for (std::size_t i = 0; i != np; ++i)
             std::cout << "U[" << i << "] = " << solution[i] << std::endl;
     }
+//  boost::uint64_t const os_thread_count = omp_get_num_threads();
+    # pragma omp parallel
+    # pragma omp master
+    print_time_results(omp_get_num_threads(), elapsed, nx, np, nt, header);
 
-    boost::uint64_t elapsed = now() - t;
-    std::cout << "Elapsed time: " << elapsed / 1e9 << " [s]" << std::endl;
 
     return 0;
 }
@@ -187,6 +203,7 @@ int main(int argc, char* argv[])
          "Timestep unit (default: 1.0[s])")
         ("dx", po::value<double>(&dx)->default_value(1.0),
          "Local x dimension")
+        ( "no-header", "do not print out the csv header row")
     ;
 
     po::variables_map vm;

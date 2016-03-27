@@ -16,7 +16,7 @@
 #include <boost/make_shared.hpp>
 #include <boost/cache/entries/lfu_entry.hpp>
 #include <boost/cache/local_cache.hpp>
-#include <boost/cache/statistics/local_statistics.hpp>
+#include <boost/cache/statistics/local_full_statistics.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/noncopyable.hpp>
 #include <boost/dynamic_bitset.hpp>
@@ -31,14 +31,15 @@
 #include <hpx/runtime/naming/address.hpp>
 #include <hpx/runtime/naming/locality.hpp>
 #include <hpx/runtime/naming/name.hpp>
-#include <hpx/util/merging_map.hpp>
 
+#include <map>
 
 // TODO: split into a base class and two implementations (one for bootstrap,
 // one for hosted).
 // TODO: Use \copydoc.
 
-namespace hpx { namespace util {
+namespace hpx { namespace util
+{
     class runtime_configuration;
 }}
 
@@ -75,12 +76,11 @@ struct HPX_EXPORT addressing_service : boost::noncopyable
         std::less<gva_entry_type>,
         boost::cache::policies::always<gva_entry_type>,
         std::map<gva_cache_key, gva_entry_type>,
-        boost::cache::statistics::local_statistics
+        boost::cache::statistics::local_full_statistics
     > gva_cache_type;
     // }}}
 
-    typedef util::merging_map<naming::gid_type, boost::int64_t>
-        refcnt_requests_type;
+    typedef std::map<naming::gid_type, boost::int64_t> refcnt_requests_type;
 
     struct bootstrap_data_type;
     struct hosted_data_type;
@@ -263,6 +263,16 @@ private:
     std::size_t get_cache_misses(bool);
     std::size_t get_cache_evictions(bool);
     std::size_t get_cache_insertions(bool);
+
+    std::size_t get_cache_get_entry_count(bool reset);
+    std::size_t get_cache_insert_entry_count(bool reset);
+    std::size_t get_cache_update_entry_count(bool reset);
+    std::size_t get_cache_erase_entry_count(bool reset);
+
+    std::size_t get_cache_get_entry_time(bool reset);
+    std::size_t get_cache_insert_entry_time(bool reset);
+    std::size_t get_cache_update_entry_time(bool reset);
+    std::size_t get_cache_erase_entry_time(bool reset);
 
 public:
     response service(
@@ -1102,7 +1112,8 @@ public:
     ///                   destination.
     void route(
         parcelset::parcel const& p
-      , HPX_STD_FUNCTION<void(boost::system::error_code const&, std::size_t)> const&
+      , HPX_STD_FUNCTION<void(boost::system::error_code const&,
+            parcelset::parcel const&)> const&
         );
 
     /// \brief Increment the global reference count for the given id

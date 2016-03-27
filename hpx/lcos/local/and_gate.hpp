@@ -79,13 +79,13 @@ namespace hpx { namespace lcos { namespace local
 
     public:
         /// \brief get a future allowing to wait for the gate to fire
-        future<void> get_future(std::size_t count = ~0U,
+        future<void> get_future(std::size_t count = std::size_t(~0U),
             std::size_t* generation_value = 0, error_code& ec = hpx::throws)
         {
             typename mutex_type::scoped_lock l(mtx_);
 
             // by default we use as many segments as specified during construction
-            if (count == ~0U)
+            if (count == std::size_t(~0U))
                 count = received_segments_.size();
             HPX_ASSERT(count != 0);
 
@@ -132,7 +132,8 @@ namespace hpx { namespace lcos { namespace local
             if (received_segments_.count() == received_segments_.size())
             {
                 // we have received the last missing segment
-                promise<void> p = std::move(promise_);
+                promise<void> p;
+                std::swap(p, promise_);
                 received_segments_.reset();     // reset data store
                 {
                     // Unlock the lock to avoid locking problems

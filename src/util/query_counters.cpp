@@ -112,6 +112,11 @@ namespace hpx { namespace util
         timer_.start();
     }
 
+    void query_counters::stop_evaluating_counters()
+    {
+        timer_.stop();
+    }
+
     template <typename Stream>
     void query_counters::print_value(Stream& out, std::string const& name,
         performance_counters::counter_value const& value, std::string const& uom)
@@ -180,7 +185,23 @@ namespace hpx { namespace util
             started.push_back(performance_counter::start_async(ids_[i]));
 
         // wait for all counters to be started
-        wait_all(started, ec);
+        wait_all(started);
+
+        BOOST_FOREACH(future<bool>& f, started)
+        {
+            if (f.has_exception())
+            {
+                if (&ec == &hpx::throws)
+                {
+                    f.get();
+                }
+                else
+                {
+                    ec = make_error_code(f.get_exception_ptr());
+                }
+                return;
+            }
+        }
     }
 
     void query_counters::stop_counters(error_code& ec)
@@ -209,7 +230,23 @@ namespace hpx { namespace util
             stopped.push_back(performance_counter::stop_async(ids_[i]));
 
         // wait for all counters to be started
-        wait_all(stopped, ec);
+        wait_all(stopped);
+
+        BOOST_FOREACH(future<bool>& f, stopped)
+        {
+            if (f.has_exception())
+            {
+                if (&ec == &hpx::throws)
+                {
+                    f.get();
+                }
+                else
+                {
+                    ec = make_error_code(f.get_exception_ptr());
+                }
+                return;
+            }
+        }
     }
 
     void query_counters::reset_counters(error_code& ec)
@@ -238,7 +275,23 @@ namespace hpx { namespace util
             reset.push_back(performance_counter::reset_async(ids_[i]));
 
         // wait for all counters to be started
-        wait_all(reset, ec);
+        wait_all(reset);
+
+        BOOST_FOREACH(future<void>& f, reset)
+        {
+            if (f.has_exception())
+            {
+                if (&ec == &hpx::throws)
+                {
+                    f.get();
+                }
+                else
+                {
+                    ec = make_error_code(f.get_exception_ptr());
+                }
+                return;
+            }
+        }
     }
 
     bool query_counters::evaluate_counters(bool reset,
@@ -290,7 +343,7 @@ namespace hpx { namespace util
             output << description << std::endl;
 
 //         // wait for all values to be returned
-//         wait_all(values, ec);
+//         wait_all(values);
 
         // Output the performance counter value.
         for (std::size_t i = 0; i < values.size(); ++i)
@@ -300,7 +353,7 @@ namespace hpx { namespace util
             std::cout << util::osstream_get_string(output) << std::flush;
         }
         else {
-            std::ofstream out(destination_, std::ios_base::app);
+            std::ofstream out(destination_.c_str(), std::ofstream::app);
             out << util::osstream_get_string(output);
         }
 

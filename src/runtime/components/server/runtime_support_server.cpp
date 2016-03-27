@@ -126,6 +126,12 @@ HPX_DEFINE_GET_COMPONENT_TYPE_STATIC(
     hpx::components::server::runtime_support,
     hpx::components::component_runtime_support)
 
+namespace hpx
+{
+    // helper function to stop evaluating counters during shutdown
+    void stop_evaluating_counters();
+}
+
 namespace hpx { namespace components
 {
     bool initial_static_loading = true;
@@ -264,6 +270,8 @@ namespace hpx { namespace components { namespace server
             strm << "attempt to query factory properties for components "
                     "invalid/unknown type: "
                  << components::get_component_type_name(type);
+
+            l.unlock();
             HPX_THROW_EXCEPTION(hpx::bad_component_type,
                 "runtime_support::factory_properties",
                 hpx::util::osstream_get_string(strm));
@@ -289,6 +297,8 @@ namespace hpx { namespace components { namespace server
             hpx::util::osstream strm;
             strm << "attempt to create component instance of invalid/unknown type: "
                  << components::get_component_type_name(type);
+
+            l.unlock();
             HPX_THROW_EXCEPTION(hpx::bad_component_type,
                 "runtime_support::bulk_create_components",
                 hpx::util::osstream_get_string(strm));
@@ -333,6 +343,7 @@ namespace hpx { namespace components { namespace server
                 components_.insert(component_map_type::value_type(type, data));
             if (!p.second)
             {
+                l.unlock();
                 HPX_THROW_EXCEPTION(out_of_memory,
                     "runtime_support::get_promise_heap",
                     "could not create base_lco_factor for type " +
@@ -392,6 +403,7 @@ namespace hpx { namespace components { namespace server
                     hpx::util::osstream strm;
                     strm << "global id " << target << " is not bound to any "
                             "local component instance";
+
                     // FIXME: If this throws then we leak the rest of count.
                     // What should we do instead?
                     HPX_THROW_EXCEPTION(hpx::unknown_component_address,
@@ -418,34 +430,48 @@ namespace hpx { namespace components { namespace server
         }
 
         // locate the factory for the requested component type
-        component_map_type::const_iterator it = components_.find(g.type);
-        if (it == components_.end()) {
-            // we don't know anything about this component
-            hpx::util::osstream strm;
+        boost::shared_ptr<component_factory_base> factory;
 
-            error_code ec(lightweight);
-            strm << "attempt to destroy component " << gid
-                 << " of invalid/unknown type: "
-                 << components::get_component_type_name(g.type) << " ("
-                 << naming::get_agas_client().get_component_type_name(g.type, ec)
-                 << ")" << std::endl;
+        {
+            component_map_mutex_type::scoped_lock l(cm_mtx_);
+            component_map_type::const_iterator it = components_.find(g.type);
+            if (it == components_.end()) {
+                // we don't know anything about this component
+                hpx::util::osstream strm;
 
-            strm << "list of registered components: \n";
-            component_map_type::iterator end = components_.end();
-            for (component_map_type::iterator cit = components_.begin(); cit!= end; ++cit)
-            {
-                strm << "  " << components::get_component_type_name((*cit).first)
-                     << " (" << naming::get_agas_client().get_component_type_name((*cit).first, ec)
-                      << ")" << std::endl;
+                naming::resolver_client& client = naming::get_agas_client();
+                error_code ec(lightweight);
+                strm << "attempt to destroy component "
+                     << gid
+                     << " of invalid/unknown type: "
+                     << components::get_component_type_name(g.type)
+                     << " ("
+                     << client.get_component_type_name(g.type, ec)
+                     << ")" << std::endl;
+
+                strm << "list of registered components: \n";
+                component_map_type::iterator end = components_.end();
+                for (component_map_type::iterator cit = components_.begin(); cit!= end; ++cit)
+                {
+                    strm << "  "
+                         << components::get_component_type_name((*cit).first)
+                         << " ("
+                         << client.get_component_type_name((*cit).first, ec)
+                         << ")" << std::endl;
+                }
+
+                l.unlock();
+                HPX_THROW_EXCEPTION(hpx::bad_component_type,
+                    "runtime_support::free_component",
+                    hpx::util::osstream_get_string(strm));
+                return;
             }
 
-            HPX_THROW_EXCEPTION(hpx::bad_component_type,
-                "runtime_support::free_component",
-                hpx::util::osstream_get_string(strm));
-            return;
+            factory = (*it).second.first;
         }
 
-        // we might end up with the same address, so cache the already deleted ones here.
+        // we might end up with the same address, so cache the already deleted
+        // ones here.
 #if defined(HPX_DEBUG)
         std::vector<naming::address> freed_components;
         freed_components.reserve(count);
@@ -468,12 +494,11 @@ namespace hpx { namespace components { namespace server
             }
             HPX_ASSERT(!found);
 #endif
-
             // FIXME: If this throws then we leak the rest of count.
             // What should we do instead?
 
             // destroy the component instance
-            (*it).second.first->destroy(target, addr);
+            factory->destroy(target, addr);
 
             LRT_(info) << "successfully destroyed component " << (gid + i)
                 << " of type: " << components::get_component_type_name(g.type);
@@ -550,14 +575,14 @@ namespace hpx { namespace components { namespace server
     ///////////////////////////////////////////////////////////////////////////
     // initiate system shutdown for all localities
     void invoke_shutdown_functions(
-        std::vector<naming::id_type> const& prefixes, bool pre_shutdown)
+        std::vector<naming::id_type> const& localities, bool pre_shutdown)
     {
 #if !defined(HPX_GCC44_WORKAROUND)
         call_shutdown_functions_action act;
-        lcos::broadcast(act, prefixes, pre_shutdown).get();
+        lcos::broadcast(act, localities, pre_shutdown).get();
 #else
         std::vector<lcos::future<void> > lazy_actions;
-        BOOST_FOREACH(naming::id_type const& id, prefixes)
+        BOOST_FOREACH(naming::id_type const& id, localities)
         {
             using components::stubs::runtime_support;
             lazy_actions.push_back(
@@ -575,7 +600,7 @@ namespace hpx { namespace components { namespace server
     void runtime_support::dijkstra_make_black()
     {
         // Rule 1: A machine sending a message makes itself black.
-        lcos::local::spinlock::scoped_lock l(dijkstra_mtx_);
+        dijkstra_mtx_type::scoped_lock l(dijkstra_mtx_);
         dijkstra_color_ = true;
     }
 
@@ -602,7 +627,10 @@ namespace hpx { namespace components { namespace server
 
         while (tm.get_thread_count() > 1)
         {
-            this_thread::sleep_for(boost::posix_time::millisec(100));
+            // FIXME: this sleep_for is causing very long shutdown times.
+            // By commenting it, #1263 gets solved.
+            //this_thread::sleep_for(boost::posix_time::millisec(100));
+            this_thread::yield();
         }
 
         // Now this locality has become passive, thus we can send the token
@@ -611,7 +639,7 @@ namespace hpx { namespace components { namespace server
         // Rule 2: When machine nr.i + 1 propagates the probe, it hands over a
         // black token to machine nr.i if it is black itself, whereas while
         // being white it leaves the color of the token unchanged.
-        lcos::local::spinlock::scoped_lock l(dijkstra_mtx_);
+        dijkstra_mtx_type::scoped_lock l(dijkstra_mtx_);
         bool dijkstra_token = dijkstra_color_;
 
         // Rule 5: Upon transmission of the token to machine nr.i, machine
@@ -624,33 +652,48 @@ namespace hpx { namespace components { namespace server
     }
 
     // kick off termination detection
-    void runtime_support::dijkstra_termination_detection(
+    std::size_t runtime_support::dijkstra_termination_detection(
         std::vector<naming::id_type> const& locality_ids)
     {
         boost::uint32_t num_localities =
             static_cast<boost::uint32_t>(locality_ids.size());
         if (num_localities == 1)
-            return;
+            return 0;
 
-        do {
-            // Rule 4: Machine nr.0 initiates a probe by making itself white
-            // and sending a white token to machine nr.N - 1.
-            {
-                lcos::local::spinlock::scoped_lock l(dijkstra_mtx_);
+        std::size_t count = 0;      // keep track of number of trials
+
+        {
+            // Note: we protect the entire loop here since the stopping condition
+            // depends on the shared variable "dijkstra_color_"
+            // Proper unlocking for possible remote actions needs to be taken care of
+            dijkstra_mtx_type::scoped_lock l(dijkstra_mtx_);
+            do {
+                // Rule 4: Machine nr.0 initiates a probe by making itself white
+                // and sending a white token to machine nr.N - 1.
                 dijkstra_color_ = false;        // start off with white
-            }
 
-            dijkstra_termination_action act;
-            if (lcos::reduce(act, locality_ids, std_logical_or_type()).get())
-            {
-                lcos::local::spinlock::scoped_lock l(dijkstra_mtx_);
-                dijkstra_color_ = true;     // unsuccessful termination
-            }
+                dijkstra_termination_action act;
+                bool termination_aborted = false;
+                {
+                    util::scoped_unlock<dijkstra_mtx_type::scoped_lock> ul(l);
+                    termination_aborted = lcos::reduce(act,
+                        locality_ids, std_logical_or_type()).get()
+                }
 
-            // Rule 3: After the completion of an unsuccessful probe, machine
-            // nr.0 initiates a next probe.
+                if (termination_aborted)
+                {
+                    dijkstra_color_ = true;     // unsuccessful termination
+                }
 
-        } while (dijkstra_color_);
+                // Rule 3: After the completion of an unsuccessful probe, machine
+                // nr.0 initiates a next probe.
+
+                ++count;
+
+            } while (dijkstra_color_);
+        }
+
+        return count;
     }
 #else
     void runtime_support::send_dijkstra_termination_token(
@@ -668,7 +711,10 @@ namespace hpx { namespace components { namespace server
 
         while (tm.get_thread_count() > 1)
         {
-            this_thread::sleep_for(boost::posix_time::millisec(100));
+            // FIXME: this sleep_for is causing very long shutdown times.
+            // By commenting it, #1263 gets solved.
+            //this_thread::sleep_for(boost::posix_time::millisec(100));
+            this_thread::yield();
         }
 
         // Now this locality has become passive, thus we can send the token
@@ -678,7 +724,7 @@ namespace hpx { namespace components { namespace server
         // black token to machine nr.i if it is black itself, whereas while
         // being white it leaves the color of the token unchanged.
         {
-            lcos::local::spinlock::scoped_lock l(dijkstra_mtx_);
+            dijkstra_mtx_type::scoped_lock l(dijkstra_mtx_);
             if (dijkstra_color_)
                 dijkstra_token = dijkstra_color_;
 
@@ -703,12 +749,13 @@ namespace hpx { namespace components { namespace server
         agas_client.start_shutdown();
 
         boost::uint32_t locality_id = get_locality_id();
+
         if (initiating_locality_id == locality_id)
         {
             // we received the token after a full circle
             if (dijkstra_token)
             {
-                lcos::local::spinlock::scoped_lock l(dijkstra_mtx_);
+                dijkstra_mtx_type::scoped_lock l(dijkstra_mtx_);
                 dijkstra_color_ = true;     // unsuccessful termination
             }
 
@@ -724,13 +771,13 @@ namespace hpx { namespace components { namespace server
     }
 
     // kick off termination detection
-    void runtime_support::dijkstra_termination_detection(
+    std::size_t runtime_support::dijkstra_termination_detection(
         std::vector<naming::id_type> const& locality_ids)
     {
         boost::uint32_t num_localities =
             static_cast<boost::uint32_t>(locality_ids.size());
         if (num_localities == 1)
-            return;
+            return 0;
 
         boost::uint32_t initiating_locality_id = get_locality_id();
 
@@ -739,25 +786,36 @@ namespace hpx { namespace components { namespace server
         if (0 == target_id)
             target_id = static_cast<boost::uint32_t>(num_localities);
 
-        do {
-            // Rule 4: Machine nr.0 initiates a probe by making itself white
-            // and sending a white token to machine nr.N - 1.
-            {
-                lcos::local::spinlock::scoped_lock l(dijkstra_mtx_);
+        std::size_t count = 0;      // keep track of number of trials
+
+        {
+            // Note: we protect the entire loop here since the stopping condition
+            // depends on the shared variable "dijkstra_color_"
+            // Proper unlocking for possible remote actions needs to be taken care of
+            dijkstra_mtx_type::scoped_lock l(dijkstra_mtx_);
+            do {
+                // Rule 4: Machine nr.0 initiates a probe by making itself white
+                // and sending a white token to machine nr.N - 1.
                 dijkstra_color_ = false;        // start off with white
-            }
 
-            send_dijkstra_termination_token(target_id - 1,
-                initiating_locality_id, num_localities, false);
+                {
+                    util::scoped_unlock<dijkstra_mtx_type::scoped_lock> ul(l);
+                    send_dijkstra_termination_token(target_id - 1,
+                        initiating_locality_id, num_localities, false);
+                }
 
-            // wait for token to come back to us
-            lcos::local::spinlock::scoped_lock l(dijkstra_mtx_);
-            dijkstra_cond_.wait(l);
+                // wait for token to come back to us
+                dijkstra_cond_.wait(l);
 
-            // Rule 3: After the completion of an unsuccessful probe, machine
-            // nr.0 initiates a next probe.
+                // Rule 3: After the completion of an unsuccessful probe, machine
+                // nr.0 initiates a next probe.
 
-        } while (dijkstra_color_);
+                ++count;
+
+            } while (dijkstra_color_);
+        }
+
+        return count;
     }
 #endif
 
@@ -775,25 +833,47 @@ namespace hpx { namespace components { namespace server
         // make sure shutdown_all is invoked only once
         bool flag = false;
         if (!shutdown_all_invoked_.compare_exchange_strong(flag, true))
+        {
             return;
+        }
+
+        LRT_(info) << "runtime_support::shutdown_all: "
+            "initializing application shutdown";
 
         applier::applier& appl = hpx::applier::get_applier();
         naming::resolver_client& agas_client = appl.get_agas_client();
 
         agas_client.start_shutdown();
 
+        stop_evaluating_counters();
+
         std::vector<naming::id_type> locality_ids = find_all_localities();
-        dijkstra_termination_detection(locality_ids);
+        std::size_t count = dijkstra_termination_detection(locality_ids);
+
+        LRT_(info) << "runtime_support::shutdown_all: "
+                      "passed first termination detection (count: "
+                   << count << ").";
 
         // execute registered shutdown functions on all localities
         invoke_shutdown_functions(locality_ids, true);
         invoke_shutdown_functions(locality_ids, false);
 
+        LRT_(info) << "runtime_support::shutdown_all: "
+            "invoked shutdown functions";
+
+        // Do a second round of termination detection to synchronize with all
+        // work which was triggered by the invocation of the shutdown
+        // functions.
+        count = dijkstra_termination_detection(locality_ids);
+
+        LRT_(info) << "runtime_support::shutdown_all: "
+                      "passed second termination detection (count: "
+                   << count << ").";
+
         // Shut down all localities except the the local one, we can't use
         // broadcast here as we have to handle the back parcel in a special
         // way.
         std::reverse(locality_ids.begin(), locality_ids.end());
-
         boost::uint32_t locality_id = get_locality_id();
         std::vector<lcos::future<void> > lazy_actions;
 
@@ -809,6 +889,9 @@ namespace hpx { namespace components { namespace server
 
         // wait for all localities to be stopped
         wait_all(lazy_actions);
+
+        LRT_(info) << "runtime_support::shutdown_all: "
+            "all localities have been shut down";
 
         // Now make sure this local locality gets shut down as well.
         // There is no need to respond...
@@ -923,6 +1006,8 @@ namespace hpx { namespace components { namespace server
             strm << "attempt to query instance count for components of "
                     "invalid/unknown type: "
                  << components::get_component_type_name(type);
+
+            l.unlock();
             HPX_THROW_EXCEPTION(hpx::bad_component_type,
                 "runtime_support::factory_properties",
                 hpx::util::osstream_get_string(strm));
@@ -1344,6 +1429,8 @@ namespace hpx { namespace components { namespace server
                 }
 
                 // store component factory and module for later use
+                component_map_mutex_type::scoped_lock l(cm_mtx_);
+
                 component_factory_type data(factory, isenabled);
                 std::pair<component_map_type::iterator, bool> p =
                     components_.insert(component_map_type::value_type(t, data));
@@ -1397,54 +1484,6 @@ namespace hpx { namespace components { namespace server
         return true;    // component got loaded
     }
 
-    bool runtime_support::load_component_dynamic(
-        util::section& ini, std::string const& instance,
-        std::string const& component, boost::filesystem::path lib,
-        naming::gid_type const& prefix, naming::resolver_client& agas_client,
-        bool isdefault, bool isenabled,
-        boost::program_options::options_description& options,
-        std::set<std::string>& startup_handled)
-    {
-        modules_map_type::iterator it = modules_.find(HPX_MANGLE_STRING(component));
-        if (it != modules_.end()) {
-            // use loaded module, instantiate the requested factory
-            if (!load_component((*it).second, ini, instance, component, lib,
-                    prefix, agas_client, isdefault, isenabled, options,
-                    startup_handled))
-            {
-                return false;   // next please :-P
-            }
-        }
-        else {
-            // first, try using the path as the full path to the library
-            error_code ec(lightweight);
-            hpx::util::plugin::dll d(lib.string(), HPX_MANGLE_STRING(component));
-            d.load_library(ec);
-            if (ec) {
-                // build path to component to load
-                std::string libname(HPX_MAKE_DLL_STRING(component));
-                lib /= hpx::util::create_path(libname);
-                d.load_library(ec);
-                if (ec) {
-                    LRT_(warning) << "dynamic loading failed: " << lib.string()
-                                    << ": " << instance << ": " << get_error_what(ec);
-                    return false;   // next please :-P
-                }
-            }
-
-            // now, instantiate the requested factory
-            if (!load_component(d, ini, instance, component, lib, prefix,
-                    agas_client, isdefault, isenabled, options,
-                    startup_handled))
-            {
-                return false;   // next please :-P
-            }
-
-            modules_.insert(std::make_pair(HPX_MANGLE_STRING(component), d));
-        }
-        return true;
-    }
-
     ///////////////////////////////////////////////////////////////////////////
     // Load all components from the ini files found in the configuration
     bool runtime_support::load_components(util::section& ini,
@@ -1464,6 +1503,7 @@ namespace hpx { namespace components { namespace server
         //  name = ...           # the name of this component module
         //  path = ...           # the path where to find this component module
         //  enabled = false      # optional (default is assumed to be true)
+        //  static = false       # optional (default is assumed to be false)
         //
         // # optional section defining additional properties for this module
         // [hpx.components.instance_name.settings]
@@ -1532,9 +1572,16 @@ namespace hpx { namespace components { namespace server
                         isenabled, options, startup_handled);
                 }
                 else {
+#if defined(HPX_STATIC_LINKING)
+                    HPX_THROW_EXCEPTION(service_unavailable,
+                        "runtime_support::load_components",
+                        "static linking configuration does not support dynamic "
+                        "loading of component '" + instance + "'");
+#else
                     load_component_dynamic(ini, instance,
                         component, lib, prefix, agas_client, isdefault,
                         isenabled, options, startup_handled);
+#endif
                 }
             }
             catch (hpx::exception const& e) {
@@ -1545,7 +1592,8 @@ namespace hpx { namespace components { namespace server
                 {
                     std::cerr << "runtime_support::load_components: "
                               << "invalid command line option(s) to "
-                              << instance << " component: " << e.what() << std::endl;
+                              << instance << " component: " << e.what()
+                              << std::endl;
                 }
             }
         } // for
@@ -1557,8 +1605,12 @@ namespace hpx { namespace components { namespace server
                 std::string runtime_mode(ini.get_entry("hpx.runtime_mode", ""));
                 boost::program_options::variables_map vm;
 
+                util::commandline_error_mode mode = util::rethrow_on_error;
+                std::string allow_unknown(ini.get_entry("hpx.commandline.allow_unknown", "0"));
+                if (allow_unknown != "0") mode = util::allow_unregistered;
+
                 util::parse_commandline(ini, options, unknown_cmd_line, vm,
-                    std::size_t(-1), util::rethrow_on_error,
+                    std::size_t(-1), mode,
                     get_runtime_mode_from_name(runtime_mode));
             }
 
@@ -1671,6 +1723,101 @@ namespace hpx { namespace components { namespace server
         return true;    // startup/shutdown functions got registered
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    bool runtime_support::load_commandline_options_static(
+        std::string const& module,
+        boost::program_options::options_description& options, error_code& ec)
+    {
+        try {
+            util::plugin::get_plugins_list_type f;
+            if (!components::get_static_commandline(module, f))
+            {
+                LRT_(debug) << "static loading of command-line options failed: "
+                        << module << ": couldn't find module in global "
+                        << "static command line data map";
+                return false;
+            }
+
+            // get the factory, may fail
+            hpx::util::plugin::static_plugin_factory<
+                component_commandline_base> pf (f);
+
+            // create the startup_shutdown object
+            boost::shared_ptr<component_commandline_base>
+                commandline_options(pf.create("commandline_options", ec));
+            if (ec) {
+                LRT_(debug) << "static loading of command-line options failed: "
+                            << module << ": " << get_error_what(ec);
+                return false;
+            }
+
+            options.add(commandline_options->add_commandline_options());
+        }
+        catch (hpx::exception const&) {
+            throw;
+        }
+        catch (std::logic_error const& e) {
+            LRT_(debug) << "static loading of command-line options failed: "
+                        << module << ": " << e.what();
+            return false;
+        }
+        catch (std::exception const& e) {
+            LRT_(debug) << "static loading of command-line options failed: "
+                        << module << ": " << e.what();
+            return false;
+        }
+        return true;    // startup/shutdown functions got registered
+    }
+
+#if !defined(HPX_STATIC_LINKING)
+    bool runtime_support::load_component_dynamic(
+        util::section& ini, std::string const& instance,
+        std::string const& component, boost::filesystem::path lib,
+        naming::gid_type const& prefix, naming::resolver_client& agas_client,
+        bool isdefault, bool isenabled,
+        boost::program_options::options_description& options,
+        std::set<std::string>& startup_handled)
+    {
+        modules_map_type::iterator it = modules_.find(HPX_MANGLE_STRING(component));
+        if (it != modules_.end()) {
+            // use loaded module, instantiate the requested factory
+            if (!load_component((*it).second, ini, instance, component, lib,
+                    prefix, agas_client, isdefault, isenabled, options,
+                    startup_handled))
+            {
+                return false;   // next please :-P
+            }
+        }
+        else {
+            // first, try using the path as the full path to the library
+            error_code ec(lightweight);
+            hpx::util::plugin::dll d(lib.string(), HPX_MANGLE_STRING(component));
+            d.load_library(ec);
+            if (ec) {
+                // build path to component to load
+                std::string libname(HPX_MAKE_DLL_STRING(component));
+                lib /= hpx::util::create_path(libname);
+                d.load_library(ec);
+                if (ec) {
+                    LRT_(warning) << "dynamic loading failed: " << lib.string()
+                                    << ": " << instance << ": " << get_error_what(ec);
+                    return false;   // next please :-P
+                }
+            }
+
+            // now, instantiate the requested factory
+            if (!load_component(d, ini, instance, component, lib, prefix,
+                    agas_client, isdefault, isenabled, options,
+                    startup_handled))
+            {
+                return false;   // next please :-P
+            }
+
+            modules_.insert(std::make_pair(HPX_MANGLE_STRING(component), d));
+        }
+        return true;
+    }
+
     bool runtime_support::load_startup_shutdown_functions(hpx::util::plugin::dll& d,
         error_code& ec)
     {
@@ -1719,52 +1866,6 @@ namespace hpx { namespace components { namespace server
         catch (std::exception const& e) {
             LRT_(debug) << "loading of startup/shutdown functions failed: "
                         << d.get_name() << ": " << e.what();
-            return false;
-        }
-        return true;    // startup/shutdown functions got registered
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    bool runtime_support::load_commandline_options_static(
-        std::string const& module,
-        boost::program_options::options_description& options, error_code& ec)
-    {
-        try {
-            util::plugin::get_plugins_list_type f;
-            if (!components::get_static_commandline(module, f))
-            {
-                LRT_(debug) << "static loading of command-line options failed: "
-                        << module << ": couldn't find module in global "
-                        << "static command line data map";
-                return false;
-            }
-
-            // get the factory, may fail
-            hpx::util::plugin::static_plugin_factory<
-                component_commandline_base> pf (f);
-
-            // create the startup_shutdown object
-            boost::shared_ptr<component_commandline_base>
-                commandline_options(pf.create("commandline_options", ec));
-            if (ec) {
-                LRT_(debug) << "static loading of command-line options failed: "
-                            << module << ": " << get_error_what(ec);
-                return false;
-            }
-
-            options.add(commandline_options->add_commandline_options());
-        }
-        catch (hpx::exception const&) {
-            throw;
-        }
-        catch (std::logic_error const& e) {
-            LRT_(debug) << "static loading of command-line options failed: "
-                        << module << ": " << e.what();
-            return false;
-        }
-        catch (std::exception const& e) {
-            LRT_(debug) << "static loading of command-line options failed: "
-                        << module << ": " << e.what();
             return false;
         }
         return true;    // startup/shutdown functions got registered
@@ -1853,6 +1954,8 @@ namespace hpx { namespace components { namespace server
                 }
 
                 // store component factory and module for later use
+                component_map_mutex_type::scoped_lock l(cm_mtx_);
+
                 component_factory_type data(factory, d, isenabled);
                 std::pair<component_map_type::iterator, bool> p =
                     components_.insert(component_map_type::value_type(t, data));
@@ -1905,6 +2008,7 @@ namespace hpx { namespace components { namespace server
         }
         return true;    // component got loaded
     }
+#endif
 
     ///////////////////////////////////////////////////////////////////////////
     // Load all components from the ini files found in the configuration
@@ -1923,6 +2027,7 @@ namespace hpx { namespace components { namespace server
         //  name = ...           # the name of this component module
         //  path = ...           # the path where to find this component module
         //  enabled = false      # optional (default is assumed to be true)
+        //  static = false       # optional (default is assumed to be false)
         //
         // # optional section defining additional properties for this module
         // [hpx.plugins.instance_name.settings]
@@ -1969,16 +2074,28 @@ namespace hpx { namespace components { namespace server
                 else
                     lib = hpx::util::create_path(HPX_DEFAULT_COMPONENT_PATH);
 
-                // first, try using the path as the full path to the library
-                if (!load_plugin(ini, instance, component, lib, isenabled))
-                {
-                    // build path to component to load
-                    std::string libname(HPX_MAKE_DLL_STRING(component));
-                    lib /= hpx::util::create_path(libname);
+                if (sect.get_entry("static", "0") == "1") {
+                    // FIXME: implement statically linked plugins
+                }
+                else {
+#if defined(HPX_STATIC_LINKING)
+                    HPX_THROW_EXCEPTION(service_unavailable,
+                        "runtime_support::load_plugins",
+                        "static linking configuration does not support dynamic "
+                        "loading of plugin '" + instance + "'");
+#else
+                    // first, try using the path as the full path to the library
                     if (!load_plugin(ini, instance, component, lib, isenabled))
                     {
-                        continue;   // next please :-P
+                        // build path to component to load
+                        std::string libname(HPX_MAKE_DLL_STRING(component));
+                        lib /= hpx::util::create_path(libname);
+                        if (!load_plugin(ini, instance, component, lib, isenabled))
+                        {
+                            continue;   // next please :-P
+                        }
                     }
+#endif
                 }
             }
             catch (hpx::exception const& e) {
@@ -1990,6 +2107,7 @@ namespace hpx { namespace components { namespace server
         return true;
     }
 
+#if !defined(HPX_STATIC_LINKING)
     bool runtime_support::load_plugin(util::section& ini,
         std::string const& instance, std::string const& plugin,
         boost::filesystem::path const& lib, bool isenabled)
@@ -2068,6 +2186,7 @@ namespace hpx { namespace components { namespace server
         }
         return true;    // component got loaded
     }
+#endif
 
 #if defined(HPX_HAVE_SECURITY)
     components::security::capability
@@ -2083,6 +2202,8 @@ namespace hpx { namespace components { namespace server
                 << "invalid/unknown type: "
                 << components::get_component_type_name(type)
                 << " (component type not found in map)";
+
+            l.unlock();
             HPX_THROW_EXCEPTION(hpx::bad_component_type,
                 "runtime_support::get_factory_capabilities",
                 hpx::util::osstream_get_string(strm));
@@ -2095,6 +2216,8 @@ namespace hpx { namespace components { namespace server
                 << "invalid/unknown type: "
                 << components::get_component_type_name(type)
                 << " (map entry is NULL)";
+
+            l.unlock();
             HPX_THROW_EXCEPTION(hpx::bad_component_type,
                 "runtime_support::get_factory_capabilities",
                 hpx::util::osstream_get_string(strm));

@@ -10,8 +10,8 @@
     [quickbook 1.7]
     [id hpx]
     [authors [STE||AR Group, The]]
-    [version 0.9.9]
-    [copyright 2011 2012 2013 2014 The STE||AR Group, Louisiana State University]
+    [version 0.9.10]
+    [copyright 2011 2012 2013 2014 The STE||AR Group (http://stellar-group.org)]
     [license
         Distributed under the Boost Software License, Version 1.0. (See
         accompanying file [@http://www.boost.org/LICENSE_1_0.txt LICENSE_1_0.txt]
@@ -34,22 +34,24 @@
 [def __0_9_7__                  [link hpx.whats_new.hpx_previous.hpx_0_9_7 V0.9.7]]
 [def __0_9_8__                  [link hpx.whats_new.hpx_previous.hpx_0_9_8 V0.9.8]]
 [def __0_9_9__                  [link hpx.whats_new.hpx_0_9_9 V0.9.9]]
+[def __0_9_10__                 [link hpx.whats_new.hpx_0_9_10 V0.9.10]]
 [def __1_0_0__                  [link hpx.whats_new.hpx_1_0_0 V1.0.0]]
 
-[def __version__                __0_9_9__]
+[def __version__                __0_9_10__]
 
 [def __hpx__                    /HPX/]
-[def __stellar__                [@http://stellar.cct.lsu.edu STE||AR]]
+[def __stellar__                [@http://stellar-group.org STE||AR]]
 [def __stellar_list__           [@email:hpx-users@stellar.cct.lsu.edu hpx-users@stellar.cct.lsu.edu]]
 [def __stellar_irc__            [@irc://irc.freenode.net:6667/#ste||ar #ste||ar at Freenode]]
-[def __stellar_hpx_download__   [@http://stellar.cct.lsu.edu/downloads/ __hpx__ Downloads]]
+[def __stellar_hpx_download__   [@http://stellar-group.org/downloads/ __hpx__ Downloads]]
 [def __stellar_hpx_github__     [@http://github.com/STEllAR-GROUP/hpx/ Github]]
 [def __stellar_hpx_github_issues__     [@http://github.com/STEllAR-GROUP/hpx/issues __hpx__ Issues]]
-[def __stellar_hpx_buildbot__   [@http://hermione.cct.lsu.edu/ HPX Buildbot Website]]
+[def __stellar_hpx_buildbot__   [@http://hermione.cct.lsu.edu/ __hpx__ Buildbot Website]]
 [def __stellar_support__        [@http://stellar.cct.lsu.edu/support/ Support Website]]
 
-[def __hpxpi__                  [@http://github.com/STEllAR-GROUP/hpx/ HPXPI]]
+[def __hpxpi__                  [@http://github.com/STEllAR-GROUP/hpxpi/ HPXPI]]
 [def __xpi_spec__               [@https://github.com/STEllAR-GROUP/hpxpi/blob/master/spec.pdf?raw=true XPI specification]]
+[def __hpxcl__                  [@http://github.com/STEllAR-GROUP/hpxcl/ HPXCL]]
 
 [def __lsu__                    [@http://www.lsu.edu Louisiana State University (LSU)]]
 [def __cct__                    [@http://www.cct.lsu.edu Center for Computation and Technology (CCT)]]
@@ -59,6 +61,10 @@
 [def __inf3__                   [@http://www3.cs.fau.de Department of Computer Science 3 - Computer Architecture]]
 [def __sandia__                 [@http://www.sandia.gov Sandia National Labs (Albuquerque)]]
 [def __tue__                    [@http://www.tui.nl Technische Universiteit Eindhoven]]
+[def __nmsu__                   [@http://www.nmsu.edu New Mexico State University]]
+[def __unlv__                   [@http://www.unlv.edu University of Nevada, Las Vegas]]
+
+[def __gsoc__                   [@https://developers.google.com/open-source/soc/ Google Summer of Code]]
 
 [def __boost__                  [@http://www.boost.org/ Boost]]
 [def __boost_libraries__        [@http://www.boost.org/ Boost C++ Libraries]]
@@ -75,7 +81,7 @@
 [def __boost_atomic__           [@http://www.boost.org/doc/libs/release/doc/html/atomic.html Boost.Atomic]]
 [def __boost_serialization__    [@http://www.boost.org/doc/libs/release/libs/serialization/doc/index.html Boost.Serialization]]
 
-[def __hwloc_downloads__        [@http://www.open-mpi.org/software/hwloc/v1.7/ hwloc Downloads]]
+[def __hwloc_downloads__        [@http://www.open-mpi.org/software/hwloc/v1.7/ hwloc]]
 [def __doxygen__                [@http://www.doxygen.org Doxygen]]
 
 [def __macports__               [@http://www.macports.org/ MacPorts]]
@@ -86,6 +92,7 @@
 [def __ctest_doc__              [@http://www.cmake.org/cmake/help/v2.8.11/ctest.html CTest Documentation]]
 [def __cmake_download__         [@http://www.cmake.org/cmake/resources/software.html CMake Downloads]]
 [def __gcc__                    [@http://gcc.gnu.org GNU Compiler Collection (g++)]]
+[def __clang__                  [@http://clang.llvm.org/ clang: a C language family frontend for LLVM]]
 [def __icpc__                   [@http://software.intel.com/en-us/intel-composer-xe/ Intel Composer XE Suites]]
 [def __gmake__                  [@http://www.gnu.org/software/make GNU Make (gmake)]]
 [def __eglibc__                 [@http://eglibc.org/home Embedded GLIBC (EGLIBC)]]
@@ -98,8 +105,8 @@
 [def __libunwind__              [@http://www.nongnu.org/libunwind libunwind]]
 [def __hdf5__                   [@http://www.hdfgroup.org/HDF5 Hierarchical Data Format V5 (HDF5)]]
 [def __lorene__                 [@http://www.lorene.obspm.fr LORENE]]
-[def __papi__                   [@http://icl.cs.utk.edu/papi/ Networking and Cryptography library (NaCl)]]
-[def __sodium__                 [@http://nacl.cr.yp.to/ Performance Application Programming Interface (PAPI)]]
+[def __sodium__                 [@http://icl.cs.utk.edu/papi/ Networking and Cryptography library (NaCl)]]
+[def __papi__                   [@http://nacl.cr.yp.to/ Performance Application Programming Interface (PAPI)]]
 [def __lapack__                 [@http://math-atlas.sourceforge.net/ Linear Algebra PACKage (LAPACK)]]
 [def __blas__                   [@http://math-atlas.sourceforge.net/ Basic Linear Algebra Subroutines 3 (BLAS)]]
 [def __gsl__                    [@http://www.gnu.org/software/gsl/ GNU Scientific Library (GSL)]]
@@ -115,11 +122,18 @@
 [def __srun__                   [@http://slurm.schedmd.com/srun.html srun]]
 [def __sbatch__                 [@http://slurm.schedmd.com/sbatch.html sbatch]]
 [def __linda__                  [@http://en.wikipedia.org/wiki/Linda_(coordination_language) The Linda Coordination Language]]
+[def __opencl__                 [@https://www.khronos.org/opencl/ OpenCL]]
+[def __pocl__                   [@http://portablecl.org/ POCL]]
+[def __cuda__                   [@http://www.nvidia.com/object/cuda_home_new.html CUDA]]
+[def __nt2__                    [@http://www.numscale.com/nt2/ NT2]]
 
 [def __cpp11__                  [@http://www.open-std.org/jtc1/sc22/wg21 C++11 Standard]]
 [def __cpp11_n3632__            [@http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3632.html N3632]]
-[def __cpp11_n3634__            [@http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3634.pdf N3634]]
+[def __cpp11_n3634__            [@http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n3857.pdf N3857]]
 [def __cpp11_n3562__            [@http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3562.pdf N3562]]
+[def __cpp11_n4088__            [@http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4088.pdf N4088]]
+[def __cpp11_n4104__            [@http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4104.html N4104]]
+[def __cpp11_n4107__            [@http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4107.html N4107]]
 
 
 [def __ini_file_format__        [@http://en.wikipedia.org/wiki/INI_file Windows INI file format]]
@@ -148,19 +162,19 @@
 
 [/ template definitions]
 [template cxx_crtp              [@http://en.wikipedia.org/wiki/Curiously_recurring_template_pattern [str]]]
-[template issue[num]            '''<ulink url="http://github.com/STEllAR-GROUP/hpx/issues/'''[num]'''">'''#[num]'''</ulink>''']
 
 [/ Section link shortcuts]
-[def __boost_installation__     [link hpx.tutorial.getting_started.boost_installation Installing Boost Libraries]]
-[def __unix_installation__      [link hpx.tutorial.getting_started.unix_installation How to Install __hpx__ on Unix Variants]]
-[def __macos_installation__     [link hpx.tutorial.getting_started.macos_installation How to Install __hpx__ on Mac OS]]
-[def __windows_installation__   [link hpx.tutorial.getting_started.windows_installation How to Install __hpx__ on Windows]]
+[def __boost_installation__     [link hpx.manual.build_system.prerequisites.boost_installation Installing Boost Libraries]]
+[def __unix_installation__      [link hpx.manual.build_system.building_hpx.build_recipes.unix_installation How to Install __hpx__ on Unix Variants]]
+[def __macos_installation__     [link hpx.manual.build_system.building_hpx.build_recipes.macos_installation How to Install __hpx__ on Mac OS]]
+[def __windows_installation__   [link hpx.manual.build_system.building_hpx.build_recipes.windows_installation How to Install __hpx__ on Windows]]
 [def __using_pbs__              [link hpx.tutorial.getting_started.unix_pbs Using PBS]]
 [def __using_slurm__            [link hpx.tutorial.getting_started.unix_slurm Using SLURM]]
 
 [def __fibonacci_example__      [link hpx.tutorial.examples.fibonacci Fibonacci Example]]
 [def __hello_world_example__    [link hpx.tutorial.examples.hello_world Hello World Example]]
 [def __accumulator_example__    [link hpx.tutorial.examples.accumulator Accumulator Example]]
+[def __futurization_example__   [link hpx.tutorial.futurization_example Futurization Example]]
 
 [def __people__                 [link hpx.people People]]
 [def __getting_started__        [link hpx.tutorial.getting_started Getting Started]]
@@ -186,12 +200,12 @@
 
 [def __scheduling__             [link hpx.manual.schedulers __hpx__ Thread Scheduling Policies]]
 
-[def __cmake_hpx__              [link hpx.manual.cmake Building __hpx__ with CMake]]
-[def __cmake_quick_start__      [link hpx.manual.cmake.quick_start Quick Start]]
-[def __cmake_basic_usage__      [link hpx.manual.cmake.basic_usage Basic CMake Usage]]
-[def __cmake_options__          [link hpx.manual.cmake.options Options and Variables]]
-[def __cmake_doc_tools__        [link hpx.manual.cmake.doc_tools Setting up the HPX Documentation Tool Chain]]
-[def __pkg_config__             [link hpx.manual.cmake.unix_comps_pkg_config How to Build __hpx__ Components with pkg-config]]
+[def __cmake_hpx__              [link hpx.manual.build_system.building_hpx Building __hpx__ with CMake]]
+[def __cmake_quick_start__      [link hpx.manual.build_system.cmake_basics CMake Quick Start]]
+[def __cmake_basic_usage__      [link hpx.build_system.basic_cmake_usage Basic CMake Usage]]
+[def __cmake_options__          [link hpx.manual.build_system.building_hpx.cmake_variables CMake Variables used to configure __hpx__]]
+[def __cmake_doc_tools__        [link hpx.manual.cmake.doc_tools Setting up the __hpx__ Documentation Tool Chain]]
+[def __pkg_config__             [link hpx.manual.build_system.using_hpx.pkgconfig.comps How to Build __hpx__ Components with pkg-config]]
 
 [/ Do not add any whitespace between [str]and the template body, it ends up in the
    generated docs, which may cause unwanted effects.]
@@ -200,6 +214,7 @@
 [template hpx_link[url txt]     '''<ulink url="'''__hpx_source_dir__'''/'''[url]'''">'''[txt]'''</ulink>''']
 
 [template git_commit_link[commit] '''<ulink url="https://github.com/STEllAR-GROUP/hpx/commit/'''[commit]'''">'''[commit]'''</ulink>''']
+[template issue[num]            '''<ulink url="http://github.com/STEllAR-GROUP/hpx/issues/'''[num]'''">'''#[num]'''</ulink>''']
 
 [/  fig[ref title label]
     Image element with a title.
@@ -279,13 +294,13 @@ __boost_auto_index__ can be found in the collection of __boost_tools__.
 [include tutorial/gettingstarted.qbk]
 [include tutorial/introduction.qbk]
 [include tutorial/examples.qbk]
-
+[include tutorial/futurization_example.qbk]
 [endsect] [/ Tutorial]
 
 [/////////////////////////////////////////////////////////////////////////////]
 [section:manual Manual]
 
-[include manual/cmake.qbk]
+[include manual/build_system.qbk]
 [include manual/testing.qbk]
 
 [/////////////////////////////////////////////////////////////////////////////]

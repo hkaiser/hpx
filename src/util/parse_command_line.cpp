@@ -8,6 +8,7 @@
 #include <hpx/util/ini.hpp>
 #include <hpx/util/parse_command_line.hpp>
 #include <hpx/util/runtime_configuration.hpp>
+#include <hpx/util/safe_lexical_cast.hpp>
 
 #include <string>
 #include <stdexcept>
@@ -39,19 +40,6 @@ namespace hpx { namespace util
         }
 
         ///////////////////////////////////////////////////////////////////////
-        template <typename T>
-        inline T safe_lexical_cast(std::string const& s, T dflt)
-        {
-            try {
-                return boost::lexical_cast<T>(s);
-            }
-            catch (boost::bad_lexical_cast const&) {
-                /**/;
-            }
-            return dflt;
-        }
-
-        ///////////////////////////////////////////////////////////////////////
         // All command line options which are normally formatted as --hpx:foo
         // should be usable as --hpx:N:foo, where N is the node number this
         // option should be exclusively used for.
@@ -72,7 +60,7 @@ namespace hpx { namespace util
             if (p == std::string::npos)
                 return false;
 
-            if (safe_lexical_cast(s.substr(hpx_prefix_len, p-hpx_prefix_len),
+            if (hpx::util::safe_lexical_cast(s.substr(hpx_prefix_len, p-hpx_prefix_len),
                     std::size_t(-1)) == node)
             {
                 // this option is for the current locality only
@@ -109,7 +97,7 @@ namespace hpx { namespace util
             if (opt.size() < 2 || opt[0] != '-')
                 return result;
 
-            util::section const* sec = ini.get_section("hpx.commandline");
+            util::section const* sec = ini.get_section("hpx.commandline.aliases");
             if (NULL == sec)
                 return result;     // no alias mappings are defined
 
@@ -182,8 +170,11 @@ namespace hpx { namespace util
                 if (handle_node_specific_option(s, node_, opt))
                     return opt;
 
-                // handle aliasing
-                return handle_aliasing(ini_, s);
+                // handle aliasing, if enabled
+                if (ini_.get_entry("hpx.commandline.aliasing", "1") == "1")
+                    return handle_aliasing(ini_, s);
+
+                return opt;
             }
 
             util::section const& ini_;
@@ -416,17 +407,20 @@ namespace hpx { namespace util
                 ("hpx:pu-offset", value<std::size_t>(),
                   "the first processing unit this instance of HPX should be "
                   "run on (default: 0), valid for "
-                  "--hpx:queuing=local, static and priority_local only")
+                  "--hpx:queuing=local, --hpx:queuing=abp-priority, "
+                  "--hpx:queuing=static and --hpx:queuing=local-priority only")
                 ("hpx:pu-step", value<std::size_t>(),
                   "the step between used processing unit numbers for this "
                   "instance of HPX (default: 1), valid for "
-                  "--hpx:queuing=local, static and priority_local only")
+                  "--hpx:queuing=local, --hpx:queuing=abp-priority, "
+                  "--hpx:queuing=static and --hpx:queuing=local-priority only")
 #endif
 #if defined(HPX_HAVE_HWLOC)
                 ("hpx:affinity", value<std::string>(),
                   "the affinity domain the OS threads will be confined to, "
                   "possible values: pu, core, numa, machine (default: pu), valid for "
-                  "--hpx:queuing=local, static and priority_local only")
+                  "--hpx:queuing=local, --hpx:queuing=abp-priority, "
+                  "--hpx:queuing=static and --hpx:queuing=local-priority only")
                 ("hpx:bind", value<std::vector<std::string> >()->composing(),
                   "the detailed affinity description for the OS threads, see "
                   "the documentation for a detailed description of possible "
@@ -446,8 +440,9 @@ namespace hpx { namespace util
                  "the number of total cores in the system)")
                 ("hpx:queuing", value<std::string>(),
                   "the queue scheduling policy to use, options are "
-                  "'local', 'priority_local', 'priority_abp', "
-                  "'hierarchy', 'static' and 'periodic' (default: 'priority_local'; "
+                  "'local', 'local-priority', 'abp-priority', "
+                  "'hierarchy', 'static', and 'periodic-priority' "
+                  "(default: 'local-priority'; "
                   "all option values can be abbreviated)")
                 ("hpx:hierarchy-arity", value<std::size_t>(),
                   "the arity of the of the thread queue tree, valid for "
@@ -455,9 +450,9 @@ namespace hpx { namespace util
                 ("hpx:high-priority-threads", value<std::size_t>(),
                   "the number of operating system threads maintaining a high "
                   "priority queue (default: number of OS threads), valid for "
-                  "--hpx:queuing=priority_local and --hpx:queuing=priority_abp only)")
+                  "--hpx:queuing=local-priority and --hpx:queuing=abp-priority only)")
                 ("hpx:numa-sensitive",
-                  "makes the priority_local scheduler NUMA sensitive")
+                  "makes the local-priority scheduler NUMA sensitive")
             ;
 
             options_description config_options("HPX configuration options");
@@ -519,19 +514,14 @@ namespace hpx { namespace util
                   "   'full' (prints all available counter infos)")
             ;
 
-            // move all positional options into the hpx:positional option group
-            positional_options_description pd;
-            pd.add("hpx:positional", -1);
-
             hidden_options.add_options()
-                ("hpx:positional", value<std::vector<std::string> >(),
-                  "positional options")
                 ("hpx:ignore", "this option will be silently ignored")
             ;
 
             // construct the overall options description and parse the
             // command line
             options_description desc_cmdline;
+            options_description positional_options;
             desc_cmdline
                 .add(app_options).add(cmdline_options)
                 .add(hpx_options).add(counter_options)
@@ -539,34 +529,72 @@ namespace hpx { namespace util
                 .add(hidden_options)
             ;
 
-            // parse command line, allow for unregistered options this point
-            parsed_options opts(
-                detail::get_commandline_parser(
-                    command_line_parser(argc, argv)
-                        .options(desc_cmdline)
-                        .positional(pd)
-                        .style(unix_style)
-                        .extra_parser(detail::option_parser(rtcfg, node)),
-                    error_mode
-                ).run()
-            );
-
-            // collect unregistered options, if needed
-            if (unregistered_options) {
-                using boost::program_options::collect_unrecognized;
-                using boost::program_options::exclude_positional;
-                *unregistered_options =
-                    collect_unrecognized(opts.options, exclude_positional);
-            }
-
-            store(opts, vm);
-            notify(vm);
-
             options_description desc_cfgfile;
             desc_cfgfile
                 .add(app_options).add(hpx_options)
                 .add(counter_options).add(config_options)
-                .add(debugging_options).add(hidden_options);
+                .add(debugging_options).add(hidden_options)
+            ;
+
+            if (rtcfg.get_entry("hpx.commandline.allow_unknown", "0") == "0")
+            {
+                // move all positional options into the hpx:positional option
+                // group
+                positional_options_description pd;
+                pd.add("hpx:positional", -1);
+
+                positional_options.add_options()
+                    ("hpx:positional", value<std::vector<std::string> >(),
+                      "positional options")
+                ;
+                desc_cmdline.add(positional_options);
+                desc_cfgfile.add(positional_options);
+
+                // parse command line, allow for unregistered options this point
+                parsed_options opts(detail::get_commandline_parser(
+                        command_line_parser(argc, argv)
+                            .options(desc_cmdline)
+                            .positional(pd)
+                            .style(unix_style)
+                            .extra_parser(detail::option_parser(rtcfg, node)),
+                        error_mode
+                    ).run()
+                );
+
+                // collect unregistered options, if needed
+                if (unregistered_options) {
+                    using boost::program_options::collect_unrecognized;
+                    using boost::program_options::exclude_positional;
+                    *unregistered_options =
+                        collect_unrecognized(opts.options, exclude_positional);
+                }
+
+                store(opts, vm);
+            }
+            else
+            {
+                // parse command line, allow for unregistered options this point
+                parsed_options opts(detail::get_commandline_parser(
+                        command_line_parser(argc, argv)
+                            .options(desc_cmdline)
+                            .style(unix_style)
+                            .extra_parser(detail::option_parser(rtcfg, node)),
+                        error_mode
+                    ).run()
+                );
+
+                // collect unregistered options, if needed
+                if (unregistered_options) {
+                    using boost::program_options::collect_unrecognized;
+                    using boost::program_options::include_positional;
+                    *unregistered_options =
+                        collect_unrecognized(opts.options, include_positional);
+                }
+
+                store(opts, vm);
+            }
+
+            notify(vm);
 
             detail::handle_generic_config_options(
                 argv[0], vm, desc_cfgfile, rtcfg, node, error_mode);
@@ -609,9 +637,10 @@ namespace hpx { namespace util
         std::vector<std::string> args = split_unix(cmdline);
 #endif
 
-        boost::scoped_array<char*> argv(new char* [args.size()]);
+        boost::scoped_array<char*> argv(new char* [args.size()+1]);
         for (std::size_t i = 0; i < args.size(); ++i)
             argv[i] = const_cast<char*>(args[i].c_str());
+        argv[args.size()] = 0;
 
         return parse_commandline(
             rtcfg, app_options, static_cast<int>(args.size()), argv.get(), vm,
@@ -637,7 +666,7 @@ namespace hpx { namespace util
         if (cfg.has_entry("hpx.cmd_line"))
             cmdline = cfg.get_entry("hpx.cmd_line");
         if (cfg.has_entry("hpx.locality"))
-            node = boost::lexical_cast<std::size_t>(cfg.get_entry("hpx.locality"));
+            node = hpx::util::safe_lexical_cast<std::size_t>(cfg.get_entry("hpx.locality"));
 
         return parse_commandline(cfg, app_options, cmdline, vm, node,
             allow_unregistered);

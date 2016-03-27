@@ -34,25 +34,37 @@
 
 namespace hpx { namespace util
 {
-    std::string find_prefix(
-        std::string library
-        )
+    static const char* prefix_ = 0;
+
+    void set_hpx_prefix(const char * prefix)
+    {
+        if (prefix_ == 0)
+            prefix_ = prefix;
+    }
+
+    char const* hpx_prefix()
+    {
+        HPX_ASSERT(0 != prefix_);
+        return prefix_;
+    }
+
+    std::string find_prefix(std::string const& library)
     {
 #if !defined(__ANDROID__) && !defined(ANDROID) && !defined(__APPLE__) && !defined(__MIC)
         try {
-            error_code ec;
+            error_code ec(hpx::throwmode::lightweight);
             hpx::util::plugin::dll dll(HPX_MAKE_DLL_STRING(library));
 
             dll.load_library(ec);
-            if (ec) return HPX_PREFIX;
+            if (ec) return hpx_prefix();
 
             using boost::filesystem::path;
 
             std::string const prefix =
-                path(dll.get_directory(ec)).parent_path().parent_path().string();
+                path(dll.get_directory(ec)).parent_path().string();
 
             if (ec || prefix.empty())
-                return HPX_PREFIX;
+                return hpx_prefix();
 
             return prefix;
         }
@@ -60,7 +72,7 @@ namespace hpx { namespace util
             ;   // just ignore loader problems
         }
 #endif
-        return HPX_PREFIX;
+        return hpx_prefix();
     }
 
     std::string find_prefixes(std::string const& suffix, std::string const& library)

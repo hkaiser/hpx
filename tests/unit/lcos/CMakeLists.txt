@@ -30,12 +30,15 @@ set(tests
    )
 
 # include some of the tests for non-gcc 4.4 only
-set(gcc_version 040500)
-if(GCC_VERSION)
-  set(gcc_version ${GCC_VERSION})
+set(non_gcc_44 true)
+if(CMAKE_COMPILER_IS_GNUCXX AND HPX_GCC_VERSION_CHECK)
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.5)
+    set(non_gcc_44 false)
+  endif()
 endif()
 
-if((040500 EQUAL ${gcc_version}) OR (040500 LESS ${gcc_version}) OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel"))
+
+if(non_gcc_44)
   set(tests
       ${tests}
       broadcast
@@ -83,6 +86,8 @@ foreach(test ${tests})
   add_hpx_executable(${test}_test
                      SOURCES ${sources}
                      ${${test}_FLAGS}
+                     EXCLUDE_FROM_ALL
+                     HPX_PREFIX ${HPX_BUILD_PREFIX}
                      FOLDER "Tests/Unit/LCOs")
 
   add_hpx_unit_test("lcos" ${test} ${${test}_PARAMETERS})

@@ -296,18 +296,6 @@ namespace hpx { namespace lcos { namespace detail
             async(f, sched, throws);
         }
 
-        void deleting_owner()
-        {
-            typename mutex_type::scoped_lock l(this->mtx_);
-            if (!started_) {
-                started_ = true;
-                l.unlock();
-                this->set_error(broken_task,
-                    "continuation::deleting_owner",
-                    "deleting task owner before future has been executed");
-            }
-        }
-
         // cancellation support
         bool cancelable() const
         {
@@ -349,7 +337,7 @@ namespace hpx { namespace lcos { namespace detail
         }
 
     public:
-        void attach(Future& future, BOOST_SCOPED_ENUM(launch) policy)
+        void attach(Future const& future, BOOST_SCOPED_ENUM(launch) policy)
         {
             typedef
                 typename shared_state_ptr_for<Future>::type
@@ -364,15 +352,13 @@ namespace hpx { namespace lcos { namespace detail
             else
                 cb = &continuation::async;
 
-            if (future.wait_for(boost::posix_time::seconds(0)) == future_status::deferred)
-                future.wait();
-
             shared_state_ptr const& state =
                 lcos::detail::get_shared_state(future);
+            state->execute_deferred();
             state->set_on_completed(util::bind(cb, std::move(this_), state));
         }
 
-        void attach(Future& future, threads::executor& sched)
+        void attach(Future const& future, threads::executor& sched)
         {
             typedef
                 typename shared_state_ptr_for<Future>::type
@@ -384,11 +370,9 @@ namespace hpx { namespace lcos { namespace detail
             void (continuation::*cb)(shared_state_ptr const&, threads::executor&) =
                 &continuation::async;
 
-            if (future.wait_for(boost::posix_time::seconds(0)) == future_status::deferred)
-                future.wait();
-
             shared_state_ptr const& state =
                 lcos::detail::get_shared_state(future);
+            state->execute_deferred();
             state->set_on_completed(util::bind(cb, std::move(this_), state, boost::ref(sched)));
         }
 
@@ -403,7 +387,7 @@ namespace hpx { namespace lcos { namespace detail
     inline typename shared_state_ptr<
         typename continuation_result<ContResult>::type
     >::type
-    make_continuation(Future& future, BOOST_SCOPED_ENUM(launch) policy,
+    make_continuation(Future const& future, BOOST_SCOPED_ENUM(launch) policy,
         F && f)
     {
         typedef detail::continuation<Future, F, ContResult> shared_state;
@@ -420,7 +404,7 @@ namespace hpx { namespace lcos { namespace detail
     inline typename shared_state_ptr<
         typename continuation_result<ContResult>::type
     >::type
-    make_continuation(Future& future, threads::executor& sched,
+    make_continuation(Future const& future, threads::executor& sched,
         F && f)
     {
         typedef detail::continuation<Future, F, ContResult> shared_state;
@@ -508,12 +492,10 @@ namespace hpx { namespace lcos { namespace detail
             void (unwrap_continuation::*outer_ready)(
                 outer_shared_state_ptr const&) =
                     &unwrap_continuation::on_outer_ready<Future>;
-            
-            if (future.wait_for(boost::posix_time::seconds(0)) == future_status::deferred)
-                future.wait();
 
             outer_shared_state_ptr const& outer_state =
                 traits::future_access<Future>::get_shared_state(future);
+            outer_state->execute_deferred();
             outer_state->set_on_completed(
                 util::bind(outer_ready, std::move(this_), outer_state));
         }
@@ -567,11 +549,9 @@ namespace hpx { namespace lcos { namespace detail
             void (void_continuation::*ready)(shared_state_ptr const&) =
                 &void_continuation::on_ready<Future>;
 
-            if (future.wait_for(boost::posix_time::seconds(0)) == future_status::deferred)
-                future.wait();
-
             shared_state_ptr const& state =
                 lcos::detail::get_shared_state(future);
+            state->execute_deferred();
             state->set_on_completed(util::bind(ready, std::move(this_), state));
         }
     };

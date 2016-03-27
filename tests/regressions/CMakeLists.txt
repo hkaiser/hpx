@@ -1,5 +1,5 @@
 # Copyright (c) 2011-2012 Bryce Adelstein-Lelbach
-# Copyright (c) 2007-2013 Hartmut Kaiser
+# Copyright (c) 2007-2014 Hartmut Kaiser
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -15,6 +15,10 @@ set(subdirs
     traits
     util
    )
+
+if(HPX_HAVE_CXX11_LAMBDAS)
+    set(subdirs ${subdirs} parallel)
+endif()
 
 foreach(subdir ${subdirs})
   add_hpx_pseudo_target(tests.regressions.${subdir})
@@ -39,6 +43,8 @@ foreach(test ${tests})
   add_hpx_executable(${test}_test
                      SOURCES ${sources}
                      ${${test}_FLAGS}
+                     EXCLUDE_FROM_ALL
+                     HPX_PREFIX ${HPX_BUILD_PREFIX}
                      FOLDER "Tests/Regressions/")
 
   add_hpx_test("tests.regressions" ${test} ${${test}_PARAMETERS})
@@ -54,7 +60,7 @@ foreach(test ${tests})
   add_hpx_pseudo_dependencies(tests.regressions.${test}
                               ${test}_test_exe)
 endforeach()
-  
+
 add_hpx_test(
   "tests.regressions" id_type_ref_counting_1032_4
   EXECUTABLE id_type_ref_counting_1032 THREADS_PER_LOCALITY 4)

@@ -151,6 +151,57 @@ namespace examples { namespace stubs
             return load_async(gid, file_name).get();
         }
 
+        ///////////////////////////////////////////////////////////////////////
+        /// print tuple space contents.
+        ///
+        /// \returns This function returns an \a hpx::lcos::future. When the
+        ///          value of this computation is needed, the get() method of
+        ///          the future should be called. If the value is available,
+        ///          get() will return immediately; otherwise, it will block
+        ///          until the value is ready.
+        //[simple_central_tuplespace_stubs_print_async
+        static hpx::lcos::future<std::string>
+        print_async(hpx::naming::id_type const& gid)
+        {
+            typedef server::simple_central_tuplespace::print_action action_type;
+            return hpx::async<action_type>(gid);
+        }
+        //]
+
+        /// print tuple space contents.
+        ///
+        /// \note This function is fully synchronous.
+        static std::string print_sync(hpx::naming::id_type const& gid)
+        {
+            // The following get yields control while the action is executed.
+            return print_async(gid).get();
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+        /// clear tuple space contents.
+        ///
+        /// \returns This function returns an \a hpx::lcos::future. When the
+        ///          value of this computation is needed, the get() method of
+        ///          the future should be called. If the value is available,
+        ///          get() will return immediately; otherwise, it will block
+        ///          until the value is ready.
+        //[simple_central_tuplespace_stubs_clear_async
+        static hpx::lcos::future<void>
+        clear_async(hpx::naming::id_type const& gid)
+        {
+            typedef server::simple_central_tuplespace::clear_action action_type;
+            return hpx::async<action_type>(gid);
+        }
+        //]
+
+        /// clear tuple space contents.
+        ///
+        /// \note This function is fully synchronous.
+        static void clear_sync(hpx::naming::id_type const& gid)
+        {
+            // The following get yields control while the action is executed.
+            return clear_async(gid).get();
+        }
     };
 }}
 

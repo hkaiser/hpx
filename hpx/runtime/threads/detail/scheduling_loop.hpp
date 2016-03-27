@@ -17,7 +17,7 @@
 #include <boost/mpl/bool.hpp>
 #include <boost/bind.hpp>
 #include <boost/ref.hpp>
-#include <boost/asio/deadline_timer.hpp>
+#include <boost/asio/basic_deadline_timer.hpp>
 
 namespace hpx { namespace threads { namespace detail
 {
@@ -37,9 +37,14 @@ namespace hpx { namespace threads { namespace detail
         if (global_state.load() == running)
         {
             // create timer firing in correspondence with given time
-            boost::asio::deadline_timer t (
+            typedef boost::asio::basic_deadline_timer<
+                boost::chrono::steady_clock
+              , util::chrono_traits<boost::chrono::steady_clock>
+            > deadline_timer;
+
+            deadline_timer t(
                 get_thread_pool("timer-thread")->get_io_service(),
-                boost::posix_time::milliseconds(1000));
+                boost::chrono::milliseconds(1000));
 
             void (*handler)(SchedulingPolicy&, boost::atomic<hpx::state>&, boost::mpl::true_) =
                 &periodic_maintenance_handler<SchedulingPolicy>;
@@ -61,12 +66,15 @@ namespace hpx { namespace threads { namespace detail
     {
         scheduler.periodic_maintenance(global_state == running);
 
-        boost::posix_time::milliseconds expire(1000);
-
         // create timer firing in correspondence with given time
-        boost::asio::deadline_timer t (
+        typedef boost::asio::basic_deadline_timer<
+            boost::chrono::steady_clock
+          , util::chrono_traits<boost::chrono::steady_clock>
+        > deadline_timer;
+
+        deadline_timer t (
             get_thread_pool("io-thread")->get_io_service(),
-            boost::posix_time::milliseconds(1000));
+            boost::chrono::milliseconds(1000));
 
         void (*handler)(SchedulingPolicy&, boost::atomic<hpx::state>&, boost::mpl::true_) =
             &periodic_maintenance_handler<SchedulingPolicy>;
@@ -161,7 +169,7 @@ namespace hpx { namespace threads { namespace detail
         bool need_restore_state_;
     };
 
-#if HPX_THREAD_MAINTAIN_IDLE_RATES
+#ifdef HPX_THREAD_MAINTAIN_IDLE_RATES
     struct idle_collect_rate
     {
         idle_collect_rate(boost::uint64_t& tfunc_time, boost::uint64_t& exec_time)
@@ -176,7 +184,16 @@ namespace hpx { namespace threads { namespace detail
         }
         void take_snapshot()
         {
-            tfunc_time_ = util::hardware::timestamp() - start_timestamp_;
+            if (tfunc_time_ == boost::uint64_t(-1))
+            {
+                start_timestamp_ = util::hardware::timestamp();
+                tfunc_time_ = 0;
+                exec_time_ = 0;
+            }
+            else
+            {
+                tfunc_time_ = util::hardware::timestamp() - start_timestamp_;
+            }
         }
 
         boost::uint64_t start_timestamp_;
@@ -286,7 +303,7 @@ namespace hpx { namespace threads { namespace detail
                             // thread returns new required state
                             // store the returned state in the thread
                             {
-#if HPX_HAVE_ITTNOTIFY != 0
+#ifdef HPX_HAVE_ITTNOTIFY
                                 util::itt::caller_context cctx(ctx);
                                 util::itt::undo_frame_context undoframe(fctx);
                                 util::itt::task task(domain, thrd->get_description());
@@ -297,7 +314,7 @@ namespace hpx { namespace threads { namespace detail
                                 thrd_stat = (*thrd)();
                             }
 
-#if HPX_THREAD_MAINTAIN_CUMULATIVE_COUNTS
+#ifdef HPX_THREAD_MAINTAIN_CUMULATIVE_COUNTS
                             ++executed_thread_phases;
 #endif
                         }
@@ -365,7 +382,7 @@ namespace hpx { namespace threads { namespace detail
                 // REVIEW: what has to be done with depleted HPX threads?
                 if (state_val == depleted || state_val == terminated)
                 {
-#if HPX_THREAD_MAINTAIN_CUMULATIVE_COUNTS
+#ifdef HPX_THREAD_MAINTAIN_CUMULATIVE_COUNTS
                     ++executed_threads;
 #endif
                     scheduler.SchedulingPolicy::destroy_thread(thrd, busy_loop_count);

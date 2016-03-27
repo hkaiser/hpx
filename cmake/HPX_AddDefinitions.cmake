@@ -1,22 +1,20 @@
 # Copyright (c) 2013 Hartmut Kaiser
+# Copyright (c) 2014 Thomas Heller
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-set(HPX_ADD_DEFINITION_LOADED TRUE)
+# on startup, this is unset, but we'll set it to an empty string anyway
+set_property(GLOBAL PROPERTY HPX_CONFIG_DEFINITIONS "")
 
-include(HPX_Include)
+function(hpx_add_config_define definition)
+ 
+  if(ARGN)
+    set_property(GLOBAL APPEND PROPERTY HPX_CONFIG_DEFINITIONS "${definition} ${ARGN}")
+  else()
+    set_property(GLOBAL APPEND PROPERTY HPX_CONFIG_DEFINITIONS "${definition}")
+  endif()
 
-hpx_include(Message
-            ParseArguments)
+  get_property(HPX_CONFIG_DEFINITIONS_VAR GLOBAL PROPERTY HPX_CONFIG_DEFINITIONS)
 
-macro(hpx_add_definitions definition)
-  hpx_debug("add_definitions" "${definition}")
-  set(HPX_DEFINITIONS ${HPX_DEFINITIONS} ${definition})
-  add_definitions(${definition})
-endmacro()
-
-macro(hpx_add_config_define definition)
-  set(${definition}_define ${ARGN} CACHE INTERNAL "${definition}" FORCE)
-  set(HPX_CONFIG_DEFINITIONS ${HPX_CONFIG_DEFINITIONS} ${definition})
-endmacro()
+endfunction()

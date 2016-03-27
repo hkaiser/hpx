@@ -10,20 +10,19 @@
 
 #include <hpx/config.hpp>
 
-#include <boost/cstdint.hpp>
-#include <boost/exception_ptr.hpp>
-#include <boost/date_time/posix_time/ptime.hpp>
-#include <boost/date_time/posix_time/posix_time_config.hpp>
-
 #include <hpx/hpx_fwd.hpp>
 #include <hpx/state.hpp>
-#include <hpx/util/thread_specific_ptr.hpp>
 #include <hpx/util/backtrace.hpp>
+#include <hpx/util/date_time_chrono.hpp>
+#include <hpx/util/thread_specific_ptr.hpp>
 #include <hpx/runtime/threads/topology.hpp>
 #include <hpx/runtime/threads/thread_executor.hpp>
 #include <hpx/runtime/threads/policies/affinity_data.hpp>
 
 #include <hpx/config/warnings_prefix.hpp>
+
+#include <boost/cstdint.hpp>
+#include <boost/exception_ptr.hpp>
 
 // TODO: add branch prediction and function heat
 
@@ -39,14 +38,6 @@ namespace hpx { namespace threads
     ///////////////////////////////////////////////////////////////////////////
     struct threadmanager_base : private boost::noncopyable
     {
-    protected:
-        // we use the boost::posix_time::ptime type for time representation
-        typedef boost::posix_time::ptime time_type;
-
-        // we use the boost::posix_time::time_duration type as the duration
-        // representation
-        typedef boost::posix_time::time_duration duration_type;
-
     public:
         virtual ~threadmanager_base() {}
 
@@ -81,7 +72,7 @@ namespace hpx { namespace threads
         ///                 thread referenced by the \a id parameter. If the
         ///                 thread is not known to the thread manager the return
         ///                 value will be ~0.
-        virtual std::size_t get_phase(thread_id_type const& id) = 0;
+        virtual std::size_t get_phase(thread_id_type const& id) const = 0;
 
         /// The get_priority function is part of the thread related API. It
         /// queries the priority of one of the threads known to the thread manager
@@ -93,7 +84,20 @@ namespace hpx { namespace threads
         ///                 thread referenced by the \a id parameter. If the
         ///                 thread is not known to the thread manager the return
         ///                 value will be ~0.
-        virtual thread_priority get_priority(thread_id_type const& id) = 0;
+        virtual thread_priority get_priority(thread_id_type const& id) const = 0;
+
+        /// The get_stack_size function is part of the thread related API. It
+        /// queries the size of the stack allocated of one of the threads
+        /// known to the thread manager
+        ///
+        /// \param id       [in] The thread id of the thread the phase should
+        ///                 be returned for.
+        ///
+        /// \returns        This function returns the size of the stack
+        ///                 allocated for the thread referenced by the \a id
+        ///                 parameter. If thread is not known to the thread
+        ///                 manager the return value will be ~0.
+        virtual std::ptrdiff_t get_stack_size(thread_id_type const& id) const = 0;
 
         /// The get_state function is part of the thread related API. It
         /// queries the state of one of the threads known to the thread manager
@@ -107,7 +111,7 @@ namespace hpx { namespace threads
         ///                 \a thread_state enumeration. If the
         ///                 thread is not known to the thread manager the return
         ///                 value will be \a thread_state#unknown.
-        virtual thread_state get_state(thread_id_type const& id) = 0;
+        virtual thread_state get_state(thread_id_type const& id) const = 0;
 
         /// The set_state function is part of the thread related API and allows
         /// to change the state of one of the threads managed by this
@@ -150,7 +154,7 @@ namespace hpx { namespace threads
         ///
         /// \param id         [in] The thread id of the thread the state should
         ///                   be modified for.
-        /// \param at_time
+        /// \param abs_time
         /// \param state      [in] The new state to be set for the thread
         ///                   referenced by the \a id parameter.
         /// \param newstate_ex [in] The new extended state to be set for the
@@ -159,7 +163,8 @@ namespace hpx { namespace threads
         ///                   executed if the parameter \a newstate is pending.
         ///
         /// \returns
-        virtual thread_id_type set_state (time_type const& expire_at,
+        virtual thread_id_type set_state (
+            util::steady_time_point const& abs_time,
             thread_id_type const& id, thread_state_enum newstate = pending,
             thread_state_ex_enum newstate_ex = wait_timeout,
             thread_priority priority = thread_priority_default,
@@ -173,7 +178,7 @@ namespace hpx { namespace threads
         ///
         /// \param id         [in] The thread id of the thread the state should
         ///                   be modified for.
-        /// \param after_duration
+        /// \param rel_time
         /// \param state      [in] The new state to be set for the thread
         ///                   referenced by the \a id parameter.
         /// \param newstate_ex [in] The new extended state to be set for the
@@ -182,7 +187,8 @@ namespace hpx { namespace threads
         ///                   executed if the parameter \a newstate is pending.
         ///
         /// \returns
-        virtual thread_id_type set_state (duration_type const& expire_from_now,
+        virtual thread_id_type set_state (
+            util::steady_duration const& rel_time,
             thread_id_type const& id, thread_state_enum newstate = pending,
             thread_state_ex_enum newstate_ex = wait_timeout,
             thread_priority priority = thread_priority_default,
@@ -218,7 +224,7 @@ namespace hpx { namespace threads
         ///                   back trace of the thread referenced by the \a id
         ///                   parameter. If the thread is not known to the
         ///                   thread-manager the return value will be the zero.
-#if HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION != 0
+#ifdef HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION
         virtual char const* get_backtrace(thread_id_type const& id) const = 0;
         virtual char const* set_backtrace(thread_id_type const& id, char const* bt = 0) = 0;
 #else
@@ -261,6 +267,9 @@ namespace hpx { namespace threads
         /// \param func   [in] The function or function object to execute as
         ///               the thread's function. This must have a signature as
         ///               defined by \a thread_function_type.
+        /// \param id     [out] This parameter will hold the id of the created
+        ///               thread. This id is guaranteed to be validly
+        ///               initialized before the thread function is executed.
         /// \param description [in] The value of this parameter allows to
         ///               specify a description of the thread to create. This
         ///               information is used for logging purposes mainly, but
@@ -281,11 +290,8 @@ namespace hpx { namespace threads
         ///               parameter \a run_now or the function \a
         ///               threadmanager#do_some_work is called). This parameter
         ///               is optional and defaults to \a true.
-        ///
-        /// \returns      The function returns the thread id of the newly
-        ///               created thread.
-        virtual thread_id_type
-        register_thread(thread_init_data& data,
+        virtual void
+        register_thread(thread_init_data& data, thread_id_type& id,
             thread_state_enum initial_state = pending,
             bool run_now = true, error_code& ec = throws) = 0;
 
@@ -415,14 +421,14 @@ namespace hpx { namespace threads
         /// to run on.
         virtual mask_cref_type get_pu_mask(topology const&, std::size_t) const = 0;
 
-#if HPX_THREAD_MAINTAIN_CUMULATIVE_COUNTS
+#if defined(HPX_THREAD_MAINTAIN_CUMULATIVE_COUNTS)
         virtual boost::int64_t get_executed_threads(
             std::size_t num = std::size_t(-1), bool reset = false) = 0;
         virtual boost::int64_t get_executed_thread_phases(
             std::size_t num = std::size_t(-1), bool reset = false) = 0;
 #endif
 
-#if HPX_THREAD_MAINTAIN_LOCAL_STORAGE
+#if defined(HPX_THREAD_MAINTAIN_LOCAL_STORAGE)
         /// The get_thread_data function is part of the thread related
         /// API. It queries the currently stored thread specific data pointer.
         ///

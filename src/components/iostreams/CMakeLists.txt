@@ -8,19 +8,21 @@ set(root "${hpx_SOURCE_DIR}/hpx/components/iostreams")
 
 add_definitions(-DHPX_IOSTREAMS_MODULE_EXPORTS)
 
-if(HPX_DEFAULT_BUILD_TARGETS)
-  add_hpx_component(iostreams
-    FOLDER "Core/Components"
-    HEADER_ROOT ${root}
-    AUTOGLOB
-    ESSENTIAL)
-else()
+if(HPX_BUILD_DEFAULT_TARGETS)
   add_hpx_component(iostreams
     FOLDER "Core/Components"
     HEADER_ROOT ${root}
     AUTOGLOB)
+else()
+  add_hpx_component(iostreams
+    FOLDER "Core/Components"
+    HEADER_ROOT ${root}
+    AUTOGLOB
+    EXCLUDE_FROM_ALL)
 endif()
 
 add_hpx_pseudo_dependencies(components.iostreams
                             iostreams_component)
+add_hpx_pseudo_dependencies(core
+                          components.iostreams)
 

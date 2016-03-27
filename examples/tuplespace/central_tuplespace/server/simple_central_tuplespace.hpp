@@ -10,9 +10,12 @@
 #include <hpx/runtime/components/server/simple_component_base.hpp>
 #include <hpx/runtime/components/server/locking_hook.hpp>
 #include <hpx/runtime/actions/component_action.hpp>
+#include <hpx/util/portable_binary_iarchive.hpp>
+#include <hpx/util/portable_binary_oarchive.hpp>
 #include <hpx/util/storage/tuple.hpp>
 #include <hpx/util/high_resolution_timer.hpp>
 #include <hpx/include/local_lcos.hpp>
+#include <hpx/include/iostreams.hpp>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/archive/binary_oarchive.hpp>
@@ -68,7 +71,6 @@ namespace examples { namespace server
             typedef hpx::util::storage::tuple tuple_type;
             typedef hpx::util::storage::tuple::elem_type elem_type;
             typedef hpx::lcos::local::spinlock mutex_type;
-            
             typedef examples::server::tuples_warehouse tuples_type;
 
             // pre-defined timeout values
@@ -96,7 +98,7 @@ namespace examples { namespace server
                 }
 
                 {
-                    mutex_type::scoped_lock l(mtx_); 
+                    mutex_type::scoped_lock l(mtx_);
 
                     tuples_.insert(tp);
                 }
@@ -115,11 +117,11 @@ namespace examples { namespace server
                 {
                     if(tuples_.empty())
                     {
-                        continue; 
+                        continue;
                     }
 
                     {
-                        mutex_type::scoped_lock l(mtx_); 
+                        mutex_type::scoped_lock l(mtx_);
 
                         result = tuples_.match(tp);
                     }
@@ -131,7 +133,7 @@ namespace examples { namespace server
                     }
                 } while((timeout < 0) || (timeout > t.elapsed()));
 
-                return result; 
+                return result;
             }
 
             // take from tuplespace
@@ -143,14 +145,13 @@ namespace examples { namespace server
 
                 do
                 {
-
                     if(tuples_.empty())
                     {
-                        continue; 
+                        continue;
                     }
 
                     {
-                        mutex_type::scoped_lock l(mtx_); 
+                        mutex_type::scoped_lock l(mtx_);
 
                         result = tuples_.match_and_erase(tp);
                     }
@@ -162,7 +163,7 @@ namespace examples { namespace server
                     }
                 } while((timeout < 0) || (timeout > t.elapsed()));
 
-                return result; 
+                return result;
             }
 
             // store the tuplespace into disk
@@ -177,6 +178,7 @@ namespace examples { namespace server
                     stored_name = std::string("TupleSpace") + std::string("_") + 
                         boost::posix_time::to_iso_string(now);
                 }
+                file_name_ = stored_name;
 
                 std::ofstream ofs(stored_name, std::ios::binary);
                 if (!ofs.is_open()) {
@@ -187,10 +189,10 @@ namespace examples { namespace server
 
                 // save tuplespace into archive
                 {
-                    mutex_type::scoped_lock l(mtx_); 
+                    mutex_type::scoped_lock l(mtx_);
 
                     hpx::util::portable_binary_oarchive oa(out_buffer);
-                    oa << (*this);
+                    oa << tuples_;
                 }
 
                 // out_buffer will contain the byte sequence
@@ -203,35 +205,54 @@ namespace examples { namespace server
             // load tuplespace from disk
             int load(std::string const& file_name)
             {
-                if (!file_name.empty()) {
+                if (file_name.empty()) {
+                    hpx::cerr << "Empty file name!!" << hpx::endl;
                     return -1;
                 }
 
-
                 std::ifstream ifs(file_name, std::ios::binary);
                 if (!ifs.is_open()) {
+                    hpx::cerr << "Cannot open file '" << file_name << "'!!" << hpx::endl;
                     return -1;
                 }
 
                 std::vector<char> in_buffer;
-
                 std::size_t size = 0;
+
                 ifs >> size;
                 in_buffer.resize(size);
                 ifs.read(in_buffer.data(), size);
 
+                hpx::cerr << hpx::endl;
+
                 {
-                    mutex_type::scoped_lock l(mtx_); 
+                    mutex_type::scoped_lock l(mtx_);
 
                     hpx::util::portable_binary_iarchive ia(in_buffer, size);
-                    ia >> (*this);
+                    tuples_.clear();
+                    ia >> tuples_;
                 }
 
                 return 0;
             }
 
-            //]
+            // print the contents of tuplespace
+            std::string print()
+            {
+                std::stringstream ss;
 
+                ss << "File Name: " << file_name_ << "\n";
+                ss << tuples_.print();
+
+                return ss.str();
+            }
+
+            void clear()
+            {
+                tuples_.clear();
+            }
+
+            //]
 
 
             ///////////////////////////////////////////////////////////////////////
@@ -245,6 +266,8 @@ namespace examples { namespace server
             HPX_DEFINE_COMPONENT_ACTION(simple_central_tuplespace, take);
             HPX_DEFINE_COMPONENT_ACTION(simple_central_tuplespace, store);
             HPX_DEFINE_COMPONENT_ACTION(simple_central_tuplespace, load);
+            HPX_DEFINE_COMPONENT_ACTION(simple_central_tuplespace, print);
+            HPX_DEFINE_COMPONENT_ACTION(simple_central_tuplespace, clear);
             //]
 
             //[simple_central_tuplespace_server_data_member
@@ -286,6 +309,14 @@ HPX_REGISTER_ACTION_DECLARATION(
 HPX_REGISTER_ACTION_DECLARATION(
     examples::server::simple_central_tuplespace::load_action,
     simple_central_tuplespace_load_action);
+
+HPX_REGISTER_ACTION_DECLARATION(
+    examples::server::simple_central_tuplespace::print_action,
+    simple_central_tuplespace_print_action);
+
+HPX_REGISTER_ACTION_DECLARATION(
+    examples::server::simple_central_tuplespace::clear_action,
+    simple_central_tuplespace_clear_action);
 //]
 
 #undef TS_DEBUG

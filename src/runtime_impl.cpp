@@ -35,7 +35,7 @@
 #include <io.h>
 #endif
 
-#if defined(HPX_HAVE_PARCELPORT_MPI)
+#if defined(HPX_PARCELPORT_MPI)
 #include <hpx/util/mpi_environment.hpp>
 #endif
 
@@ -219,7 +219,7 @@ namespace hpx {
         // unload libraries
         //runtime_support_->tidy();
 
-#if defined(HPX_HAVE_PARCELPORT_MPI)
+#if defined(HPX_PARCELPORT_MPI)
         util::mpi_environment::finalize();
 #endif
 
@@ -310,7 +310,9 @@ namespace hpx {
                 boost::ref(result_)),
             "run_helper", 0, threads::thread_priority_normal, std::size_t(-1),
             threads::get_stack_size(threads::thread_stacksize_large));
-        thread_manager_->register_thread(data);
+
+        threads::thread_id_type id = threads:: invalid_thread_id;
+        thread_manager_->register_thread(data, id);
         this->runtime::starting();
         // }}}
 

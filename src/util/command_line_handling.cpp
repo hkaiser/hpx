@@ -16,6 +16,7 @@
 #include <hpx/runtime/threads/policies/affinity_data.hpp>
 #include <hpx/runtime/threads/policies/topology.hpp>
 #include <hpx/util/mpi_environment.hpp>
+#include <hpx/util/safe_lexical_cast.hpp>
 
 #include <boost/asio.hpp>
 #include <boost/lexical_cast.hpp>
@@ -214,7 +215,7 @@ namespace hpx { namespace util
                 if ("all" == threads_str)
                     threads = thread::hardware_concurrency(); //-V101
                 else
-                    threads = boost::lexical_cast<std::size_t>(threads_str);
+                    threads = hpx::util::safe_lexical_cast<std::size_t>(threads_str);
 
                 if (threads == 0)
                 {
@@ -234,15 +235,7 @@ namespace hpx { namespace util
                     throw std::logic_error("Requested more than "
                         BOOST_PP_STRINGIZE(HPX_MAX_CPU_COUNT)" --hpx:threads "
                         "to use for this application, use the option "
-                        "-DHPX_MAX_CPU_COUNT=<N> or "
-                        "-DHPX_USE_MORE_THAN_64_THREADS when configuring HPX.");
-                }
-#elif !defined(HPX_HAVE_MORE_THAN_64_THREADS)
-                if (threads > 64) {
-                    throw std::logic_error("Requested more than 64 "
-                        "--hpx:threads to use for this application, use the "
-                        "option -DHPX_MAX_CPU_COUNT=<N> or "
-                        "-DHPX_USE_MORE_THAN_64_THREADS when configuring HPX.");
+                        "-DHPX_MAX_CPU_COUNT=<N> when configuring HPX.");
                 }
 #endif
             }
@@ -286,7 +279,7 @@ namespace hpx { namespace util
                 if ("all" == cores_str)
                     num_cores = get_number_of_default_cores(env);
                 else
-                    num_cores = boost::lexical_cast<std::size_t>(cores_str);
+                    num_cores = hpx::util::safe_lexical_cast<std::size_t>(cores_str);
             }
 
             return num_cores;
@@ -495,7 +488,7 @@ namespace hpx { namespace util
             }
         }
 
-        queuing_ = "priority_local";
+        queuing_ = "local-priority";
         if (vm.count("hpx:queuing"))
             queuing_ = vm["hpx:queuing"].as<std::string>();
 
@@ -764,8 +757,8 @@ namespace hpx { namespace util
                         "handle_print_bind",
                         boost::str(
                             boost::format("unexpected mismatch between "
-                                "binding reported from HWLOC(%1%) and HPX(%2%)"
-                            ) % boundcpu % pu_mask));
+                                "locality %1%: binding reported from HWLOC(%2%) and HPX(%3%) on thread %4%"
+                            ) % hpx::get_locality_id() % boundcpu % pu_mask % i));
                 }
             }
 

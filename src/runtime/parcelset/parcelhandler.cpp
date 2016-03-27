@@ -11,6 +11,7 @@
 #include <hpx/exception.hpp>
 #include <hpx/util/portable_binary_iarchive.hpp>
 #include <hpx/util/io_service_pool.hpp>
+#include <hpx/util/safe_lexical_cast.hpp>
 #include <hpx/runtime/naming/resolver_client.hpp>
 #include <hpx/runtime/parcelset/parcelhandler.hpp>
 #include <hpx/runtime/threads/threadmanager.hpp>
@@ -35,11 +36,15 @@
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>
 #include <boost/thread/condition.hpp>
-#include <boost/lambda/lambda.hpp>
 #include <boost/format.hpp>
 #include <boost/foreach.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
+namespace hpx
+{
+    bool is_stopped_or_shutting_down();
+}
+
 namespace hpx { namespace detail
 {
     void dijkstra_make_black();     // forward declaration only
@@ -71,6 +76,36 @@ namespace hpx { namespace parcelset
             break;
         }
         return "<unknown>";
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    bool connection_type_available(connection_type t)
+    {
+        switch(t) {
+#if defined(HPX_PARCELPORT_TCP)
+        case connection_tcp:
+            return true;
+#endif
+#if defined(HPX_PARCELPORT_IPC)
+        case connection_ipc:
+            return true;
+#endif
+#if defined(HPX_PARCELPORT_IBVERBS)
+        case connection_ibverbs:
+            return true;
+#endif
+#if defined(HPX_PARCELPORT_PORTALS4)
+        case connection_portals4:
+            return true;
+#endif
+#if defined(HPX_PARCELPORT_MPI)
+        case connection_mpi:
+            return true;
+#endif
+        default:
+            break;
+        }
+        return false;
     }
 
     connection_type get_connection_type_from_name(std::string const& t)
@@ -111,7 +146,7 @@ namespace hpx { namespace parcelset
     {
         wait_for_put_parcel() : sema_(new lcos::local::counting_semaphore) {}
 
-        void operator()(boost::system::error_code const&, std::size_t)
+        void operator()(boost::system::error_code const&, parcel const&)
         {
             sema_->signal();
         }
@@ -198,36 +233,44 @@ namespace hpx { namespace parcelset
             std::string name = get_connection_type_name(connection_type(i));
             std::string name_uc = boost::to_upper_copy(name);
             std::string enable = pp_ini_defs.second ? "1" : "0";
+
             // Load some defaults
-            ini_defs +=
-                "[hpx.parcel." + name + "]",
-                "enable = ${HPX_HAVE_PARCELPORT_" + name_uc + ":" + enable + "}",
-                "io_pool_size = ${HPX_PARCEL_" + name_uc + "_IO_POOL_SIZE:"
-                    "$[hpx.threadpools.parcel_pool_size]}",
-                "max_connections =  ${HPX_PARCEL_" + name_uc + "_MAX_CONNECTIONS:"
-                    "$[hpx.parcel.max_connections]}",
-                "max_connections_per_locality = "
-                    "${HPX_PARCEL_" + name_uc + "_MAX_CONNECTIONS_PER_LOCALITY:"
-                    "$[hpx.parcel.max_connections_per_locality]}",
-                "max_message_size =  ${HPX_PARCEL_" + name_uc +
-                    "_MAX_MESSAGE_SIZE:$[hpx.parcel.max_message_size]}",
-                "array_optimization = ${HPX_PARCEL_" + name_uc +
-                    "_ARRAY_OPTIMIZATION:$[hpx.parcel.array_optimization]}",
-                "zero_copy_optimization = ${HPX_PARCEL_" + name_uc +
-                    "_ZERO_COPY_OPTIMIZATION:"
-                    "$[hpx.parcel.zero_copy_optimization]}",
-                "enable_security = ${HPX_PARCEL_" + name_uc +
-                    "_ENABLE_SECURITY:"
-                    "$[hpx.parcel.enable_security]}",
-                "async_serialization = ${HPX_PARCEL_" + name_uc +
-                    "_ASYNC_SERIALIZATION:"
-                    "$[hpx.parcel.async_serialization]}"
-                ;
+            ini_defs += "[hpx.parcel." + name + "]";
+            if (!connection_type_available(connection_type(i)))
+            {
+                // skip this configuration if the parcelport is not available
+                ini_defs += "enable = 0";
+            }
+            else
+            {
+                ini_defs +=
+                    "enable = ${HPX_PARCELPORT_" + name_uc + ":" + enable + "}",
+                    "io_pool_size = ${HPX_PARCEL_" + name_uc + "_IO_POOL_SIZE:"
+                        "$[hpx.threadpools.parcel_pool_size]}",
+                    "max_connections =  ${HPX_PARCEL_" + name_uc + "_MAX_CONNECTIONS:"
+                        "$[hpx.parcel.max_connections]}",
+                    "max_connections_per_locality = "
+                        "${HPX_PARCEL_" + name_uc + "_MAX_CONNECTIONS_PER_LOCALITY:"
+                        "$[hpx.parcel.max_connections_per_locality]}",
+                    "max_message_size =  ${HPX_PARCEL_" + name_uc +
+                        "_MAX_MESSAGE_SIZE:$[hpx.parcel.max_message_size]}",
+                    "array_optimization = ${HPX_PARCEL_" + name_uc +
+                        "_ARRAY_OPTIMIZATION:$[hpx.parcel.array_optimization]}",
+                    "zero_copy_optimization = ${HPX_PARCEL_" + name_uc +
+                        "_ZERO_COPY_OPTIMIZATION:"
+                        "$[hpx.parcel.zero_copy_optimization]}",
+                    "enable_security = ${HPX_PARCEL_" + name_uc +
+                        "_ENABLE_SECURITY:"
+                        "$[hpx.parcel.enable_security]}",
+                    "async_serialization = ${HPX_PARCEL_" + name_uc +
+                        "_ASYNC_SERIALIZATION:"
+                        "$[hpx.parcel.async_serialization]}"
+                    ;
+            }
 
             // add the pp specific configuration parameter
             ini_defs.insert(ini_defs.end(),
                 pp_ini_defs.first.begin(), pp_ini_defs.first.end());
-
         }
 
         return ini_defs;
@@ -247,7 +290,7 @@ namespace hpx { namespace parcelset
         attach_parcelport(pp, false);
 
         util::io_service_pool *pool = 0;
-#if defined(HPX_HAVE_PARCELPORT_MPI)
+#if defined(HPX_PARCELPORT_MPI)
         bool tcp_bootstrap = (get_config_entry("hpx.parcel.bootstrap", "tcp") == "tcp");
         if (tcp_bootstrap)
         {
@@ -263,29 +306,29 @@ namespace hpx { namespace parcelset
         HPX_ASSERT(0 != pool);
 
 
-#if defined(HPX_HAVE_PARCELPORT_IPC)
+#if defined(HPX_PARCELPORT_IPC)
         std::string enable_ipc =
             get_config_entry("hpx.parcel.ipc.enable", "0");
 
-        if (boost::lexical_cast<int>(enable_ipc))
+        if (hpx::util::safe_lexical_cast<int>(enable_ipc, 0))
         {
             attach_parcelport(parcelport::create(
                 connection_ipc, hpx::get_config(),
                 pool->get_on_start_thread(), pool->get_on_stop_thread()));
         }
 #endif
-#if defined(HPX_HAVE_PARCELPORT_IBVERBS)
+#if defined(HPX_PARCELPORT_IBVERBS)
         std::string enable_ibverbs =
             get_config_entry("hpx.parcel.ibverbs.enable", "0");
 
-        if (boost::lexical_cast<int>(enable_ibverbs))
+        if (hpx::util::safe_lexical_cast<int>(enable_ibverbs, 0))
         {
             attach_parcelport(parcelport::create(
                 connection_ibverbs, hpx::get_config(),
                 pool->get_on_start_thread(), pool->get_on_stop_thread()));
         }
 #endif
-#if defined(HPX_HAVE_PARCELPORT_MPI)
+#if defined(HPX_PARCELPORT_MPI)
         if (tcp_bootstrap)
         {
             if (util::mpi_environment::enabled()) {
@@ -298,7 +341,7 @@ namespace hpx { namespace parcelset
         {
             std::string enable_tcp =
                 get_config_entry("hpx.parcel.tcp.enable", "1");
-            if (boost::lexical_cast<int>(enable_tcp)) {
+            if (hpx::util::safe_lexical_cast<int>(enable_tcp, 1)) {
                 attach_parcelport(parcelport::create(
                     connection_tcp, hpx::get_config(),
                     pool->get_on_start_thread(), pool->get_on_stop_thread()));
@@ -318,7 +361,7 @@ namespace hpx { namespace parcelset
         {
             std::string cfgkey("hpx.parcel." + ppname + ".enable");
             std::string enabled = get_config_entry(cfgkey, "0");
-            strm << ", " << (boost::lexical_cast<int>(enabled) ? "" : "not ")
+            strm << ", " << (hpx::util::safe_lexical_cast<int>(enabled, 0) ? "" : "not ")
                  << "enabled";
 
             std::string bootstrap = get_config_entry("hpx.parcel.bootstrap", "tcp");
@@ -334,22 +377,22 @@ namespace hpx { namespace parcelset
     {
         list_parcelport(strm, connection_tcp);
 
-#if defined(HPX_HAVE_PARCELPORT_IPC)
+#if defined(HPX_PARCELPORT_IPC)
         list_parcelport(strm, connection_ipc);
 #else
         list_parcelport(strm, connection_ipc, false);
 #endif
-// #if defined(HPX_HAVE_PARCELPORT_PORTALS4)
+// #if defined(HPX_PARCELPORT_PORTALS4)
 //         list_parcelport(strm, connection_portals4);
 // #else
 //         list_parcelport(strm, connection_portals4, false);
 // #endif
-#if defined(HPX_HAVE_PARCELPORT_IBVERBS)
+#if defined(HPX_PARCELPORT_IBVERBS)
         list_parcelport(strm, connection_ibverbs);
 #else
         list_parcelport(strm, connection_ibverbs, false);
 #endif
-#if defined(HPX_HAVE_PARCELPORT_MPI)
+#if defined(HPX_PARCELPORT_MPI)
         list_parcelport(strm, connection_mpi);
 #else
         list_parcelport(strm, connection_mpi, false);
@@ -451,9 +494,8 @@ namespace hpx { namespace parcelset
         bool result = resolver_.get_localities(allprefixes, type, ec);
         if (ec || !result) return false;
 
-        using boost::lambda::_1;
-        std::remove_copy_if(allprefixes.begin(), allprefixes.end(),
-            std::back_inserter(locality_ids), _1 == locality_);
+        std::remove_copy(allprefixes.begin(), allprefixes.end(),
+            std::back_inserter(locality_ids), locality_);
 
         return !locality_ids.empty();
     }
@@ -473,7 +515,7 @@ namespace hpx { namespace parcelset
     {
         connection_type dest_type = dest.get_type();
 
-#if defined(HPX_HAVE_PARCELPORT_IPC)
+#if defined(HPX_PARCELPORT_IPC)
         if (dest_type == connection_tcp || dest_type == connection_mpi) {
             std::string enable_ipc =
                 get_config_entry("hpx.parcel.ipc.enable", "0");
@@ -482,28 +524,28 @@ namespace hpx { namespace parcelset
             // otherwise fall back to tcp
             if (use_alternative_parcelports_ &&
                 dest.get_address() == here().get_address() &&
-                boost::lexical_cast<int>(enable_ipc))
+                hpx::util::safe_lexical_cast<int>(enable_ipc, 0))
             {
                 if (pports_[connection_ipc])
                     return connection_ipc;
             }
         }
 #endif
-#if defined(HPX_HAVE_PARCELPORT_IBVERBS)
+#if defined(HPX_PARCELPORT_IBVERBS)
         // FIXME: add check if ibverbs are really available for this destination.
 
         if (dest_type == connection_tcp || dest_type == connection_mpi) {
             std::string enable_ibverbs =
                 get_config_entry("hpx.parcel.ibverbs.enable", "0");
             if (use_alternative_parcelports_ &&
-                boost::lexical_cast<int>(enable_ibverbs))
+                hpx::util::safe_lexical_cast<int>(enable_ibverbs, 0))
             {
                 if (pports_[connection_ibverbs])
                     return connection_ibverbs;
             }
         }
 #endif
-#if defined(HPX_HAVE_PARCELPORT_MPI)
+#if defined(HPX_PARCELPORT_MPI)
         // FIXME: add check if MPI is really available for this destination.
 
         if (dest_type == connection_tcp || dest_type == connection_mpi) {
@@ -570,11 +612,10 @@ namespace hpx { namespace parcelset
         // until after the data has been reliably sent (which is needed for zero
         // copy serialization).
         void parcel_sent_handler(boost::system::error_code const& ec,
-            std::size_t size, parcelhandler::write_handler_type const& f,
-            parcel const& p)
+            parcelhandler::write_handler_type const& f, parcel const& p)
         {
             // invoke the original handler
-            f(ec, size);
+            f(ec, p);
 
             // inform termination detection of a sent message
             if (!p.does_termination_detection())
@@ -624,9 +665,8 @@ namespace hpx { namespace parcelset
         if (resolved_locally) {
             // re-wrap the given parcel-sent handler
             using util::placeholders::_1;
-            using util::placeholders::_2;
             write_handler_type wrapped_f =
-                util::bind(&detail::parcel_sent_handler, _1, _2, f, p);
+                util::bind(&detail::parcel_sent_handler, _1, f, p);
 
             // dispatch to the message handler which is associated with the
             // encapsulated action
@@ -662,12 +702,25 @@ namespace hpx { namespace parcelset
     ///////////////////////////////////////////////////////////////////////////
     // default callback for put_parcel
     void parcelhandler::default_write_handler(
-        boost::system::error_code const& ec, std::size_t)
+        boost::system::error_code const& ec, parcel const& p)
     {
         if (ec) {
+            // If we are in a stopped state, ignore some errors
+            if (hpx::is_stopped_or_shutting_down())
+            {
+                if (ec == boost::asio::error::connection_aborted ||
+                    ec == boost::asio::error::broken_pipe ||
+                    ec == boost::asio::error::not_connected ||
+                    ec == boost::asio::error::eof)
+                {
+                    return;
+                }
+            }
+
             boost::exception_ptr exception =
                 hpx::detail::get_exception(hpx::exception(ec),
-                    "parcelhandler::default_write_handler", __FILE__, __LINE__);
+                    "parcelhandler::default_write_handler", __FILE__,
+                    __LINE__, parcelset::dump_parcel(p));
 
             // store last error for now only
             mutex_type::scoped_lock l(mtx_);
@@ -943,13 +996,13 @@ namespace hpx { namespace parcelset
     {
         // register connection specific counters
         register_counter_types(connection_tcp);
-#if defined(HPX_HAVE_PARCELPORT_IPC)
+#if defined(HPX_PARCELPORT_IPC)
         register_counter_types(connection_ipc);
 #endif
-#if defined(HPX_HAVE_PARCELPORT_IBVERBS)
+#if defined(HPX_PARCELPORT_IBVERBS)
         register_counter_types(connection_ibverbs);
 #endif
-#if defined(HPX_HAVE_PARCELPORT_MPI)
+#if defined(HPX_PARCELPORT_MPI)
         register_counter_types(connection_mpi);
 #endif
 

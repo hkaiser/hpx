@@ -10,22 +10,22 @@
 
 #include <hpx/config.hpp>
 
+#include <hpx/exception.hpp>
+#include <hpx/state.hpp>
+#include <hpx/performance_counters/counters.hpp>
+#include <hpx/runtime/naming/name.hpp>
+#include <hpx/runtime/threads/thread_init_data.hpp>
+#include <hpx/runtime/threads/threadmanager.hpp>
+#include <hpx/util/block_profiler.hpp>
+#include <hpx/util/io_service_pool.hpp>
+#include <hpx/util/spinlock.hpp>
+
+#include <hpx/config/warnings_prefix.hpp>
+
 #include <boost/atomic.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <boost/thread.hpp>
 #include <boost/thread/condition.hpp>
-
-#include <hpx/exception.hpp>
-#include <hpx/state.hpp>
-#include <hpx/runtime/naming/name.hpp>
-#include <hpx/runtime/threads/thread_init_data.hpp>
-#include <hpx/runtime/threads/threadmanager.hpp>
-#include <hpx/performance_counters/counters.hpp>
-#include <hpx/util/io_service_pool.hpp>
-#include <hpx/util/block_profiler.hpp>
-#include <hpx/util/spinlock.hpp>
-
-#include <hpx/config/warnings_prefix.hpp>
 
 #include <vector>
 #include <memory>
@@ -44,13 +44,6 @@ namespace hpx { namespace threads
         // we use a simple mutex to protect the data members of the
         // threadmanager for now
         typedef boost::mutex mutex_type;
-
-        // we use the boost::posix_time::ptime type for time representation
-        typedef typename threadmanager_base::time_type time_type;
-
-        // we use the boost::posix_time::time_duration type as the duration
-        // representation
-        typedef typename threadmanager_base::duration_type duration_type;
 
     public:
         typedef SchedulingPolicy scheduling_policy_type;
@@ -100,6 +93,9 @@ namespace hpx { namespace threads
         /// \param func   [in] The function or function object to execute as
         ///               the thread's function. This must have a signature as
         ///               defined by \a thread_function_type.
+        /// \param id     [out] This parameter will hold the id of the created
+        ///               thread. This id is guaranteed to be validly
+        ///               initialized before the thread function is executed.
         /// \param description [in] The value of this parameter allows to
         ///               specify a description of the thread to create. This
         ///               information is used for logging purposes mainly, but
@@ -120,10 +116,7 @@ namespace hpx { namespace threads
         ///               parameter \a run_now or the function \a
         ///               threadmanager#do_some_work is called). This parameter
         ///               is optional and defaults to \a true.
-        ///
-        /// \returns      The function returns the thread id of the newly
-        ///               created thread.
-        thread_id_type register_thread(thread_init_data& data,
+        void register_thread(thread_init_data& data, thread_id_type& id,
             thread_state_enum initial_state = pending,
             bool run_now = true, error_code& ec = throws);
 
@@ -303,7 +296,7 @@ namespace hpx { namespace threads
         ///                 \a thread_state enumeration. If the
         ///                 thread is not known to the thread manager the return
         ///                 value will be \a thread_state#unknown.
-        thread_state get_state(thread_id_type const& id);
+        thread_state get_state(thread_id_type const& id) const;
 
         /// The get_phase function is part of the thread related API. It
         /// queries the phase of one of the threads known to the thread manager
@@ -315,7 +308,7 @@ namespace hpx { namespace threads
         ///                 thread referenced by the \a id parameter. If the
         ///                 thread is not known to the thread manager the return
         ///                 value will be ~0.
-        std::size_t get_phase(thread_id_type const& id);
+        std::size_t get_phase(thread_id_type const& id) const;
 
         /// The get_priority function is part of the thread related API. It
         /// queries the priority of one of the threads known to the thread manager
@@ -327,7 +320,20 @@ namespace hpx { namespace threads
         ///                 thread referenced by the \a id parameter. If the
         ///                 thread is not known to the thread manager the return
         ///                 value will be ~0.
-        thread_priority get_priority(thread_id_type const& id);
+        thread_priority get_priority(thread_id_type const& id) const;
+
+        /// The get_stack_size function is part of the thread related API. It
+        /// queries the size of the stack allocated of one of the threads
+        /// known to the thread manager
+        ///
+        /// \param id       [in] The thread id of the thread the phase should
+        ///                 be returned for.
+        ///
+        /// \returns        This function returns the size of the stack
+        ///                 allocated for the thread referenced by the \a id
+        ///                 parameter. If thread is not known to the thread
+        ///                 manager the return value will be ~0.
+        std::ptrdiff_t get_stack_size(thread_id_type const& id) const;
 
         /// Set a timer to set the state of the given \a thread to the given
         /// new value after it expired (at the given time)
@@ -348,7 +354,8 @@ namespace hpx { namespace threads
         ///                   executed if the parameter \a new_state is pending.
         ///
         /// \returns
-        thread_id_type set_state (time_type const& expire_at,
+        thread_id_type set_state(
+            util::steady_time_point const& abs_time,
             thread_id_type const& id, thread_state_enum newstate = pending,
             thread_state_ex_enum newstate_ex = wait_timeout,
             thread_priority priority = thread_priority_default,
@@ -371,11 +378,16 @@ namespace hpx { namespace threads
         ///                   executed if the parameter \a new_state is pending.
         ///
         /// \returns
-        thread_id_type set_state (duration_type const& expire_from_now,
+        thread_id_type set_state(
+            util::steady_duration const& rel_time,
             thread_id_type const& id, thread_state_enum newstate = pending,
             thread_state_ex_enum newstate_ex = wait_timeout,
             thread_priority priority = thread_priority_default,
-            error_code& ec = throws);
+            error_code& ec = throws)
+        {
+            return set_state(rel_time.from_now(), id, newstate, newstate_ex,
+                priority, ec);
+        }
 
         /// The get_description function is part of the thread related API and
         /// allows to query the description of one of the threads known to the
@@ -407,7 +419,7 @@ namespace hpx { namespace threads
         ///                   back trace of the thread referenced by the \a id
         ///                   parameter. If the thread is not known to the
         ///                   thread-manager the return value will be the zero.
-#if HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION != 0
+#ifdef HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION
         char const* get_backtrace(thread_id_type const& id) const;
         char const* set_backtrace(thread_id_type const& id, char const* bt = 0);
 #else
@@ -415,7 +427,7 @@ namespace hpx { namespace threads
         util::backtrace const* set_backtrace(thread_id_type const& id, util::backtrace const* bt = 0);
 #endif
 
-#if HPX_THREAD_MAINTAIN_LOCAL_STORAGE
+#ifdef HPX_THREAD_MAINTAIN_LOCAL_STORAGE
         /// The get_thread_data function is part of the thread related
         /// API. It queries the currently stored thread specific data pointer.
         ///
@@ -439,12 +451,12 @@ namespace hpx { namespace threads
             std::size_t data, error_code& ec = throws);
 #endif
 
-#if HPX_THREAD_MAINTAIN_IDLE_RATES
+#ifdef HPX_THREAD_MAINTAIN_IDLE_RATES
         /// Get percent maintenance time in main thread-manager loop.
         boost::int64_t avg_idle_rate(bool reset);
         boost::int64_t avg_idle_rate(std::size_t num_thread, bool reset);
 #endif
-#if HPX_THREAD_MAINTAIN_CREATION_AND_CLEANUP_RATES
+#ifdef HPX_THREAD_MAINTAIN_CREATION_AND_CLEANUP_RATES
         boost::int64_t avg_creation_idle_rate(bool reset);
         boost::int64_t avg_cleanup_idle_rate(bool reset);
 #endif
@@ -471,7 +483,7 @@ namespace hpx { namespace threads
             scheduler_.on_error(num_thread, e);
         }
 
-#if HPX_THREAD_MAINTAIN_CUMULATIVE_COUNTS
+#ifdef HPX_THREAD_MAINTAIN_CUMULATIVE_COUNTS
         boost::int64_t get_executed_threads(
             std::size_t num = std::size_t(-1), bool reset = false);
         boost::int64_t get_executed_thread_phases(
@@ -528,11 +540,11 @@ namespace hpx { namespace threads
             performance_counters::counter_info const& info, error_code& ec);
         naming::gid_type thread_counts_counter_creator(
             performance_counters::counter_info const& info, error_code& ec);
-#if HPX_THREAD_MAINTAIN_IDLE_RATES
+#ifdef HPX_THREAD_MAINTAIN_IDLE_RATES
         naming::gid_type idle_rate_counter_creator(
             performance_counters::counter_info const& info, error_code& ec);
 #endif
-#if HPX_THREAD_MAINTAIN_QUEUE_WAITTIME
+#ifdef HPX_THREAD_MAINTAIN_QUEUE_WAITTIME
         naming::gid_type thread_wait_time_counter_creator(
             performance_counters::counter_info const& info, error_code& ec);
         naming::gid_type task_wait_time_counter_creator(

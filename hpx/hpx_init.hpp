@@ -27,13 +27,6 @@
 int hpx_main();
 HPX_MAIN_EXPORT int hpx_main(int argc, char** argv);
 int hpx_main(boost::program_options::variables_map& vm);
-
-// We support redefining the plain C-main provided by the user to be executed
-// as the first HPX-thread (equivalent to hpx_main()). This is implemented by
-// a macro redefining main, so we disable it by default.
-#if defined(HPX_MAIN_IS_MAIN)
-#  define main hpx_startup::user_main
-#endif
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -109,7 +102,7 @@ namespace hpx
     ///                     command line arguments passed in `argc`/`argv`.
     ///                     Otherwise it will be executed as specified by the
     ///                     parameter\p mode.
-    HPX_EXPORT int init(
+    inline int init(
         HPX_STD_FUNCTION<int(boost::program_options::variables_map& vm)> const& f,
         boost::program_options::options_description const& desc_cmdline,
         int argc, char** argv, std::vector<std::string> const& cfg,
@@ -437,7 +430,10 @@ namespace hpx
     ///                     runtime system will not support any of the default
     ///                     command line options as described in the section
     ///                     'HPX Command Line Options'.
-    inline int init(int argc = 0, char** argv = 0,
+#if !defined(HPX_STATIC_LINKING)
+    inline
+#endif
+    int init(int argc = 0, char** argv = 0,
         hpx::runtime_mode mode = hpx::runtime_mode_default);
 
     /// \brief Main entry point for launching the HPX runtime system.

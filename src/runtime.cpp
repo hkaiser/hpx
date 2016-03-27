@@ -173,6 +173,29 @@ namespace hpx
         return runtime_mode_invalid;
     }
 
+    namespace strings
+    {
+        char const* const runtime_state_names[] =
+        {
+            "invalid",      // -1
+            "initialized",  // 0
+            "pre_startup",  // 1
+            "startup",      // 2
+            "pre_main",     // 3
+            "running",      // 4
+            "pre_shutdown"  // 5
+            "shutdown",     // 6
+            "stopped"       // 7
+        };
+    }
+
+    char const* get_runtime_state_name(runtime::state state)
+    {
+        if (state < runtime::state_invalid || state >= runtime::state_last)
+            return "invalid (value out of bounds)";
+        return strings::runtime_state_names[state+1];
+    }
+
 #if defined(HPX_HAVE_SECURITY)
     namespace detail
     {
@@ -186,6 +209,20 @@ namespace hpx
             HPX_STD_UNIQUE_PTR<components::security::certificate_store> cert_store_;
             components::security::signed_certificate locality_certificate_;
         };
+    }
+
+    components::security::certificate_store const * runtime::cert_store(error_code& ec) const
+    {
+        HPX_ASSERT(security_data_.get() != 0);
+        if (0 == security_data_->cert_store_.get())     // should have been created
+        {
+            HPX_THROWS_IF(ec, invalid_status,
+                "runtime::verify_parcel_suffix",
+                "the runtime system is not operational at this point");
+            return 0;
+        }
+
+        return security_data_->cert_store_.get();
     }
 
     // this is called on all nodes during runtime construction
@@ -415,23 +452,6 @@ namespace hpx
         signed_suffix = security_data_->subordinate_certificate_authority_.
             get_key_pair().sign(suffix, ec);
     }
-
-    bool runtime::verify_parcel_suffix(std::vector<char> const& data,
-        naming::gid_type& parcel_id, error_code& ec) const
-    {
-        HPX_ASSERT(security_data_.get() != 0);
-        if (0 == security_data_->cert_store_.get())     // should have been created
-        {
-            HPX_THROWS_IF(ec, invalid_status,
-                "runtime::verify_parcel_suffix",
-                "the runtime system is not operational at this point");
-            return false;
-        }
-
-        lcos::local::spinlock::scoped_lock l(security_mtx_);
-        return components::security::verify(
-            *security_data_->cert_store_, data, parcel_id);
-    }
 #endif
 
     ///////////////////////////////////////////////////////////////////////////
@@ -551,6 +571,12 @@ namespace hpx
     {
         if (active_counters_.get())
             active_counters_->evaluate_counters(reset, description, ec);
+    }
+
+    void runtime::stop_evaluating_counters()
+    {
+        if (active_counters_.get())
+            active_counters_->stop_evaluating_counters();
     }
 
     parcelset::policies::message_handler* runtime::create_message_handler(
@@ -737,7 +763,8 @@ namespace hpx
         // initialize thread affinity settings in the scheduler
         if (affinity_init_.used_cores_ == 0) {
             // correct used_cores from config data if appropriate
-            affinity_init_.used_cores_ = std::size_t(this->get_config().get_used_cores());
+            affinity_init_.used_cores_ = std::size_t(
+                this->get_config().get_first_used_core());
         }
 
         return static_cast<boost::uint32_t>(
@@ -1082,6 +1109,25 @@ namespace hpx
         return false;
     }
 
+    bool is_stopped()
+    {
+        runtime* rt = get_runtime_ptr();
+        if (NULL != rt)
+            return rt->get_state() == runtime::state_stopped;
+        return true;        // assume stopped
+    }
+
+    bool is_stopped_or_shutting_down()
+    {
+        runtime* rt = get_runtime_ptr();
+        if (NULL != rt)
+        {
+            runtime::state state = rt->get_state();
+            return state == runtime::state_stopped || state == runtime::state_shutdown;
+        }
+        return true;        // assume stopped
+    }
+
     bool is_starting()
     {
         runtime* rt = get_runtime_ptr();
@@ -1241,28 +1287,6 @@ namespace hpx
 
         rt->sign_parcel_suffix(suffix, signed_suffix, ec);
     }
-
-    /// \brief Verify the certificate in the given byte sequence
-    ///
-    /// \param data      The full received message buffer, assuming that it
-    ///                  has a parcel_suffix appended.
-    /// \param hash      The has object for the received data.
-    /// \param parcel_id The parcel id of the first parcel in side the message
-    ///
-    bool verify_parcel_suffix(std::vector<char> const& data,
-        naming::gid_type& parcel_id, error_code& ec)
-    {
-        runtime* rt = get_runtime_ptr();
-        if (0 == rt)
-        {
-            HPX_THROWS_IF(ec, invalid_status,
-                "hpx::verify_parcel_suffix",
-                "the runtime system is not operational at this point");
-            return false;
-        }
-
-        return rt->verify_parcel_suffix(data, parcel_id, ec);
-    }
 }
 #endif
 
@@ -1373,6 +1397,13 @@ namespace hpx
         HPX_THROWS_IF(ec, invalid_status, "create_binary_filter",
             "the runtime system is not available at this time");
         return 0;
+    }
+
+    // helper function to stop evaluating counters during shutdown
+    void stop_evaluating_counters()
+    {
+        runtime* rt = get_runtime_ptr();
+        if (NULL != rt) rt->stop_evaluating_counters();
     }
 }
 

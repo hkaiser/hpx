@@ -5,3 +5,6 @@
 
 *.pyc
 build
+.DS_Store
+.gitignore
+.ptp-sync-folder

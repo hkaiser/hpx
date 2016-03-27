@@ -118,6 +118,38 @@ system and application performance.
          misses) in the AGAS cache of the specified locality (see
          `<cache_statistics>`.]
     ]
+    [   [`/agas/count/<full_cache_statistics>`
+
+          where:[br] `<full_cache_statistics>` is one of the following:
+          `cache_get_entry`, `cache_insert_entry`, `cache_update_entry`,
+          `cache_erase_entry`
+        ]
+        [`locality#*/total`
+
+          where:[br] `*` is the locality id of the locality the AGAS cache should
+          be queried. The locality id is a (zero based) number identifying the
+          locality.
+        ]
+        [None]
+        [Returns the number of invocations of the specified cache API function
+         of the AGAS cache.]
+    ]
+    [   [`/agas/time/<full_cache_statistics>`
+
+          where:[br] `<full_cache_statistics>` is one of the following:
+          `cache_get_entry`, `cache_insert_entry`, `cache_update_entry`,
+          `cache_erase_entry`
+        ]
+        [`locality#*/total`
+
+          where:[br] `*` is the locality id of the locality the AGAS cache should
+          be queried. The locality id is a (zero based) number identifying the
+          locality.
+        ]
+        [None]
+        [Returns the the overall time spent executing of the specified API
+         function of the AGAS cache.]
+    ]
 ]
 
 [/////////////////////////////////////////////////////////////////////////////]
@@ -141,17 +173,17 @@ system and application performance.
          `<connection_type>`.
 
          The performance counters for the connection type `ipc` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IPC` was
+         only if the compile time constant `HPX_PARCELPORT_IPC` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `ibverbs` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IBVERBS` was
+         only if the compile time constant `HPX_PARCELPORT_IBVERBS` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `mpi` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_MPI` was
+         only if the compile time constant `HPX_PARCELPORT_MPI` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
@@ -176,17 +208,17 @@ system and application performance.
          (see `<operation>`, e.g. `sent` or `received`).
 
          The performance counters for the connection type `ipc` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IPC` was
+         only if the compile time constant `HPX_PARCELPORT_IPC` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `ibverbs` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IBVERBS` was
+         only if the compile time constant `HPX_PARCELPORT_IBVERBS` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `mpi` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_MPI` was
+         only if the compile time constant `HPX_PARCELPORT_MPI` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
@@ -210,17 +242,17 @@ system and application performance.
          `<connection_type>` by the given locality.
 
          The performance counters for the connection type `ipc` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IPC` was
+         only if the compile time constant `HPX_PARCELPORT_IPC` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `ibverbs` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IBVERBS` was
+         only if the compile time constant `HPX_PARCELPORT_IBVERBS` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `mpi` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_MPI` was
+         only if the compile time constant `HPX_PARCELPORT_MPI` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
@@ -244,17 +276,17 @@ system and application performance.
          `<operation>`, e.g. `sent` or `received`).
 
          The performance counters for the connection type `ipc` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IPC` was
+         only if the compile time constant `HPX_PARCELPORT_IPC` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `ibverbs` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IBVERBS` was
+         only if the compile time constant `HPX_PARCELPORT_IBVERBS` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `mpi` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_MPI` was
+         only if the compile time constant `HPX_PARCELPORT_MPI` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
@@ -278,17 +310,17 @@ system and application performance.
          `<operation>`, e.g. `sent` or `received`).
 
          The performance counters for the connection type `ipc` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IPC` was
+         only if the compile time constant `HPX_PARCELPORT_IPC` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `ibverbs` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IBVERBS` was
+         only if the compile time constant `HPX_PARCELPORT_IBVERBS` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `mpi` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_MPI` was
+         only if the compile time constant `HPX_PARCELPORT_MPI` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
@@ -335,17 +367,17 @@ system and application performance.
          `sent` or `received`).
 
          The performance counters for the connection type `ipc` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IPC` was
+         only if the compile time constant `HPX_PARCELPORT_IPC` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `ibverbs` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IBVERBS` was
+         only if the compile time constant `HPX_PARCELPORT_IBVERBS` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `mpi` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_MPI` was
+         only if the compile time constant `HPX_PARCELPORT_MPI` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
@@ -370,17 +402,17 @@ system and application performance.
          `<operation>`, e.g. `sent` or `received`).
 
          The performance counters for the connection type `ipc` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IPC` was
+         only if the compile time constant `HPX_PARCELPORT_IPC` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `ibverbs` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IBVERBS` was
+         only if the compile time constant `HPX_PARCELPORT_IBVERBS` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `mpi` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_MPI` was
+         only if the compile time constant `HPX_PARCELPORT_MPI` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
@@ -406,17 +438,17 @@ system and application performance.
          `cache-evictions`, `cache-hits`, `cache-misses`, or `cache-reclaims`).
 
          The performance counters for the connection type `ipc` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IPC` was
+         only if the compile time constant `HPX_PARCELPORT_IPC` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `ibverbs` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_IBVERBS` was
+         only if the compile time constant `HPX_PARCELPORT_IBVERBS` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
          The performance counters for the connection type `mpi` are available
-         only if the compile time constant `HPX_HAVE_PARCELPORT_MPI` was
+         only if the compile time constant `HPX_PARCELPORT_MPI` was
          defined while compiling the __hpx__ core library (which is not defined
          by default).
 
@@ -642,7 +674,7 @@ system and application performance.
         ]
         [None]
         [Returns the average idle rate for the given worker thread(s) on the
-         given locality which is caused by cleaning up terminated threads. The 
+         given locality which is caused by cleaning up terminated threads. The
          cleanup idle rate is defined as the ratio of the time spent on
          cleaning up terminated thread objects and the overall time spent
          executing work since the application started.
@@ -707,7 +739,7 @@ system and application performance.
          executed by a different worker thread than they were initially
          scheduled on).
          This counter is available only if the configuration time constant
-         `HPX_THREAD_MAINTAIN_STEALING_COUNTS` is set to `ON` 
+         `HPX_THREAD_MAINTAIN_STEALING_COUNTS` is set to `ON`
          (default: ON).]
     ]
     [   [`/threads/count/pending-misses`]
@@ -732,7 +764,7 @@ system and application performance.
          on the referenced locality failed to find pending HPX-threads in its
          associated queue.
          This counter is available only if the configuration time constant
-         `HPX_THREAD_MAINTAIN_STEALING_COUNTS` is set to `ON` 
+         `HPX_THREAD_MAINTAIN_STEALING_COUNTS` is set to `ON`
          (default: ON).]
     ]
     [   [`/threads/count/pending-accesses`]
@@ -757,7 +789,7 @@ system and application performance.
          on the referenced locality looked for pending HPX-threads in its
          associated queue.
          This counter is available only if the configuration time constant
-         `HPX_THREAD_MAINTAIN_STEALING_COUNTS` is set to `ON` 
+         `HPX_THREAD_MAINTAIN_STEALING_COUNTS` is set to `ON`
          (default: ON).]
     ]
     [   [`/threads/count/stolen-from-staged`]
@@ -783,7 +815,7 @@ system and application performance.
          executed by a different worker thread than they were initially
          scheduled on).
          This counter is available only if the configuration time constant
-         `HPX_THREAD_MAINTAIN_STEALING_COUNTS` is set to `ON` 
+         `HPX_THREAD_MAINTAIN_STEALING_COUNTS` is set to `ON`
          (default: ON).]
     ]
     [   [`/threads/count/stolen-to-pending`]

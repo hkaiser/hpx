@@ -9,8 +9,6 @@
 #include <hpx/hpx_fwd.hpp>
 #include <hpx/lcos/local/spinlock.hpp>
 
-#include <boost/date_time/posix_time/posix_time.hpp>
-
 #include <string>
 #include <vector>
 
@@ -84,6 +82,7 @@ namespace hpx { namespace util
         bool is_started_;             ///< timer has been started (is running)
         bool first_start_;            ///< flag to distinguish first invocation of start()
         bool is_terminated_;          ///< The timer has been terminated
+        bool is_stopped_;
     };
 }}
 

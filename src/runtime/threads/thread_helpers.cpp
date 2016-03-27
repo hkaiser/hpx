@@ -13,7 +13,7 @@
 #include <hpx/runtime/applier/applier.hpp>
 #include <hpx/util/stringstream.hpp>
 #include <hpx/util/register_locks.hpp>
-#if HPX_THREAD_MAINTAIN_BACKTRACE_ON_SUSPENSION
+#ifdef HPX_THREAD_MAINTAIN_BACKTRACE_ON_SUSPENSION
 #include <hpx/util/backtrace.hpp>
 #endif
 
@@ -42,7 +42,7 @@ namespace hpx { namespace threads
 
     ///////////////////////////////////////////////////////////////////////////
     thread_id_type set_thread_state(thread_id_type const& id,
-        boost::posix_time::ptime const& at_time, thread_state_enum state,
+        util::steady_time_point const& abs_time, thread_state_enum state,
         thread_state_ex_enum stateex, thread_priority priority, error_code& ec)
     {
         hpx::applier::applier* app = hpx::applier::get_applier_ptr();
@@ -57,29 +57,8 @@ namespace hpx { namespace threads
         if (&ec != &throws)
             ec = make_success_code();
 
-        return app->get_thread_manager().set_state(at_time, id, state,
-            stateex, priority, ec);
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    thread_id_type set_thread_state(thread_id_type const& id,
-        boost::posix_time::time_duration const& after, thread_state_enum state,
-        thread_state_ex_enum stateex, thread_priority priority, error_code& ec)
-    {
-        hpx::applier::applier* app = hpx::applier::get_applier_ptr();
-        if (NULL == app)
-        {
-            HPX_THROWS_IF(ec, invalid_status,
-                "hpx::threads::set_thread_state",
-                "global applier object is not accessible");
-            return invalid_thread_id;
-        }
-
-        if (&ec != &throws)
-            ec = make_success_code();
-
-        return app->get_thread_manager().set_state(after, id, state,
-            stateex, priority, ec);
+        return app->get_thread_manager().set_state(abs_time, id,
+            state, stateex, priority, ec);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -134,6 +113,23 @@ namespace hpx { namespace threads
             ec = make_success_code();
 
         return app->get_thread_manager().get_priority(id);
+    }
+
+    std::ptrdiff_t get_stack_size(thread_id_type const& id, error_code& ec)
+    {
+        hpx::applier::applier* app = hpx::applier::get_applier_ptr();
+        if (NULL == app)
+        {
+            HPX_THROWS_IF(ec, invalid_status,
+                "hpx::threads::get_stack_size",
+                "global applier object is not accessible");
+            return threads::thread_priority_unknown;
+        }
+
+        if (&ec != &throws)
+            ec = make_success_code();
+
+        return app->get_thread_manager().get_stack_size(id);
     }
 
     void interrupt_thread(thread_id_type const& id, bool flag, error_code& ec)
@@ -205,7 +201,7 @@ namespace hpx { namespace threads
         return app->get_thread_manager().get_interruption_requested(id, ec);
     }
 
-#if HPX_THREAD_MAINTAIN_LOCAL_STORAGE
+#ifdef HPX_THREAD_MAINTAIN_LOCAL_STORAGE
     ///////////////////////////////////////////////////////////////////////////
     std::size_t get_thread_data(thread_id_type const& id, error_code& ec)
     {
@@ -355,7 +351,7 @@ namespace hpx { namespace threads
     }
 
     ///////////////////////////////////////////////////////////////////////////
-#if HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION != 0
+#ifdef HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION
     char const* get_thread_backtrace(thread_id_type const& id, error_code& ec)
 #else
     util::backtrace const* get_thread_backtrace(thread_id_type const& id, error_code& ec)
@@ -376,7 +372,7 @@ namespace hpx { namespace threads
         return app->get_thread_manager().get_backtrace(id);
     }
 
-#if HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION != 0
+#ifdef HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION
     char const* set_thread_backtrace(thread_id_type const& id,
         char const* bt, error_code& ec)
 #else
@@ -438,18 +434,18 @@ namespace hpx { namespace this_thread
             error_code& ec_;
         };
 
-#if HPX_THREAD_MAINTAIN_BACKTRACE_ON_SUSPENSION
+#ifdef HPX_THREAD_MAINTAIN_BACKTRACE_ON_SUSPENSION
         struct reset_backtrace
         {
             reset_backtrace(threads::thread_id_type const& id, error_code& ec)
               : id_(id),
                 backtrace_(new hpx::util::backtrace()),
-#if HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION != 0
+#ifdef HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION
                 full_backtrace_(backtrace_->trace()),
 #endif
                 ec_(ec)
             {
-#if HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION != 0
+#ifdef HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION
                 threads::set_thread_backtrace(id_, full_backtrace_.c_str(), ec_);
 #else
                 threads::set_thread_backtrace(id_, backtrace_.get(), ec_);
@@ -462,7 +458,7 @@ namespace hpx { namespace this_thread
 
             threads::thread_id_type id_;
             boost::scoped_ptr<hpx::util::backtrace> backtrace_;
-#if HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION != 0
+#ifdef HPX_THREAD_MAINTAIN_FULLBACKTRACE_ON_SUSPENSION
             std::string full_backtrace_;
 #endif
             error_code& ec_;
@@ -491,13 +487,13 @@ namespace hpx { namespace this_thread
 
         {
             // verify that there are no more registered locks for this OS-thread
-#if HPX_HAVE_VERIFY_LOCKS
+#ifdef HPX_HAVE_VERIFY_LOCKS
             util::verify_no_locks();
 #endif
-#if HPX_THREAD_MAINTAIN_DESCRIPTION
+#ifdef HPX_THREAD_MAINTAIN_DESCRIPTION
             detail::reset_lco_description desc(id, description, ec);
 #endif
-#if HPX_THREAD_MAINTAIN_BACKTRACE_ON_SUSPENSION
+#ifdef HPX_THREAD_MAINTAIN_BACKTRACE_ON_SUSPENSION
             detail::reset_backtrace bt(id, ec);
 #endif
 
@@ -525,7 +521,8 @@ namespace hpx { namespace this_thread
         return statex;
     }
 
-    threads::thread_state_ex_enum suspend(boost::posix_time::ptime const& at_time,
+    threads::thread_state_ex_enum suspend(
+        util::steady_time_point const& abs_time,
         char const* description, error_code& ec)
     {
         // schedule a thread waking us up at_time
@@ -540,19 +537,19 @@ namespace hpx { namespace this_thread
         threads::thread_state_ex_enum statex = threads::wait_unknown;
 
         {
-#if HPX_HAVE_VERIFY_LOCKS
+#ifdef HPX_HAVE_VERIFY_LOCKS
             // verify that there are no more registered locks for this OS-thread
             util::verify_no_locks();
 #endif
-#if HPX_THREAD_MAINTAIN_DESCRIPTION
+#ifdef HPX_THREAD_MAINTAIN_DESCRIPTION
             detail::reset_lco_description desc(id, description, ec);
 #endif
-#if HPX_THREAD_MAINTAIN_BACKTRACE_ON_SUSPENSION
+#ifdef HPX_THREAD_MAINTAIN_BACKTRACE_ON_SUSPENSION
             detail::reset_backtrace bt(id, ec);
 #endif
             threads::set_thread_state(id,
-                at_time, threads::pending, threads::wait_signaled,
-                threads::thread_priority_critical, ec);
+                abs_time, threads::pending, threads::wait_signaled,
+                threads::thread_priority_boost, ec);
             if (ec) return threads::wait_unknown;
 
             // suspend the HPX-thread
@@ -561,61 +558,6 @@ namespace hpx { namespace this_thread
 
         // handle interruption, if needed
         threads::interruption_point(id, ec);
-        if (ec) return threads::wait_unknown;
-
-        // handle interrupt and abort
-        if (statex == threads::wait_abort) {
-            hpx::util::osstream strm;
-            strm << "thread(" << threads::get_self_id() << ", "
-                  << threads::get_thread_description(id)
-                  << ") aborted (yield returned wait_abort)";
-            HPX_THROWS_IF(ec, yield_aborted, description,
-                hpx::util::osstream_get_string(strm));
-        }
-
-        if (&ec != &throws)
-            ec = make_success_code();
-
-        return statex;
-    }
-
-    threads::thread_state_ex_enum suspend(
-        boost::posix_time::time_duration const& after_duration,
-        char const* description, error_code& ec)
-    {
-        // schedule a thread waking us up after_duration
-        threads::thread_self& self = threads::get_self();
-        threads::thread_id_type id = threads::get_self_id();
-
-        // handle interruption, if needed
-        threads::interruption_point(id, ec);
-        if (ec) return threads::wait_unknown;
-
-        // let the thread manager do other things while waiting
-        threads::thread_state_ex_enum statex = threads::wait_unknown;
-
-        {
-#if HPX_HAVE_VERIFY_LOCKS
-            // verify that there are no more registered locks for this OS-thread
-            util::verify_no_locks();
-#endif
-#if HPX_THREAD_MAINTAIN_DESCRIPTION
-            detail::reset_lco_description desc(id, description, ec);
-#endif
-#if HPX_THREAD_MAINTAIN_BACKTRACE_ON_SUSPENSION
-            detail::reset_backtrace bt(id, ec);
-#endif
-            threads::set_thread_state(id,
-                after_duration, threads::pending, threads::wait_signaled,
-                threads::thread_priority_critical, ec);
-            if (ec) return threads::wait_unknown;
-
-            // suspend the HPX-thread
-            statex = self.yield(threads::suspended);
-        }
-
-        // handle interruption, if needed
-        threads::interruption_point(id);
         if (ec) return threads::wait_unknown;
 
         // handle interrupt and abort

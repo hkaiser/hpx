@@ -82,11 +82,19 @@ namespace hpx { namespace threads { namespace policies
 #if defined(HPX_THREAD_BACKOFF_ON_IDLE)
             // Put this thread to sleep for some time, additionally it gets
             // woken up on new work.
+#if BOOST_VERSION < 105000
+            boost::posix_time::millisec period(++wait_count_);
+
+            boost::mutex::scoped_lock l(mtx_);
+            policies::detail::reset_on_exit w(waiting_);
+            cond_.timed_wait(l, period);
+#else
             boost::chrono::milliseconds period(++wait_count_);
 
             boost::mutex::scoped_lock l(mtx_);
             policies::detail::reset_on_exit w(waiting_);
             cond_.wait_for(l, period);
+#endif
 #endif
         }
 
@@ -107,12 +115,12 @@ namespace hpx { namespace threads { namespace policies
         ///////////////////////////////////////////////////////////////////////
         virtual bool numa_sensitive() const { return false; }
 
-#if HPX_THREAD_MAINTAIN_CREATION_AND_CLEANUP_RATES
+#ifdef HPX_THREAD_MAINTAIN_CREATION_AND_CLEANUP_RATES
         virtual boost::uint64_t get_creation_time(bool reset) = 0;
         virtual boost::uint64_t get_cleanup_time(bool reset) = 0;
 #endif
 
-#if HPX_THREAD_MAINTAIN_STEALING_COUNTS
+#ifdef HPX_THREAD_MAINTAIN_STEALING_COUNTS
         virtual std::size_t get_num_pending_misses(std::size_t num_thread,
             bool reset) = 0;
         virtual std::size_t get_num_pending_accesses(std::size_t num_thread,
@@ -139,7 +147,7 @@ namespace hpx { namespace threads { namespace policies
 
         virtual bool cleanup_terminated(bool delete_all = false) = 0;
 
-        virtual thread_id_type create_thread(thread_init_data& data,
+        virtual void create_thread(thread_init_data& data, thread_id_type* id,
             thread_state_enum initial_state, bool run_now, error_code& ec,
             std::size_t num_thread) = 0;
 
@@ -163,7 +171,7 @@ namespace hpx { namespace threads { namespace policies
         virtual void on_stop_thread(std::size_t num_thread) = 0;
         virtual void on_error(std::size_t num_thread, boost::exception_ptr const& e) = 0;
 
-#if HPX_THREAD_MAINTAIN_QUEUE_WAITTIME
+#ifdef HPX_THREAD_MAINTAIN_QUEUE_WAITTIME
         virtual boost::int64_t get_average_thread_wait_time(
             std::size_t num_thread = std::size_t(-1)) const = 0;
         virtual boost::int64_t get_average_task_wait_time(

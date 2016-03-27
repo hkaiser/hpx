@@ -175,7 +175,9 @@ namespace hpx { namespace threads { namespace executors { namespace detail
         // update statistics
         ++tasks_scheduled_;
 
-        threads::detail::create_thread(&scheduler_, data, initial_state, run_now, ec); //-V601
+        threads::thread_id_type id = threads::invalid_thread_id;
+        threads::detail::create_thread(&scheduler_, data, id, initial_state, //-V601
+            run_now, ec);
         if (ec) {
             --tasks_scheduled_;
             return;
@@ -190,7 +192,7 @@ namespace hpx { namespace threads { namespace executors { namespace detail
     // bounds on the executor's queue size.
     template <typename Scheduler>
     void thread_pool_executor<Scheduler>::add_at(
-        boost::posix_time::ptime const& abs_time,
+        boost::chrono::steady_clock::time_point const& abs_time,
         closure_type && f, char const* desc,
         threads::thread_stacksize stacksize, error_code& ec)
     {
@@ -200,8 +202,9 @@ namespace hpx { namespace threads { namespace executors { namespace detail
             this, std::move(f)), desc);
         data.stacksize = threads::get_stack_size(stacksize);
 
-        thread_id_type id = threads::detail::create_thread( //-V601
-            &scheduler_, data, suspended, true, ec);
+        threads::thread_id_type id = threads::invalid_thread_id;
+        threads::detail::create_thread( //-V601
+            &scheduler_, data, id, suspended, true, ec);
         if (ec) return;
         HPX_ASSERT(invalid_thread_id != id);    // would throw otherwise
 
@@ -224,33 +227,12 @@ namespace hpx { namespace threads { namespace executors { namespace detail
     // violate bounds on the executor's queue size.
     template <typename Scheduler>
     void thread_pool_executor<Scheduler>::add_after(
-        boost::posix_time::time_duration const& rel_time,
+        boost::chrono::steady_clock::duration const& rel_time,
         closure_type && f, char const* desc,
         threads::thread_stacksize stacksize, error_code& ec)
     {
-        // create a new suspended thread
-        thread_init_data data(util::bind(
-            util::one_shot(&thread_pool_executor::thread_function_nullary),
-            this, std::move(f)), desc);
-        data.stacksize = threads::get_stack_size(stacksize);
-
-        thread_id_type id = threads::detail::create_thread( //-V601
-            &scheduler_, data, suspended, true, ec);
-        if (ec) return;
-        HPX_ASSERT(invalid_thread_id != id);    // would throw otherwise
-
-        // update statistics
-        ++tasks_scheduled_;
-
-        // now schedule new thread for execution
-        threads::detail::set_thread_state_timed(scheduler_, rel_time, id, ec);
-        if (ec) {
-            --tasks_scheduled_;
-            return;
-        }
-
-        if (&ec != &throws)
-            ec = make_success_code();
+        return add_at(boost::chrono::steady_clock::now() + rel_time,
+            std::move(f), desc, stacksize, ec);
     }
 
     // Return an estimate of the number of waiting tasks.
@@ -314,7 +296,7 @@ namespace hpx { namespace threads { namespace executors { namespace detail
                 states_[virt_core], executed_threads, executed_thread_phases,
                 overall_times, thread_times, &suspend_back_into_calling_context);
 
-#if HPX_DEBUG != 0
+#ifdef HPX_DEBUG
             // the scheduling_loop is allowed to exit only if no more HPX
             // threads exist
             HPX_ASSERT(!scheduler_.get_thread_count(
@@ -349,7 +331,9 @@ namespace hpx { namespace threads { namespace executors { namespace detail
             return max_punits_;
 
         case threads::detail::current_concurrency:
-            return current_concurrency_ ? current_concurrency_ : min_punits_;
+            return current_concurrency_ ?
+                static_cast<std::size_t>(current_concurrency_)
+              : min_punits_;
 
         default:
             break;

@@ -41,7 +41,7 @@ described in the table below:
                                  node name per line and core)]]
     [[`--hpx:nodes arg`]        [the (space separated) list of the nodes to use (usually
                                  this is extracted from a node file)]]
-    [[`--hpx:endnodes`]         [this can be used to end the list of nodes specified 
+    [[`--hpx:endnodes`]         [this can be used to end the list of nodes specified
                                  using the option `--hpx:nodes`]]
     [[`--hpx:ifsuffix arg`]     [suffix to append to host names in order to resolve them
                                  to the proper network interconnect]]
@@ -55,19 +55,22 @@ described in the table below:
                                  (must be unique)]]
     [[`--hpx:pu-offset`]        [the first processing unit this instance of __hpx__ should be
                                  run on (default: 0), valid for
-                                 --hpx:queuing=local and priority_local only]]
+                                 `--hpx:queuing=local`, `--hpx:queuing=abp-priority`,
+                                 `--hpx:queuing=static`, and `--hpx:queuing=local-priority` only]]
     [[`--hpx:pu-step`]          [the step between used processing unit numbers for this
                                  instance of __hpx__ (default: 1), valid for
-                                 `--hpx:queuing=local` and priority_local only]]
+                                 `--hpx:queuing=local`, `--hpx:queuing=abp-priority`,
+                                 `--hpx:queuing=static` and `--hpx:queuing=local-priority` only]]
     [[`--hpx:threads arg`]      [the number of operating system threads to spawn
                                  for this __hpx__ locality (default: 1, using 'all' will
                                  spawn one thread for each processing unit)]]
     [[`--hpx:cores arg`]        [the number of cores to utilize for this __hpx__ locality
                                  locality (default: 'all', i.e. the number of cores is based on
-                                 the number of threads (--hpx:threads) assuming --hpx:bind=compact)]]
+                                 the number of threads (`--hpx:threads`) assuming `--hpx:bind=compact`)]]
     [[`--hpx:affinity arg`]     [the affinity domain the OS threads will be confined to,
                                  possible values: pu, core, numa, machine (default: pu), valid for
-                                 `--hpx:queuing=local` and priority_local only]]
+                                 `--hpx:queuing=local`, `--hpx:queuing=abp-priority`,
+                                 `--hpx:queuing=static`, and `--hpx:queuing=local-priority` only]]
     [[`--hpx:bind arg`]         [the detailed affinity description for the OS threads, see
                                  [link hpx.manual.init.commandline.details the additional documentation]
                                  for a detailed description of possible
@@ -76,16 +79,18 @@ described in the table below:
     [[`--hpx:print-bind`]       [print to the console the bit masks calculated from the
                                  arguments specified to all `--hpx:bind` options.]]
     [[`--hpx:queuing arg`]      [the queue scheduling policy to use, options are
-                                 'local/l', 'priority_local/pr', 'abp/a', 'priority_abp',
-                                 'hierarchy/h', and 'periodic/pe' (default: priority_local/p)]]
+                                 'local/l', 'local-priority/lo', 'abp/a', 'abp-priority',
+                                 'hierarchy/h', and 'periodic/pe' (default: local-priority/lo)]]
     [[`--hpx:hierarchy-arity`]  [the arity of the of the thread queue tree, valid for
-                                 --hpx:queuing=hierarchy only (default: 2)]]
+                                 `--hpx:queuing=hierarchy` only (default: 2)]]
     [[`--hpx:high-priority-threads arg`] [the number of operating system threads
                                  maintaining a high priority queue (default:
-                                 number of OS threads), valid for --hpx:queuing=priority_local
-                                 and --hpx:queuing=priority_abp only]]
-    [[`--hpx:numa-sensitive`]   [makes the priority_local scheduler NUMA sensitive, valid for
-                                 `--hpx:queuing=local` and priority_local only]]
+                                 number of OS threads), valid for `--hpx:queuing=local`,
+                                 `--hpx:queuing=abp-priority`, and `--hpx:queuing=local-priority` only]]
+    [[`--hpx:numa-sensitive`]   [makes the local-priority scheduler NUMA sensitive, valid for
+                                 `--hpx:queuing=local`, `--hpx:queuing=abp-priority`,
+                                 `--hpx:queuing=static`, and
+                                 `--hpx:queuing=local-priority` only]]
 
     [[[*__hpx__ configuration options]]]
     [[`--hpx:app-config arg`]   [load the specified application configuration
@@ -109,7 +114,7 @@ described in the table below:
     [[[*__hpx__ options related to performance counters]]]
     [[`--hpx:print-counter`]    [print the specified performance counter either repeatedly or
                                  before shutting down the system (see option `--hpx:print-counter-interval`)]]
-    [[`--hpx:print-counter-interval`][print the performance counter(s) specified with --hpx:print-counter
+    [[`--hpx:print-counter-interval`][print the performance counter(s) specified with `--hpx:print-counter`
                                  repeatedly after the time interval (specified in milliseconds)
                                  (default: 0, which means print once at shutdown)]]
     [[`--hpx:print-counter-destination`][print the performance counter(s) specified with `--hpx:print-counter`
@@ -134,7 +139,6 @@ every __hpx__ application.
     [[`-a`]               [`--hpx:agas`]]
     [[`-c`]               [`--hpx:console`]]
     [[`-h`]               [`--hpx:help`]]
-    [[`--help`]           [`--hpx:help`]]
     [[`-I`]               [`--hpx:ini`]]
     [[`-l`]               [`--hpx:localities`]]
     [[`-p`]               [`--hpx:app-config`]]
@@ -142,7 +146,6 @@ every __hpx__ application.
     [[`-r`]               [`--hpx:run-agas-server`]]
     [[`-t`]               [`--hpx:threads`]]
     [[`-v`]               [`--hpx:version`]]
-    [[`--version`]        [`--hpx:version`]]
     [[`-w`]               [`--hpx:worker`]]
     [[`-x`]               [`--hpx:hpx`]]
     [[`-0`]               [`--hpx:node=0`]]
@@ -160,7 +163,7 @@ every __hpx__ application.
 [c++]
 
 It is possible to define your own shortcut options. In fact, all of the shortcuts
-listed above are pre-defined using the technique described here. 
+listed above are pre-defined using the technique described here.
 In fact, it is possible to redefine any of the pre-defined shortcuts to expand
 differently as well.
 
@@ -217,7 +220,7 @@ ignore the option. For instance, the following PBS script passes the option
     APP_PATH=~/packages/hpx/bin/hello_world
     APP_OPTIONS=
 
-    __pbsdsh__ -u $APP_PATH $APP_OPTIONS ``[hpx_cmdline --hpx:1:pu-offset=4]`` ``[hpx_cmdline --hpx:nodes]``=`cat $PBS_NODEFILE` 
+    __pbsdsh__ -u $APP_PATH $APP_OPTIONS ``[hpx_cmdline --hpx:1:pu-offset=4]`` ``[hpx_cmdline --hpx:nodes]``=`cat $PBS_NODEFILE`
 ```
 
 [caution If the first application specific argument (inside `$APP_OPTIONS`)
@@ -225,10 +228,10 @@ ignore the option. For instance, the following PBS script passes the option
          must be placed before the option [hpx_cmdline --hpx:nodes], which,
          in this case, should be the last option on the command line.
 
-         Alternatively, use the option [hpx_cmdline --hpx:endnodes] to explicitly 
+         Alternatively, use the option [hpx_cmdline --hpx:endnodes] to explicitly
          mark the end of the list of node names:
          ```
-         __pbsdsh__ -u $APP_PATH ``[hpx_cmdline --hpx:1:pu-offset=4]`` ``[hpx_cmdline --hpx:nodes]``=`cat $PBS_NODEFILE` ``[hpx_cmdline --hpx:endnodes] ``$APP_OPTIONS 
+         __pbsdsh__ -u $APP_PATH ``[hpx_cmdline --hpx:1:pu-offset=4]`` ``[hpx_cmdline --hpx:nodes]``=`cat $PBS_NODEFILE` ``[hpx_cmdline --hpx:endnodes] ``$APP_OPTIONS
          ```
          ]
 
@@ -247,7 +250,7 @@ detail:
 This command line option allows one to specify the required affinity of the __hpx__
 worker threads to the underlying processing units. As a result the worker
 threads will run only on the processing units identified by the corresponding
-bind specification. The affinity settings are to be specified using 
+bind specification. The affinity settings are to be specified using
 `--hpx:bind=<BINDINGS>`, where `<BINDINGS>` have to be formatted as described
 below.
 
@@ -293,8 +296,8 @@ if multiple affinities are specified, they are added.
 
 `"all"` is a special affinity consisting in the entire current topology.
 
-[note All 'names' in an affinity specification, such as `thread`, `socket`, 
-      `numanode`, `pu`, or `all` can be abbreviated. Thus the affinity 
+[note All 'names' in an affinity specification, such as `thread`, `socket`,
+      `numanode`, `pu`, or `all` can be abbreviated. Thus the affinity
       specification `threads:0-3=socket:0.core:1.pu:1` is fully equivalent to
       its shortened form `t:0-3=s:0.c:1.p:1`.]
 

@@ -13,7 +13,6 @@
 #include <hpx/util/scoped_unlock.hpp>
 #include <hpx/runtime/threads/thread_helpers.hpp>
 
-#include <boost/date_time/posix_time/ptime.hpp>
 #include <boost/intrusive/slist.hpp>
 #include <boost/noncopyable.hpp>
 
@@ -31,11 +30,11 @@ namespace hpx { namespace lcos { namespace local { namespace detail
                 boost::intrusive::link_mode<boost::intrusive::normal_link>
             > hook_type;
 
-            queue_entry(threads::thread_id_type const& id)
+            queue_entry(threads::thread_id_repr_type const& id)
               : id_(id)
             {}
 
-            threads::thread_id_type id_;
+            threads::thread_id_repr_type id_;
             hook_type slist_hook_;
         };
 
@@ -58,7 +57,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
 
             ~reset_queue_entry()
             {
-                if (e_.id_)
+                if (e_.id_ != threads::invalid_thread_id_repr)
                     q_.erase(last_);     // remove entry from queue
             }
 
@@ -105,21 +104,23 @@ namespace hpx { namespace lcos { namespace local { namespace detail
 
             if (!queue_.empty())
             {
-                threads::thread_id_type id = queue_.front().id_;
-                if (HPX_UNLIKELY(!id))
+                threads::thread_id_repr_type id = queue_.front().id_;
+                if (HPX_UNLIKELY(id == threads::invalid_thread_id_repr))
                 {
                     HPX_THROWS_IF(ec, null_thread_id,
                         "condition_variable::notify_one",
                         "NULL thread id encountered");
                     return false;
                 }
-                queue_.front().id_ = threads::invalid_thread_id;
+                queue_.front().id_ = threads::invalid_thread_id_repr;
                 queue_.pop_front();
 
                 util::scoped_unlock<Lock> unlock(lock);
 
-                threads::set_thread_state(id, threads::pending,
-                    threads::wait_timeout, threads::thread_priority_default, ec);
+                threads::set_thread_state(threads::thread_id_type(
+                    reinterpret_cast<threads::thread_data_base*>(id)),
+                    threads::pending, threads::wait_timeout,
+                    threads::thread_priority_default, ec);
                 if (!ec) return true;
             }
 
@@ -138,19 +139,21 @@ namespace hpx { namespace lcos { namespace local { namespace detail
 
             while (!queue.empty())
             {
-                threads::thread_id_type id = queue.front().id_;
-                if (HPX_UNLIKELY(!id))
+                threads::thread_id_repr_type id = queue.front().id_;
+                if (HPX_UNLIKELY(id == threads::invalid_thread_id_repr))
                 {
                     HPX_THROWS_IF(ec, null_thread_id,
                         "condition_variable::notify_all",
                         "NULL thread id encountered");
                     return;
                 }
-                queue.front().id_ = threads::invalid_thread_id;
+                queue.front().id_ = threads::invalid_thread_id_repr;
                 queue.pop_front();
 
-                threads::set_thread_state(id, threads::pending,
-                    threads::wait_timeout, threads::thread_priority_default, ec);
+                threads::set_thread_state(threads::thread_id_type(
+                    reinterpret_cast<threads::thread_data_base*>(id)),
+                    threads::pending, threads::wait_timeout,
+                    threads::thread_priority_default, ec);
                 if (ec) return;
             }
         }
@@ -167,8 +170,9 @@ namespace hpx { namespace lcos { namespace local { namespace detail
 
             while (!queue.empty())
             {
-                threads::thread_id_type id = queue.front().id_;
-                queue.front().id_ = threads::invalid_thread_id;
+                threads::thread_id_type id(
+                    reinterpret_cast<threads::thread_data_base*>(queue_.front().id_));
+                queue.front().id_ = threads::invalid_thread_id_repr;
                 queue.pop_front();
 
                 // we know that the id is actually the pointer to the thread
@@ -194,101 +198,85 @@ namespace hpx { namespace lcos { namespace local { namespace detail
         }
 
         template <typename Lock>
-        void wait(Lock& lock,
-            char const* description, error_code& ec = throws)
+        threads::thread_state_ex_enum
+        wait(Lock& lock, char const* description, error_code& ec = throws)
         {
+            HPX_ASSERT(threads::get_self_ptr() != 0);
             HPX_ASSERT_OWNS_LOCK(lock);
 
-            threads::thread_self* self = threads::get_self_ptr_checked(ec);
-            if (0 == self || ec) return;
-
             // enqueue the request and block this thread
-            queue_entry f(threads::get_self_id());
+            queue_entry f(threads::get_self_id().get());
             queue_.push_back(f);
 
             reset_queue_entry r(f, queue_);
+            threads::thread_state_ex_enum reason = threads::wait_unknown;
             {
                 // yield this thread
                 util::scoped_unlock<Lock> unlock(lock);
-                this_thread::suspend(threads::suspended, description, ec);
-                if (ec) return;
+                reason = this_thread::suspend(threads::suspended, description, ec);
+                if (ec) return threads::wait_unknown;
             }
+
+            return (f.id_ == threads::invalid_thread_id_repr) ?
+                threads::wait_timeout : reason;
         }
 
         template <typename Lock>
-        void wait(Lock& lock, error_code& ec = throws)
+        threads::thread_state_ex_enum
+        wait(Lock& lock, error_code& ec = throws)
         {
             return wait(lock, "condition_variable::wait", ec);
         }
 
         template <typename Lock>
         threads::thread_state_ex_enum
-        wait_for(Lock& lock, boost::posix_time::time_duration const& rel_time,
+        wait_until(Lock& lock, util::steady_time_point const& abs_time,
             char const* description, error_code& ec = throws)
         {
+            HPX_ASSERT(threads::get_self_ptr() != 0);
             HPX_ASSERT_OWNS_LOCK(lock);
 
-            threads::thread_self* self = threads::get_self_ptr_checked(ec);
-            if (0 == self || ec) return threads::wait_unknown;
-
             // enqueue the request and block this thread
-            queue_entry f(threads::get_self_id());
+            queue_entry f(threads::get_self_id().get());
             queue_.push_back(f);
 
             reset_queue_entry r(f, queue_);
+            threads::thread_state_ex_enum reason = threads::wait_unknown;
             {
                 // yield this thread
                 util::scoped_unlock<Lock> unlock(lock);
-                threads::thread_state_ex_enum const reason =
-                    this_thread::suspend(rel_time, description, ec);
+                reason = this_thread::suspend(abs_time, description, ec);
                 if (ec) return threads::wait_unknown;
-
-                return reason;
             }
+
+            return (f.id_ == threads::invalid_thread_id_repr) ?
+                threads::wait_timeout : reason;
         }
 
         template <typename Lock>
         threads::thread_state_ex_enum
-        wait_for(Lock& lock, boost::posix_time::time_duration const& rel_time,
-            error_code& ec = throws)
-        {
-            return wait_for(lock, rel_time,
-                "condition_variable::wait_for", ec);
-        }
-
-        template <typename Lock>
-        threads::thread_state_ex_enum
-        wait_until(Lock& lock, boost::posix_time::ptime const& abs_time,
-            char const* description, error_code& ec = throws)
-        {
-            HPX_ASSERT_OWNS_LOCK(lock);
-
-            threads::thread_self* self = threads::get_self_ptr_checked(ec);
-            if (0 == self || ec) return threads::wait_unknown;
-
-            // enqueue the request and block this thread
-            queue_entry f(threads::get_self_id());
-            queue_.push_back(f);
-
-            reset_queue_entry r(f, queue_);
-            {
-                // yield this thread
-                util::scoped_unlock<Lock> unlock(lock);
-                threads::thread_state_ex_enum const reason =
-                    this_thread::suspend(abs_time, description, ec);
-                if (ec) return threads::wait_unknown;
-
-                return reason;
-            }
-        }
-
-        template <typename Lock>
-        threads::thread_state_ex_enum
-        wait_until(Lock& lock, boost::posix_time::ptime const& abs_time,
+        wait_until(Lock& lock, util::steady_time_point const& abs_time,
             error_code& ec = throws)
         {
             return wait_until(lock, abs_time,
                 "condition_variable::wait_until", ec);
+        }
+
+        template <typename Lock>
+        threads::thread_state_ex_enum
+        wait_for(Lock& lock, util::steady_duration const& rel_time,
+            char const* description, error_code& ec = throws)
+        {
+            return wait_until(lock, rel_time.from_now(), description, ec);
+        }
+
+        template <typename Lock>
+        threads::thread_state_ex_enum
+        wait_for(Lock& lock, util::steady_duration const& rel_time,
+            error_code& ec = throws)
+        {
+            return wait_until(lock, rel_time.from_now(),
+                "condition_variable::wait_for", ec);
         }
 
     private:

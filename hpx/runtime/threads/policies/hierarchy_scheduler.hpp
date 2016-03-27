@@ -229,7 +229,7 @@ namespace hpx { namespace threads { namespace policies
             return result;
         }
 
-#if HPX_THREAD_MAINTAIN_QUEUE_WAITTIME
+#ifdef HPX_THREAD_MAINTAIN_QUEUE_WAITTIME
         ///////////////////////////////////////////////////////////////////////
         boost::int64_t get_average_thread_wait_time(
             std::size_t num_thread = std::size_t(-1)) const
@@ -284,7 +284,7 @@ namespace hpx { namespace threads { namespace policies
         }
 #endif
 
-#if HPX_THREAD_MAINTAIN_CREATION_AND_CLEANUP_RATES
+#ifdef HPX_THREAD_MAINTAIN_CREATION_AND_CLEANUP_RATES
         boost::uint64_t get_creation_time(bool reset)
         {
             boost::uint64_t time = 0;
@@ -312,7 +312,7 @@ namespace hpx { namespace threads { namespace policies
         }
 #endif
 
-#if HPX_THREAD_MAINTAIN_STEALING_COUNTS
+#ifdef HPX_THREAD_MAINTAIN_STEALING_COUNTS
         std::size_t get_num_pending_misses(std::size_t num_thread, bool reset)
         {
             std::size_t num_pending_misses = 0;
@@ -468,13 +468,13 @@ namespace hpx { namespace threads { namespace policies
         // create a new thread and schedule it if the initial state is equal to
         // pending
         // TODO: add recycling
-        thread_id_type create_thread(thread_init_data& data,
+        void create_thread(thread_init_data& data, thread_id_type* id,
             thread_state_enum initial_state, bool run_now, error_code& ec,
             std::size_t num_thread)
         {
             HPX_ASSERT(tree.size());
             HPX_ASSERT(tree.back().size());
-            return tree.back()[0]->create_thread(data, initial_state,
+            tree.back()[0]->create_thread(data, id, initial_state,
                 run_now, ec);
         }
 
@@ -509,19 +509,20 @@ namespace hpx { namespace threads { namespace policies
                     while(work_flag_tree[level][idx])
                     {
 #if defined(BOOST_WINDOWS)
-                    Sleep(1);
+                        Sleep(1);
 #elif defined(BOOST_HAS_PTHREADS)
-                    sched_yield();
+                        sched_yield();
 #else
 #endif
                     }
                 }
             }
 
-            dest->move_work_items_from(
-                tq
-              , tq->get_pending_queue_length()/d + 1
-            );
+            boost::int64_t count = tq->get_pending_queue_length()/d + 1;
+            dest->move_work_items_from(tq, count);
+
+            tq->increment_num_stolen_from_pending(count);
+            dest->increment_num_stolen_to_pending(count);
         }
 
         /// Return the next thread to be executed, return false if none is
@@ -541,7 +542,13 @@ namespace hpx { namespace threads { namespace policies
                 transfer_threads(num_thread/d, num_thread, 1, num_thread);
             }
 
-            return tq->get_next_thread(thrd);
+            bool result = tq->get_next_thread(thrd);
+
+            tq->increment_num_pending_accesses();
+            if (result)
+                return true;
+            tq->increment_num_pending_misses();
+            return result;
         }
 
         /// Schedule the passed thread

@@ -4,7 +4,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-/// \file reduce.hpp
+/// \file lcos/reduce.hpp
 
 #if defined(DOXYGEN)
 namespace hpx { namespace lcos
@@ -419,7 +419,7 @@ namespace hpx { namespace lcos
                     HPX_ASSERT(ids.size() >= applied);
 
                     std::size_t next_fan = (std::min)(fanout, ids.size() - applied);
-                    std::vector<hpx::id_type> ids_next(it, it + fanout);
+                    std::vector<hpx::id_type> ids_next(it, it + next_fan);
 
                     hpx::id_type id(ids_next[0]);
                     reduce_futures.push_back(

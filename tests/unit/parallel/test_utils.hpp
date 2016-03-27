@@ -8,6 +8,8 @@
 
 #include <boost/iterator/iterator_adaptor.hpp>
 
+#include <random>
+
 namespace test
 {
     ///////////////////////////////////////////////////////////////////////////
@@ -25,7 +27,7 @@ namespace test
 
     public:
         test_iterator() : base_type() {}
-        test_iterator(BaseIterator base) : base_type(base) {};
+        test_iterator(BaseIterator base) : base_type(base) {}
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -42,17 +44,24 @@ namespace test
         base_type;
 
     public:
-        decorated_iterator() : base_type() {}
+        decorated_iterator()
+        {}
+
+        decorated_iterator(BaseIterator base)
+          : base_type(base)
+        {}
+
         decorated_iterator(BaseIterator base, std::function<void()> f)
           : base_type(base), m_callback(f)
-        {};
+        {}
 
     private:
         friend class boost::iterator_core_access;
 
         typename base_type::reference dereference() const
         {
-            m_callback();
+            if (m_callback)
+                m_callback();
             return *(this->base());
         }
 
@@ -61,19 +70,49 @@ namespace test
     };
 
     ///////////////////////////////////////////////////////////////////////////
+    struct count_instances
+    {
+        count_instances()
+          : value_(std::size_t(-1))
+        {
+            ++instance_count;
+        }
+        count_instances(int value)
+          : value_(value)
+        {
+            ++instance_count;
+        }
+        count_instances(count_instances const& rhs)
+          : value_(rhs.value_)
+        {
+            ++instance_count;
+        }
+
+        ~count_instances()
+        {
+            --instance_count;
+        }
+
+        std::size_t value_;
+        static boost::atomic<std::size_t> instance_count;
+    };
+
+    boost::atomic<std::size_t> count_instances::instance_count(0);
+
+    ///////////////////////////////////////////////////////////////////////////
     template <typename ExPolicy, typename IteratorTag>
-    struct test_num_exeptions
+    struct test_num_exceptions
     {
         static void call(ExPolicy const&, hpx::exception_list const& e)
         {
             // The static partitioner uses the number of threads/cores for the
             // number chunks to create.
-            HPX_TEST_EQ(e.size(), hpx::get_num_worker_threads());
+            HPX_TEST_LTE(e.size(), hpx::get_num_worker_threads());
         }
     };
 
     template <typename IteratorTag>
-    struct test_num_exeptions<
+    struct test_num_exceptions<
         hpx::parallel::sequential_execution_policy, IteratorTag>
     {
         static void call(hpx::parallel::sequential_execution_policy const&,
@@ -84,7 +123,7 @@ namespace test
     };
 
     template <typename ExPolicy>
-    struct test_num_exeptions<ExPolicy, std::input_iterator_tag>
+    struct test_num_exceptions<ExPolicy, std::input_iterator_tag>
     {
         static void call(ExPolicy const&, hpx::exception_list const& e)
         {
@@ -93,7 +132,7 @@ namespace test
     };
 
     template <>
-    struct test_num_exeptions<
+    struct test_num_exceptions<
         hpx::parallel::sequential_execution_policy, std::input_iterator_tag>
     {
         static void call(hpx::parallel::sequential_execution_policy const&,
@@ -104,7 +143,7 @@ namespace test
     };
 
     template <typename IteratorTag>
-    struct test_num_exeptions<hpx::parallel::execution_policy, IteratorTag>
+    struct test_num_exceptions<hpx::parallel::execution_policy, IteratorTag>
     {
         static void call(hpx::parallel::execution_policy const& policy,
             hpx::exception_list const& e)
@@ -117,13 +156,13 @@ namespace test
             else {
                 // The static partitioner uses the number of threads/cores for
                 // the number chunks to create.
-                HPX_TEST_EQ(e.size(), hpx::get_num_worker_threads());
+                HPX_TEST_LTE(e.size(), hpx::get_num_worker_threads());
             }
         }
     };
 
     template <>
-    struct test_num_exeptions<
+    struct test_num_exceptions<
         hpx::parallel::execution_policy, std::input_iterator_tag>
     {
         static void call(hpx::parallel::execution_policy const&,
@@ -145,9 +184,7 @@ namespace test
     {
         std::vector<std::size_t> c(size);
         std::iota(boost::begin(c), boost::end(c), 0);
-        int num = std::rand();
-        while (num-- != 0)
-            std::next_permutation(boost::begin(c), boost::end(c));
+        std::random_shuffle(boost::begin(c), boost::end(c));
         return c;
     }
 
@@ -188,7 +225,7 @@ namespace test
         std::vector<std::size_t> c(size, 0);
         for (std::size_t i = 0; i < num_filled; /**/)
         {
-            std::size_t pos = std::rand() % c.size();
+            std::size_t pos = std::rand() % c.size(); //-V104
             if (c[pos])
                 continue;
 

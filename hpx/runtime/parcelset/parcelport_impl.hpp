@@ -17,11 +17,13 @@
 #include <hpx/util/io_service_pool.hpp>
 #include <hpx/util/connection_cache.hpp>
 #include <hpx/util/runtime_configuration.hpp>
+#include <hpx/util/safe_lexical_cast.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx
 {
     bool is_starting();
+    bool is_stopped();
 }
 
 namespace hpx { namespace parcelset
@@ -48,9 +50,8 @@ namespace hpx { namespace parcelset
             std::string key("hpx.parcel.");
             key += connection_handler_name();
 
-            std::string thread_pool_size =
-                ini.get_entry(key + ".io_pool_size", "2");
-            return boost::lexical_cast<std::size_t>(thread_pool_size);
+            return hpx::util::get_entry_as<std::size_t>(
+                ini, key + ".io_pool_size", "2");
         }
 
         static const char *pool_name()
@@ -68,10 +69,8 @@ namespace hpx { namespace parcelset
             std::string key("hpx.parcel.");
             key += connection_handler_name();
 
-            std::string max_connections =
-                ini.get_entry(key + ".max_connections",
-                    HPX_PARCEL_MAX_CONNECTIONS);
-            return boost::lexical_cast<std::size_t>(max_connections);
+            return hpx::util::get_entry_as<std::size_t>(
+                ini, key + ".max_connections", HPX_PARCEL_MAX_CONNECTIONS);
         }
 
         static std::size_t max_connections_per_loc(util::runtime_configuration const& ini)
@@ -79,10 +78,8 @@ namespace hpx { namespace parcelset
             std::string key("hpx.parcel.");
             key += connection_handler_name();
 
-            std::string max_connections_per_locality =
-                ini.get_entry(key + ".max_connections_per_locality",
-                    HPX_PARCEL_MAX_CONNECTIONS_PER_LOCALITY);
-            return boost::lexical_cast<std::size_t>(max_connections_per_locality);
+            return hpx::util::get_entry_as<std::size_t>(
+                ini, key + ".max_connections_per_locality", HPX_PARCEL_MAX_CONNECTIONS_PER_LOCALITY);
         }
 
     public:
@@ -304,7 +301,7 @@ namespace hpx { namespace parcelset
         ///////////////////////////////////////////////////////////////////////////
         // the code below is needed to bootstrap the parcel layer
         void early_pending_parcel_handler(
-            boost::system::error_code const& ec, std::size_t size, parcel const & p)
+            boost::system::error_code const& ec, parcel const & p)
         {
             if (ec) {
                 // all errors during early parcel handling are fatal
@@ -335,7 +332,6 @@ namespace hpx { namespace parcelset
                     &parcelport_impl::early_pending_parcel_handler
                   , this
                   , ::_1
-                  , ::_2
                   , p
                 )
             );
@@ -528,13 +524,15 @@ namespace hpx { namespace parcelset
                     &parcelport_impl::get_connection_and_send_parcels,
                     this, loc, background),
                 "get_connection_and_send_parcels",
-                threads::pending, true, threads::thread_priority_critical,
+                threads::pending, true, threads::thread_priority_boost,
                 std::size_t(-1), threads::thread_stacksize_default, ec);
             return ec ? false : true;
         }
 
         bool trigger_pending_work()
         {
+            if(hpx::is_stopped()) return true;
+
             std::vector<naming::locality> destinations;
             destinations.reserve(parcel_destinations_.size());
 
@@ -566,7 +564,7 @@ namespace hpx { namespace parcelset
             naming::locality const& locality_id, bool background = false)
         {
             // repeat until no more parcels are to be sent
-            while (true)
+            while (!hpx::is_stopped())
             {
                 std::vector<parcel> parcels;
                 std::vector<write_handler_type> handlers;
@@ -630,7 +628,7 @@ namespace hpx { namespace parcelset
                           , std::move(handlers)
                         )
                       , "parcelport_impl::send_pending_parcels"
-                      , threads::pending, true, threads::thread_priority_critical,
+                      , threads::pending, true, threads::thread_priority_boost,
                         thread_num, threads::thread_stacksize_default
                     );
                 }
@@ -687,6 +685,9 @@ namespace hpx { namespace parcelset
             std::vector<parcel>&& parcels,
             std::vector<write_handler_type>&& handlers)
         {
+            // If we are stopped already, discard the remaining pending parcels
+            if(hpx::is_stopped()) return;
+
 #if defined(HPX_TRACK_STATE_OF_OUTGOING_TCP_CONNECTION)
             sender_connection->set_state(parcelport_connection::state_send_pending);
 #endif
@@ -701,13 +702,12 @@ namespace hpx { namespace parcelset
             }
 #endif
             // encode the parcels
-            boost::shared_ptr<parcel_buffer<typename connection::buffer_type> >
-                buffer = encode_parcels(parcels, *sender_connection,
+            encode_parcels(parcels, *sender_connection,
                     archive_flags_, this->enable_security());
 
             // send them asynchronously
             sender_connection->async_write(
-                hpx::parcelset::detail::call_for_each(std::move(handlers)),
+                hpx::parcelset::detail::call_for_each(std::move(handlers), parcels[0]),
                 boost::bind(&parcelport_impl::send_pending_parcels_trampoline,
                     this,
                     ::_1, ::_2, ::_3));

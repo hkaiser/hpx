@@ -20,6 +20,7 @@ set(tests
     promise_leak_996
     set_hpx_limit_771
     set_hpx_limit_798
+    shared_stated_leaked_1211
    )
 
 
@@ -30,7 +31,7 @@ set(tests ${tests}
     dataflow_future_swap
     dataflow_791
    )
-if(HPX_HAVE_CXX11_LAMBDAS)
+ if(HPX_WITH_CXX11_LAMBDAS)
   set(tests ${tests}
       dataflow_const_functor_773
       dataflow_future_swap2
@@ -42,14 +43,14 @@ set(after_588_PARAMETERS LOCALITIES 2)
 
 set(async_callback_non_deduced_context_PARAMETERS THREADS_PER_LOCALITY 4)
 set(future_hang_on_get_629_PARAMETERS LOCALITIES 2 THREADS_PER_LOCALITY 2)
-set(dataflow_launch_775_PARAMETERS LOCALITIES 2 THREADS_PER_LOCALITY 2)
+set(dataflow_launch_775_PARAMETERS THREADS_PER_LOCALITY 2)
 
 set(lifetime_588_PARAMETERS LOCALITIES 2 THREADS_PER_LOCALITY 2)
 set(lifetime_588_1_PARAMETERS LOCALITIES 2 THREADS_PER_LOCALITY 2)
 
 set(set_hpx_limit_771_FLAGS DEPENDENCIES dataflow_component)
 
-if(HPX_HAVE_CXX11_LAMBDAS)
+if(HPX_WITH_CXX11_LAMBDAS)
   set(future_hang_on_wait_with_callback_629_PARAMETERS THREADS_PER_LOCALITY 4)
   set(tests
     ${tests}
@@ -66,6 +67,8 @@ foreach(test ${tests})
   add_hpx_executable(${test}_test
                      SOURCES ${sources}
                      ${${test}_FLAGS}
+                     EXCLUDE_FROM_ALL
+                     HPX_PREFIX ${HPX_BUILD_PREFIX}
                      FOLDER "Tests/Regressions/LCOs")
 
   add_hpx_regression_test("lcos" ${test} ${${test}_PARAMETERS})

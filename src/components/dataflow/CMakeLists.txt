@@ -5,13 +5,7 @@
 
 set(root "${hpx_SOURCE_DIR}/hpx/components/dataflow")
 
-if(HPX_DEFAULT_BUILD_TARGETS)
-  add_hpx_component(dataflow
-    FOLDER "Core/Components"
-    HEADER_ROOT ${root}
-    AUTOGLOB
-    ESSENTIAL)
-else() 
+if(HPX_BUILD_DEFAULT_TARGETS)
   add_hpx_component(dataflow
     FOLDER "Core/Components"
     HEADER_ROOT ${root}
@@ -20,9 +14,11 @@ endif()
 
 add_hpx_pseudo_dependencies(components.dataflow
                             dataflow_component)
+add_hpx_pseudo_dependencies(core
+                          components.dataflow)
 
 ################################################################################
-if(${BOOST_MINOR_VERSION} GREATER 50) 
+if(Boost_VERSION GREATER 105000)
   # add headers to preprocessing
   hpx_partial_preprocess_header(
       "hpx/components/dataflow/dataflow.hpp"

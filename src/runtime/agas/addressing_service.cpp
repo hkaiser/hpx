@@ -21,6 +21,7 @@
 #include <hpx/runtime/agas/server/symbol_namespace.hpp>
 #include <hpx/util/logging.hpp>
 #include <hpx/util/runtime_configuration.hpp>
+#include <hpx/util/safe_lexical_cast.hpp>
 #include <hpx/include/performance_counters.hpp>
 #include <hpx/performance_counters/counter_creators.hpp>
 #include <hpx/lcos/wait_all.hpp>
@@ -203,7 +204,7 @@ addressing_service::addressing_service(
   , runtime_mode runtime_type_
     )
   : gva_cache_(new gva_cache_type)
-  , console_cache_(0)
+  , console_cache_(naming::invalid_locality_id)
   , max_refcnt_requests_(ini_.get_agas_max_pending_refcnt_requests())
   , refcnt_requests_count_(0)
   , enable_refcnt_caching_(true)
@@ -213,7 +214,7 @@ addressing_service::addressing_service(
   , caching_(ini_.get_agas_caching_mode())
   , range_caching_(caching_ ? ini_.get_agas_range_caching_mode() : false)
   , action_priority_(ini_.get_agas_dedicated_server() ?
-        threads::thread_priority_normal : threads::thread_priority_critical)
+        threads::thread_priority_normal : threads::thread_priority_boost)
   , here_()         // defer initializing this
   , rts_lva_(0)
   , mem_lva_(0)
@@ -314,10 +315,11 @@ void addressing_service::launch_bootstrap(
 
     // store number of cores used by other processes
     boost::uint32_t cores_needed = rt.assign_cores();
-    boost::uint32_t used_cores = rt.assign_cores(
+    boost::uint32_t first_used_core = rt.assign_cores(
         pp.get_locality_name(), cores_needed);
+
     util::runtime_configuration& cfg = rt.get_config();
-    cfg.set_used_cores(used_cores);
+    cfg.set_first_used_core(first_used_core);
     cfg.set_agas_locality(ini_.get_parcelport_address());
     rt.assign_cores();
 
@@ -362,8 +364,8 @@ void addressing_service::launch_bootstrap(
         boost::str(boost::format("hpx.locality!=%1%")
                   % naming::get_locality_id_from_gid(here)));
 
-    boost::uint32_t num_threads = boost::lexical_cast<boost::uint32_t>(
-        ini_.get_entry("hpx.os_threads", boost::uint32_t(1)));
+    boost::uint32_t num_threads = hpx::util::get_entry_as<boost::uint32_t>(
+        ini_, "hpx.os_threads", 1u);
     request locality_req(locality_ns_allocate, ep, 4, num_threads); //-V112
     bootstrap->locality_ns_server_.remote_service(locality_req);
 
@@ -608,7 +610,7 @@ bool addressing_service::get_console_locality(
         {
             mutex_type::scoped_lock lock(console_cache_mtx_);
 
-            if (console_cache_)
+            if (console_cache_ != naming::invalid_locality_id)
             {
                 prefix = naming::get_gid_from_locality_id(console_cache_);
                 if (&ec != &throws)
@@ -635,7 +637,7 @@ bool addressing_service::get_console_locality(
 
             {
                 mutex_type::scoped_lock lock(console_cache_mtx_);
-                if (!console_cache_) {
+                if (console_cache_ == naming::invalid_locality_id) {
                     console_cache_ = console;
                 }
                 else {
@@ -1679,7 +1681,8 @@ bool addressing_service::resolve_cached(
 ///////////////////////////////////////////////////////////////////////////////
 void addressing_service::route(
     parcelset::parcel const& p
-  , HPX_STD_FUNCTION<void(boost::system::error_code const&, std::size_t)> const& f
+  , HPX_STD_FUNCTION<void(boost::system::error_code const&,
+        parcelset::parcel const&)> const& f
     )
 {
     // compose request
@@ -1699,7 +1702,7 @@ void addressing_service::route(
         // route through the local AGAS service instance
         applier::detail::apply_l_p<action_type>(
             target, addr, action_priority_, req);
-        f(boost::system::error_code(), 0);      // invoke callback
+        f(boost::system::error_code(), parcelset::parcel());      // invoke callback
         return;
     }
 
@@ -1784,45 +1787,38 @@ lcos::future<boost::int64_t> addressing_service::incref_async(
     //   3        10        10        0           0        10
     //   4        10        11        0           1        10
 
-    mapping pending_incref;
+    std::pair<naming::gid_type, boost::int64_t> pending_incref;
     bool has_pending_incref = false;
     boost::int64_t pending_decrefs = 0;
 
     {
         mutex_type::scoped_lock l(refcnt_requests_mtx_);
 
-        typedef refcnt_requests_type::key_type key_type;
-        typedef refcnt_requests_type::data_type data_type;
         typedef refcnt_requests_type::iterator iterator;
 
         naming::gid_type raw = naming::detail::get_stripped_gid(gid);
 
         iterator matches = refcnt_requests_->find(raw);
         if (matches != refcnt_requests_->end())
-            pending_decrefs = matches->data_;
-
-        refcnt_requests_->apply(raw, util::incrementer<boost::int64_t>(credit));
-
-        // Collect all entries which require to increment the refcnt, those
-        // need to be handled immediately.
-        matches = refcnt_requests_->find(raw);
-        if (matches != refcnt_requests_->end())
         {
-            data_type& match_data = matches->data_;
+            pending_decrefs = matches->second;
+            matches->second += credit;
+
+            // Increment requests need to be handled immediately.
 
             // If the given incref was fully compensated by a pending decref
             // (i.e. match_data is less than 0) then there is no need
             // to do anything more.
-            if (match_data > 0)
+            if (matches->second > 0)
             {
                 // credit > decrefs (case no 4): store the remaining incref to
                 // be handled below.
-                pending_incref = mapping(matches->key_, match_data);
+                pending_incref = mapping(matches->first, matches->second);
                 has_pending_incref = true;
 
                 refcnt_requests_->erase(matches);
             }
-            else if (match_data == 0)
+            else if (matches->second == 0)
             {
                 // credit == decref (case no. 3): if the incref offsets any
                 // pending decref, just remove the pending decref request.
@@ -1836,11 +1832,8 @@ lcos::future<boost::int64_t> addressing_service::incref_async(
         else
         {
             // case no. 1
-            HPX_ASSERT(pending_decrefs == 0);
-            HPX_ASSERT(!has_pending_incref);
-
-            // we pass the credits to the pre-resolved callback below
-            pending_decrefs = credit;
+            pending_incref = mapping(raw, credit);
+            has_pending_incref = true;
         }
     }
 
@@ -1850,8 +1843,8 @@ lcos::future<boost::int64_t> addressing_service::incref_async(
         return hpx::make_ready_future(pending_decrefs);
     }
 
-    naming::gid_type const e_lower = boost::icl::lower(pending_incref.key());
-    request req(primary_ns_increment_credit, e_lower, pending_incref.data());
+    naming::gid_type const e_lower = pending_incref.first;
+    request req(primary_ns_increment_credit, e_lower, pending_incref.second);
 
     naming::id_type target(
         stubs::primary_namespace::get_service_instance(e_lower)
@@ -1902,7 +1895,31 @@ void addressing_service::decref(
         mutex_type::scoped_lock l(refcnt_requests_mtx_);
 
         // Match the decref request with entries in the incref table
-        refcnt_requests_->apply(raw, util::decrementer<boost::int64_t>(credit));
+        typedef refcnt_requests_type::iterator iterator;
+        typedef refcnt_requests_type::value_type mapping;
+
+        iterator matches = refcnt_requests_->find(raw);
+        if (matches != refcnt_requests_->end())
+        {
+            matches->second -= credit;
+        }
+        else
+        {
+            std::pair<iterator, bool> p =
+                refcnt_requests_->insert(mapping(raw, -credit));
+
+            if (HPX_UNLIKELY(!p.second))
+            {
+                l.unlock();
+
+                HPX_THROWS_IF(ec, bad_parameter
+                  , "addressing_service::decref"
+                  , boost::str(boost::format("couldn't insert decref request "
+                        "for %1% (%2%)") % raw % credit));
+                return;
+            }
+        }
+
         send_refcnt_requests(l, ec);
     }
     catch (hpx::exception const& e) {
@@ -2510,6 +2527,55 @@ std::size_t addressing_service::get_cache_insertions(bool reset)
     return gva_cache_->get_statistics().insertions(reset);
 }
 
+///////////////////////////////////////////////////////////////////////////////
+std::size_t addressing_service::get_cache_get_entry_count(bool reset)
+{
+    cache_mutex_type::scoped_lock lock(gva_cache_mtx_);
+    return gva_cache_->get_statistics().get_get_entry_count(reset);
+}
+
+std::size_t addressing_service::get_cache_insert_entry_count(bool reset)
+{
+    cache_mutex_type::scoped_lock lock(gva_cache_mtx_);
+    return gva_cache_->get_statistics().get_insert_entry_count(reset);
+}
+
+std::size_t addressing_service::get_cache_update_entry_count(bool reset)
+{
+    cache_mutex_type::scoped_lock lock(gva_cache_mtx_);
+    return gva_cache_->get_statistics().get_update_entry_count(reset);
+}
+
+std::size_t addressing_service::get_cache_erase_entry_count(bool reset)
+{
+    cache_mutex_type::scoped_lock lock(gva_cache_mtx_);
+    return gva_cache_->get_statistics().get_erase_entry_count(reset);
+}
+
+std::size_t addressing_service::get_cache_get_entry_time(bool reset)
+{
+    cache_mutex_type::scoped_lock lock(gva_cache_mtx_);
+    return gva_cache_->get_statistics().get_get_entry_time(reset);
+}
+
+std::size_t addressing_service::get_cache_insert_entry_time(bool reset)
+{
+    cache_mutex_type::scoped_lock lock(gva_cache_mtx_);
+    return gva_cache_->get_statistics().get_insert_entry_time(reset);
+}
+
+std::size_t addressing_service::get_cache_update_entry_time(bool reset)
+{
+    cache_mutex_type::scoped_lock lock(gva_cache_mtx_);
+    return gva_cache_->get_statistics().get_update_entry_time(reset);
+}
+
+std::size_t addressing_service::get_cache_erase_entry_time(bool reset)
+{
+    cache_mutex_type::scoped_lock lock(gva_cache_mtx_);
+    return gva_cache_->get_statistics().get_erase_entry_time(reset);
+}
+
 /// Install performance counter types exposing properties from the local cache.
 void addressing_service::register_counter_types()
 { // {{{
@@ -2522,6 +2588,24 @@ void addressing_service::register_counter_types()
         boost::bind(&addressing_service::get_cache_evictions, this, ::_1));
     HPX_STD_FUNCTION<boost::int64_t(bool)> cache_insertions(
         boost::bind(&addressing_service::get_cache_insertions, this, ::_1));
+
+    HPX_STD_FUNCTION<boost::int64_t(bool)> cache_get_entry_count(
+        boost::bind(&addressing_service::get_cache_get_entry_count, this, ::_1));
+    HPX_STD_FUNCTION<boost::int64_t(bool)> cache_insert_entry_count(
+        boost::bind(&addressing_service::get_cache_insert_entry_count, this, ::_1));
+    HPX_STD_FUNCTION<boost::int64_t(bool)> cache_update_entry_count(
+        boost::bind(&addressing_service::get_cache_update_entry_count, this, ::_1));
+    HPX_STD_FUNCTION<boost::int64_t(bool)> cache_erase_entry_count(
+        boost::bind(&addressing_service::get_cache_erase_entry_count, this, ::_1));
+
+    HPX_STD_FUNCTION<boost::int64_t(bool)> cache_get_entry_time(
+        boost::bind(&addressing_service::get_cache_get_entry_time, this, ::_1));
+    HPX_STD_FUNCTION<boost::int64_t(bool)> cache_insert_entry_time(
+        boost::bind(&addressing_service::get_cache_insert_entry_time, this, ::_1));
+    HPX_STD_FUNCTION<boost::int64_t(bool)> cache_update_entry_time(
+        boost::bind(&addressing_service::get_cache_update_entry_time, this, ::_1));
+    HPX_STD_FUNCTION<boost::int64_t(bool)> cache_erase_entry_time(
+        boost::bind(&addressing_service::get_cache_erase_entry_time, this, ::_1));
 
     performance_counters::generic_counter_type_data const counter_types[] =
     {
@@ -2556,6 +2640,80 @@ void addressing_service::register_counter_types()
               _1, cache_insertions, _2),
           &performance_counters::locality_counter_discoverer,
           ""
+        },
+
+        { "/agas/count/cache_get_entry", performance_counters::counter_raw,
+          "returns the number of invocations of get_entry function of the "
+                "AGAS cache",
+          HPX_PERFORMANCE_COUNTER_V1,
+          boost::bind(&performance_counters::locality_raw_counter_creator,
+              _1, cache_get_entry_count, _2),
+          &performance_counters::locality_counter_discoverer,
+          ""
+        },
+        { "/agas/count/cache_insert_entry", performance_counters::counter_raw,
+          "returns the number of invocations of insert_entry function of the "
+                "AGAS cache",
+          HPX_PERFORMANCE_COUNTER_V1,
+          boost::bind(&performance_counters::locality_raw_counter_creator,
+              _1, cache_insert_entry_count, _2),
+          &performance_counters::locality_counter_discoverer,
+          ""
+        },
+        { "/agas/count/cache_update_entry", performance_counters::counter_raw,
+          "returns the number of invocations of update_entry function of the "
+                "AGAS cache",
+          HPX_PERFORMANCE_COUNTER_V1,
+          boost::bind(&performance_counters::locality_raw_counter_creator,
+              _1, cache_update_entry_count, _2),
+          &performance_counters::locality_counter_discoverer,
+          ""
+        },
+        { "/agas/count/cache_erase_entry", performance_counters::counter_raw,
+          "returns the number of invocations of erase_entry function of the "
+                "AGAS cache",
+          HPX_PERFORMANCE_COUNTER_V1,
+          boost::bind(&performance_counters::locality_raw_counter_creator,
+              _1, cache_erase_entry_count, _2),
+          &performance_counters::locality_counter_discoverer,
+          ""
+        },
+
+        { "/agas/time/cache_get_entry", performance_counters::counter_raw,
+          "returns the the overall time spent executing of the get_entry API "
+                "function of the AGAS cache",
+          HPX_PERFORMANCE_COUNTER_V1,
+          boost::bind(&performance_counters::locality_raw_counter_creator,
+              _1, cache_get_entry_count, _2),
+          &performance_counters::locality_counter_discoverer,
+          "ns"
+        },
+        { "/agas/time/cache_insert_entry", performance_counters::counter_raw,
+          "returns the the overall time spent executing of the insert_entry API "
+              "function of the AGAS cache",
+          HPX_PERFORMANCE_COUNTER_V1,
+          boost::bind(&performance_counters::locality_raw_counter_creator,
+              _1, cache_insert_entry_count, _2),
+          &performance_counters::locality_counter_discoverer,
+          "ns"
+        },
+        { "/agas/time/cache_update_entry", performance_counters::counter_raw,
+          "returns the the overall time spent executing of the update_entry API "
+                "function of the AGAS cache",
+          HPX_PERFORMANCE_COUNTER_V1,
+          boost::bind(&performance_counters::locality_raw_counter_creator,
+              _1, cache_update_entry_count, _2),
+          &performance_counters::locality_counter_discoverer,
+          "ns"
+        },
+        { "/agas/time/cache_erase_entry", performance_counters::counter_raw,
+          "returns the the overall time spent executing of the erase_entry API "
+                "function of the AGAS cache",
+          HPX_PERFORMANCE_COUNTER_V1,
+          boost::bind(&performance_counters::locality_raw_counter_creator,
+              _1, cache_erase_entry_count, _2),
+          &performance_counters::locality_counter_discoverer,
+          "ns"
         }
     };
     performance_counters::install_counter_types(
@@ -2583,7 +2741,9 @@ void addressing_service::garbage_collect_non_blocking(
     error_code& ec
     )
 {
-    mutex_type::scoped_lock l(refcnt_requests_mtx_);
+    mutex_type::scoped_lock l(refcnt_requests_mtx_, boost::try_to_lock);
+    if (!l) return;     // no need to compete for garbage collection
+
     send_refcnt_requests_non_blocking(l, ec);
 }
 
@@ -2591,7 +2751,9 @@ void addressing_service::garbage_collect(
     error_code& ec
     )
 {
-    mutex_type::scoped_lock l(refcnt_requests_mtx_);
+    mutex_type::scoped_lock l(refcnt_requests_mtx_, boost::try_to_lock);
+    if (!l) return;     // no need to compete for garbage collection
+
     send_refcnt_requests_sync(l, ec);
 }
 
@@ -2632,22 +2794,12 @@ void addressing_service::send_refcnt_requests(
 
         BOOST_FOREACH(const_reference e, requests)
         {
-            naming::gid_type const lower = boost::icl::lower(e.key());
-            naming::gid_type const upper = boost::icl::upper(e.key());
-
-            naming::gid_type const length_gid = (upper - lower);
-            HPX_ASSERT(length_gid.get_msb() == 0);
-            boost::uint64_t const length = length_gid.get_lsb() + 1;
-
             // The [client] tag is in there to make it easier to filter
             // through the logs.
             ss << ( boost::format(
-                  "\n  [client] lower(%1%), upper(%2%), length(%3%), "
-                  "credits(%4%)")
-                  % lower
-                  % upper
-                  % length
-                  % e.data());
+                  "\n  [client] gid(%1%), credits(%2%)")
+                  % e.first
+                  % e.second);
         }
 
         LAGAS_(debug) << ss.str();
@@ -2690,14 +2842,13 @@ void addressing_service::send_refcnt_requests_non_blocking(
 
         BOOST_FOREACH(refcnt_requests_type::const_reference e, *p)
         {
-            HPX_ASSERT(e.data() < 0);
+            HPX_ASSERT(e.second < 0);
 
-            naming::gid_type lower(boost::icl::lower(e.key()));
-            request const req(primary_ns_decrement_credit
-              , lower, boost::icl::upper(e.key()), e.data());
+            naming::gid_type raw(e.first);
+            request const req(primary_ns_decrement_credit, raw, raw, e.second);
 
             naming::id_type target(
-                stubs::primary_namespace::get_service_instance(lower)
+                stubs::primary_namespace::get_service_instance(raw)
               , naming::id_type::unmanaged);
 
             requests[target].push_back(req);
@@ -2756,16 +2907,13 @@ addressing_service::send_refcnt_requests_async(
     std::vector<hpx::future<std::vector<response> > > lazy_results;
     BOOST_FOREACH(refcnt_requests_type::const_reference e, *p)
     {
-        HPX_ASSERT(e.data() < 0);
+        HPX_ASSERT(e.second < 0);
 
-        naming::gid_type lower(boost::icl::lower(e.key()));
-        request const req(primary_ns_decrement_credit
-                        , lower
-                        , boost::icl::upper(e.key())
-                        , e.data());
+        naming::gid_type raw(e.first);
+        request const req(primary_ns_decrement_credit, raw, raw, e.second);
 
         naming::id_type target(
-            stubs::primary_namespace::get_service_instance(lower)
+            stubs::primary_namespace::get_service_instance(raw)
           , naming::id_type::unmanaged);
 
         requests[target].push_back(req);
@@ -2890,8 +3038,8 @@ namespace hpx
                 "no basename specified");
         }
 
-        if (sequence_nr == ~0U)
-            sequence_nr = naming::get_locality_id_from_id(find_here());
+        if (sequence_nr == std::size_t(~0U))
+            sequence_nr = std::size_t(naming::get_locality_id_from_id(find_here()));
 
         std::string name = detail::name_from_basename(basename, sequence_nr);
         return agas::on_symbol_namespace_event(name, agas::symbol_ns_bind, true);
@@ -2907,8 +3055,8 @@ namespace hpx
                 "no basename specified");
         }
 
-        if (sequence_nr == ~0U)
-            sequence_nr = naming::get_locality_id_from_id(find_here());
+        if (sequence_nr == std::size_t(~0U))
+            sequence_nr = std::size_t(naming::get_locality_id_from_id(find_here()));
 
         std::string name = detail::name_from_basename(basename, sequence_nr);
         return agas::register_name(name, id);
@@ -2924,8 +3072,8 @@ namespace hpx
                 "no basename specified");
         }
 
-        if (sequence_nr == ~0U)
-            sequence_nr = naming::get_locality_id_from_id(find_here());
+        if (sequence_nr == std::size_t(~0U))
+            sequence_nr = std::size_t(naming::get_locality_id_from_id(find_here()));
 
         std::string name = detail::name_from_basename(basename, sequence_nr);
         return agas::unregister_name(name);

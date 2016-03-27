@@ -188,7 +188,7 @@ namespace performance_counters { namespace sine
     ///////////////////////////////////////////////////////////////////////////
     // This function will be registered as a startup function for HPX below.
     //
-    // That means it will be executed in a px-thread before hpx_main, but after
+    // That means it will be executed in a HPX-thread before hpx_main, but after
     // the runtime has been initialized and started.
     void startup()
     {
@@ -210,7 +210,8 @@ namespace performance_counters { namespace sine
               // instance number to use for the particular counter. We allow
               // any arbitrary number of instances.
               &explicit_sine_counter_creator,
-              &explicit_sine_counter_discoverer
+              &explicit_sine_counter_discoverer,
+              ""
             },
             { "/sine/immediate/implicit", counter_raw,
               "returns the current value of a sine wave calculated over "
@@ -225,7 +226,8 @@ namespace performance_counters { namespace sine
               // is used as the source of counter data for the created counter.
               boost::bind(&hpx::performance_counters::locality_raw_counter_creator,
                   _1, &immediate_sine, _2),
-              &hpx::performance_counters::locality_counter_discoverer
+              &hpx::performance_counters::locality_counter_discoverer,
+              ""
             }
         };
 
@@ -255,7 +257,7 @@ namespace performance_counters { namespace sine
 }}
 
 ///////////////////////////////////////////////////////////////////////////////
-// Register a startup function which will be called as a px-thread during
+// Register a startup function which will be called as a HPX-thread during
 // runtime startup. We use this function to register our performance counter
 // type and performance counter instances.
 //
