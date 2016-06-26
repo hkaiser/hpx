@@ -9,20 +9,19 @@
 
 #include <hpx/config.hpp>
 #include <hpx/util/assert.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/static_reinit.hpp>
 
-#include <boost/noncopyable.hpp>
-#include <boost/call_traits.hpp>
 #include <boost/aligned_storage.hpp>
+#include <boost/call_traits.hpp>
 
-#include <boost/utility/enable_if.hpp>
 #include <boost/utility/addressof.hpp>
+#include <boost/utility/enable_if.hpp>
 
 #include <boost/type_traits/add_pointer.hpp>
 #include <boost/type_traits/alignment_of.hpp>
 
 #include <boost/thread/once.hpp>
-#include <boost/bind.hpp>
 
 #include <memory>   // for placement new
 
@@ -54,8 +53,10 @@ namespace hpx { namespace util
     //////////////////////////////////////////////////////////////////////////
     template <typename T, typename Tag, std::size_t N>
     struct HPX_EXPORT_REINITIALIZABLE_STATIC reinitializable_static
-      : private boost::noncopyable
     {
+    private:
+        HPX_NON_COPYABLE(reinitializable_static);
+
     public:
         typedef T value_type;
 
@@ -92,7 +93,7 @@ namespace hpx { namespace util
         static void value_constructor(U const* pv)
         {
             value_construct(*pv);
-            reinit_register(boost::bind(
+            reinit_register(util::bind(
                 &reinitializable_static::template value_construct<U>, *pv),
                 &reinitializable_static::destruct);
         }
@@ -113,7 +114,7 @@ namespace hpx { namespace util
         {
             // do not rely on ADL to find the proper call_once
             boost::call_once(constructed_,
-                boost::bind(
+                util::bind(
                     &reinitializable_static::template value_constructor<U>,
                     const_cast<U const *>(boost::addressof(val))));
         }

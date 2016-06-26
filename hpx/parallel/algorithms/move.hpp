@@ -1,4 +1,5 @@
 //  Copyright (c) 2014 Grant Mercer
+//  Copyright (c) 2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -9,19 +10,21 @@
 #define HPX_PARALLEL_DETAIL_MOVE_JUNE_16_2014_1106AM
 
 #include <hpx/config.hpp>
+#include <hpx/traits/is_iterator.hpp>
 
+#include <hpx/parallel/algorithms/detail/dispatch.hpp>
+#include <hpx/parallel/algorithms/detail/transfer.hpp>
 #include <hpx/parallel/config/inline_namespace.hpp>
 #include <hpx/parallel/execution_policy.hpp>
-#include <hpx/parallel/algorithms/detail/dispatch.hpp>
-#include <hpx/parallel/algorithms/for_each.hpp>
 #include <hpx/parallel/util/detail/algorithm_result.hpp>
+#include <hpx/parallel/util/foreach_partitioner.hpp>
+#include <hpx/parallel/util/transfer.hpp>
 #include <hpx/parallel/util/zip_iterator.hpp>
+#include <hpx/traits/segmented_iterator_traits.hpp>
 
 #include <algorithm>
 #include <iterator>
-
-#include <boost/utility/enable_if.hpp>
-#include <boost/type_traits/is_base_of.hpp>
+#include <type_traits>
 
 namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
 {
@@ -30,44 +33,79 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
     namespace detail
     {
         /// \cond NOINTERNAL
-        template <typename OutIter>
-        struct move : public detail::algorithm<move<OutIter>, OutIter>
+
+        template <typename IterPair>
+        struct move_pair :
+            public detail::algorithm<detail::move_pair<IterPair>, IterPair>
         {
-            move()
-              : move::algorithm("move")
+            move_pair()
+              : move_pair::algorithm("move")
             {}
 
-            template <typename ExPolicy, typename InIter>
-            static OutIter
+            template <typename ExPolicy, typename InIter, typename OutIter>
+            static std::pair<InIter, OutIter>
             sequential(ExPolicy, InIter first, InIter last, OutIter dest)
             {
-                return std::move(first, last, dest);
+                return util::move_helper(first, last, dest);
             }
 
-            template <typename ExPolicy, typename FwdIter>
+            template <typename ExPolicy, typename FwdIter, typename OutIter>
             static typename util::detail::algorithm_result<
-                ExPolicy, OutIter
+                ExPolicy, std::pair<FwdIter, OutIter>
             >::type
             parallel(ExPolicy && policy, FwdIter first, FwdIter last,
                 OutIter dest)
             {
                 typedef hpx::util::zip_iterator<FwdIter, OutIter> zip_iterator;
                 typedef typename zip_iterator::reference reference;
-                typedef typename util::detail::algorithm_result<
-                        ExPolicy, OutIter
-                    >::type result_type;
 
-                return get_iter<1, result_type>(
-                    for_each_n<zip_iterator>().call(
-                        std::forward<ExPolicy>(policy), boost::mpl::false_(),
+                return get_iter_pair(
+                    util::foreach_partitioner<ExPolicy>::call(
+                        std::forward<ExPolicy>(policy),
                         hpx::util::make_zip_iterator(first, dest),
                         std::distance(first, last),
-                        [](reference t) {
+                        [](std::size_t, zip_iterator part_begin,
+                            std::size_t part_size)
+                        {
                             using hpx::util::get;
-                            get<1>(t) = std::move(get<0>(t)); //-V573
+
+                            auto const& iters = part_begin.get_iterator_tuple();
+                            util::move_n_helper(get<0>(iters), part_size,
+                                get<1>(iters));
+                        },
+                        [](zip_iterator && last) -> zip_iterator
+                        {
+                            return std::move(last);
                         }));
             }
         };
+
+        ///////////////////////////////////////////////////////////////////////
+        template<typename InIter, typename OutIter, typename Enable = void>
+        struct move;
+
+        template <typename InIter, typename OutIter>
+        struct move<
+            InIter, OutIter,
+            typename std::enable_if<
+                iterators_are_segmented<InIter, OutIter>::value
+            >::type>
+          : public move_pair<std::pair<
+                typename hpx::traits::segmented_iterator_traits<InIter>
+                    ::local_iterator,
+                typename hpx::traits::segmented_iterator_traits<OutIter>
+                    ::local_iterator
+            > >
+        {};
+
+        template<typename InIter, typename OutIter>
+        struct move<
+            InIter, OutIter,
+            typename std::enable_if<
+                iterators_are_not_segmented<InIter, OutIter>::value
+            >::type>
+          : public move_pair<std::pair<InIter, OutIter> >
+        {};
         /// \endcond
     }
 
@@ -109,50 +147,31 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
     /// permitted to execute in an unordered fashion in unspecified
     /// threads, and indeterminately sequenced within each thread.
     ///
-    /// \returns  The \a move algorithm returns a \a hpx::future<OutIter> if
-    ///           the execution policy is of type
+    /// \returns  The \a move algorithm returns a
+    ///           \a  hpx::future<tagged_pair<tag::in(InIter), tag::out(OutIter)> >
+    ///           if the execution policy is of type
     ///           \a sequential_task_execution_policy or
     ///           \a parallel_task_execution_policy and
-    ///           returns \a OutIter otherwise.
-    ///           The \a move algorithm returns the output iterator to the
+    ///           returns \a tagged_pair<tag::in(InIter), tag::out(OutIter)>
+    ///           otherwise.
+    ///           The \a move algorithm returns the pair of the input iterator
+    ///           \a last and the output iterator to the
     ///           element in the destination range, one past the last element
-    ///           copied.
+    ///           moved.
     ///
-    template <typename ExPolicy, typename InIter, typename OutIter>
-    inline typename boost::enable_if<
-        is_execution_policy<ExPolicy>,
-        typename util::detail::algorithm_result<ExPolicy, OutIter>::type
+    template <typename ExPolicy, typename InIter, typename OutIter,
+    HPX_CONCEPT_REQUIRES_(
+        is_execution_policy<ExPolicy>::value &&
+        hpx::traits::is_iterator<InIter>::value &&
+        hpx::traits::is_iterator<OutIter>::value)>
+    typename util::detail::algorithm_result<
+        ExPolicy, hpx::util::tagged_pair<tag::in(InIter), tag::out(OutIter)>
     >::type
     move(ExPolicy && policy, InIter first, InIter last, OutIter dest)
     {
-        typedef typename std::iterator_traits<InIter>::iterator_category
-            input_iterator_category;
-        typedef typename std::iterator_traits<OutIter>::iterator_category
-            output_iterator_category;
-
-        static_assert(
-            (boost::is_base_of<
-                std::input_iterator_tag, input_iterator_category>::value),
-            "Required at least input iterator.");
-
-        static_assert(
-            (boost::mpl::or_<
-                boost::is_base_of<
-                    std::forward_iterator_tag, output_iterator_category>,
-                boost::is_same<
-                    std::output_iterator_tag, output_iterator_category>
-            >::value),
-            "Requires at least output iterator.");
-
-        typedef typename boost::mpl::or_<
-            is_sequential_execution_policy<ExPolicy>,
-            boost::is_same<std::input_iterator_tag, input_iterator_category>,
-            boost::is_same<std::output_iterator_tag, output_iterator_category>
-        >::type is_seq;
-
-        return detail::move<OutIter>().call(
-            std::forward<ExPolicy>(policy), is_seq(),
-            first, last, dest);
+        return detail::transfer<
+                detail::move<InIter, OutIter>
+            >(std::forward<ExPolicy>(policy), first, last, dest);
     }
 }}}
 

@@ -12,13 +12,15 @@
 #include <hpx/performance_counters/manage_counter_type.hpp>
 #include <hpx/performance_counters/counter_creators.hpp>
 #include <hpx/runtime/actions/continuation.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/function.hpp>
 
-#include <boost/bind.hpp>
+#include <memory>
+#include <string>
 
 namespace hpx { namespace performance_counters
 {
-    void counter_type_shutdown(boost::shared_ptr<manage_counter_type> const& p)
+    void counter_type_shutdown(std::shared_ptr<manage_counter_type> const& p)
     {
         error_code ec(lightweight);
         p->uninstall(ec);
@@ -31,15 +33,15 @@ namespace hpx { namespace performance_counters
     {
         counter_info info(type, name, helptext,
             version ? version : HPX_PERFORMANCE_COUNTER_V1, uom);
-        boost::shared_ptr<manage_counter_type> p =
-            boost::make_shared<manage_counter_type>(info);
+        std::shared_ptr<manage_counter_type> p =
+            std::make_shared<manage_counter_type>(info);
 
         // Install the counter type.
         p->install(ec);
 
         // Register the shutdown function which will clean up this counter type.
         get_runtime().add_shutdown_function(
-            boost::bind(&counter_type_shutdown, p));
+            util::bind(&counter_type_shutdown, p));
         return status_valid_data;
     }
 
@@ -54,15 +56,15 @@ namespace hpx { namespace performance_counters
     {
         counter_info info(type, name, helptext,
             version ? version : HPX_PERFORMANCE_COUNTER_V1, uom);
-        boost::shared_ptr<manage_counter_type> p =
-            boost::make_shared<manage_counter_type>(info);
+        std::shared_ptr<manage_counter_type> p =
+            std::make_shared<manage_counter_type>(info);
 
         // Install the counter type.
         p->install(create_counter, discover_counters, ec);
 
         // Register the shutdown function which will clean up this counter type.
         get_runtime().add_shutdown_function(
-            boost::bind(&counter_type_shutdown, p));
+            util::bind(&counter_type_shutdown, p));
         return status_valid_data;
     }
 
@@ -73,8 +75,10 @@ namespace hpx { namespace performance_counters
         hpx::util::function_nonser<boost::int64_t(bool)> const& counter_value,
         std::string const& helptext, std::string const& uom, error_code& ec)
     {
+        using hpx::util::placeholders::_1;
+        using hpx::util::placeholders::_2;
         return install_counter_type(name, counter_raw, helptext,
-            boost::bind(&hpx::performance_counters::locality_raw_counter_creator,
+            util::bind(&hpx::performance_counters::locality_raw_counter_creator,
                 _1, counter_value, _2),
             &hpx::performance_counters::locality_counter_discoverer,
             HPX_PERFORMANCE_COUNTER_V1, uom, ec);

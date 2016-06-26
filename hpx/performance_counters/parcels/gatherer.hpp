@@ -14,7 +14,8 @@
 #include <hpx/util/spinlock.hpp>
 
 #include <boost/cstdint.hpp>
-#include <boost/thread/locks.hpp>
+
+#include <mutex>
 
 namespace hpx { namespace performance_counters { namespace parcels
 {
@@ -33,7 +34,9 @@ namespace hpx { namespace performance_counters { namespace parcels
 #endif
             num_parcels_(0),
             num_messages_(0),
-            overall_raw_bytes_(0)
+            overall_raw_bytes_(0),
+            buffer_allocate_time_(0),
+            acc_mtx()
         {}
 
         void add_data(data_point const& x);
@@ -68,7 +71,7 @@ namespace hpx { namespace performance_counters { namespace parcels
 
     inline void gatherer::add_data(data_point const& x)
     {
-        boost::lock_guard<mutex_type> l(acc_mtx);
+        std::lock_guard<mutex_type> l(acc_mtx);
 
         overall_bytes_ += x.bytes_;
         overall_time_ += x.time_;
@@ -84,51 +87,51 @@ namespace hpx { namespace performance_counters { namespace parcels
 
     inline boost::int64_t gatherer::num_parcels(bool reset)
     {
-        boost::lock_guard<mutex_type> l(acc_mtx);
+        std::lock_guard<mutex_type> l(acc_mtx);
         return util::get_and_reset_value(num_parcels_, reset);
     }
 
     inline boost::int64_t gatherer::num_messages(bool reset)
     {
-        boost::lock_guard<mutex_type> l(acc_mtx);
+        std::lock_guard<mutex_type> l(acc_mtx);
         return util::get_and_reset_value(num_messages_, reset);
     }
 
     inline boost::int64_t gatherer::total_time(bool reset)
     {
-        boost::lock_guard<mutex_type> l(acc_mtx);
+        std::lock_guard<mutex_type> l(acc_mtx);
         return util::get_and_reset_value(overall_time_, reset);
     }
 
     inline boost::int64_t gatherer::total_serialization_time(bool reset)
     {
-        boost::lock_guard<mutex_type> l(acc_mtx);
+        std::lock_guard<mutex_type> l(acc_mtx);
         return util::get_and_reset_value(serialization_time_, reset);
     }
 
 #if defined(HPX_HAVE_SECURITY)
     inline boost::int64_t gatherer::total_security_time(bool reset)
     {
-        boost::lock_guard<mutex_type> l(acc_mtx);
+        std::lock_guard<mutex_type> l(acc_mtx);
         return util::get_and_reset_value(security_time_, reset);
     }
 #endif
 
     inline boost::int64_t gatherer::total_bytes(bool reset)
     {
-        boost::lock_guard<mutex_type> l(acc_mtx);
+        std::lock_guard<mutex_type> l(acc_mtx);
         return util::get_and_reset_value(overall_bytes_, reset);
     }
 
     inline boost::int64_t gatherer::total_raw_bytes(bool reset)
     {
-        boost::lock_guard<mutex_type> l(acc_mtx);
+        std::lock_guard<mutex_type> l(acc_mtx);
         return util::get_and_reset_value(overall_raw_bytes_, reset);
     }
 
     inline boost::int64_t gatherer::total_buffer_allocate_time(bool reset)
     {
-        boost::lock_guard<mutex_type> l(acc_mtx);
+        std::lock_guard<mutex_type> l(acc_mtx);
         return util::get_and_reset_value(buffer_allocate_time_, reset);
     }
 }}}

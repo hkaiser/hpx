@@ -10,6 +10,9 @@
 
 #include <boost/range/functions.hpp>
 
+#include <string>
+#include <vector>
+
 #include "test_utils.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -26,7 +29,7 @@ void test_any_of(ExPolicy policy, IteratorTag)
     std::size_t iseq[] = { 0, 23, 10007 };
     for (std::size_t i: iseq)
     {
-        std::vector<std::size_t> c = test::fill_all_any_none(10007, i);
+        std::vector<std::size_t> c = test::fill_all_any_none(10007, i); //-V106
 
         bool result =
             hpx::parallel::any_of(policy,
@@ -55,7 +58,7 @@ void test_any_of_async(ExPolicy p, IteratorTag)
     std::size_t iseq[] = { 0, 23, 10007 };
     for (std::size_t i: iseq)
     {
-        std::vector<std::size_t> c = test::fill_all_any_none(10007, i);
+        std::vector<std::size_t> c = test::fill_all_any_none(10007, i); //-V106
 
         hpx::future<bool> f =
             hpx::parallel::any_of(p,
@@ -88,12 +91,14 @@ void test_any_of()
     test_any_of_async(seq(task), IteratorTag());
     test_any_of_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_any_of(execution_policy(seq), IteratorTag());
     test_any_of(execution_policy(par), IteratorTag());
     test_any_of(execution_policy(par_vec), IteratorTag());
 
     test_any_of(execution_policy(seq(task)), IteratorTag());
     test_any_of(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 // template <typename IteratorTag>
@@ -145,7 +150,7 @@ void test_any_of_exception(ExPolicy policy, IteratorTag)
     std::size_t iseq[] = { 0, 23, 10007 };
     for (std::size_t i: iseq)
     {
-        std::vector<std::size_t> c = test::fill_all_any_none(10007, i);
+        std::vector<std::size_t> c = test::fill_all_any_none(10007, i); //-V106
 
         bool caught_exception = false;
         try {
@@ -178,7 +183,7 @@ void test_any_of_exception_async(ExPolicy p, IteratorTag)
     std::size_t iseq[] = { 0, 23, 10007 };
     for (std::size_t i : iseq)
     {
-        std::vector<std::size_t> c = test::fill_all_any_none(10007, i);
+        std::vector<std::size_t> c = test::fill_all_any_none(10007, i); //-V106
 
         bool caught_exception = false;
         bool returned_from_algorithm = false;
@@ -221,11 +226,13 @@ void test_any_of_exception()
     test_any_of_exception_async(seq(task), IteratorTag());
     test_any_of_exception_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_any_of_exception(execution_policy(seq), IteratorTag());
     test_any_of_exception(execution_policy(par), IteratorTag());
 
     test_any_of_exception(execution_policy(seq(task)), IteratorTag());
     test_any_of_exception(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void any_of_exception_test()
@@ -249,7 +256,7 @@ void test_any_of_bad_alloc(ExPolicy policy, IteratorTag)
     std::size_t iseq[] = { 0, 23, 10007 };
     for (std::size_t i : iseq)
     {
-        std::vector<std::size_t> c = test::fill_all_any_none(10007, i);
+        std::vector<std::size_t> c = test::fill_all_any_none(10007, i); //-V106
 
         bool caught_exception = false;
         try {
@@ -281,7 +288,7 @@ void test_any_of_bad_alloc_async(ExPolicy p, IteratorTag)
     std::size_t iseq[] = { 0, 23, 10007 };
     for (std::size_t i : iseq)
     {
-        std::vector<std::size_t> c = test::fill_all_any_none(10007, i);
+        std::vector<std::size_t> c = test::fill_all_any_none(10007, i); //-V106
 
         bool caught_exception = false;
         bool returned_from_algorithm = false;
@@ -323,11 +330,13 @@ void test_any_of_bad_alloc()
     test_any_of_bad_alloc_async(seq(task), IteratorTag());
     test_any_of_bad_alloc_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_any_of_bad_alloc(execution_policy(seq), IteratorTag());
     test_any_of_bad_alloc(execution_policy(par), IteratorTag());
 
     test_any_of_bad_alloc(execution_policy(seq(task)), IteratorTag());
     test_any_of_bad_alloc(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void any_of_bad_alloc_test()
@@ -340,7 +349,7 @@ void any_of_bad_alloc_test()
 ///////////////////////////////////////////////////////////////////////////////
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if (vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 
@@ -368,7 +377,7 @@ int main(int argc, char* argv[])
     // By default this test should run on all available cores
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
 
     // Initialize and run HPX
     HPX_TEST_EQ_MSG(hpx::init(desc_commandline, argc, argv, cfg), 0,

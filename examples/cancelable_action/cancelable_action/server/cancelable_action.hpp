@@ -6,12 +6,12 @@
 #if !defined(HPX_EXAMPLE_CANCELABLE_ACTION_APR_21_2012_0955AM)
 #define HPX_EXAMPLE_CANCELABLE_ACTION_APR_21_2012_0955AM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/include/components.hpp>
 #include <hpx/include/actions.hpp>
 #include <hpx/include/threads.hpp>
 
-#include <boost/thread/locks.hpp>
+#include <mutex>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace examples { namespace server
@@ -36,12 +36,12 @@ namespace examples { namespace server
             reset_id(cancelable_action& this_)
               : outer_(this_)
             {
-                boost::lock_guard<mutex_type> l(outer_.mtx_);
+                std::lock_guard<mutex_type> l(outer_.mtx_);
                 outer_.id_ = hpx::this_thread::get_id();
             }
             ~reset_id()
             {
-                boost::lock_guard<mutex_type> l(outer_.mtx_);
+                std::lock_guard<mutex_type> l(outer_.mtx_);
                 outer_.id_ = hpx::thread::id();    // invalidate thread id
             }
 
@@ -67,7 +67,7 @@ namespace examples { namespace server
         // Cancel the lengthy action above
         void cancel_it()
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             if (id_ != hpx::thread::id()) {
                 hpx::thread::interrupt(id_);
                 id_ = hpx::thread::id();        // invalidate thread id

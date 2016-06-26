@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2014 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -7,13 +7,13 @@
 #define HPX_PARALLEL_DETAIL_ALGORITHM_RESULT_MAY_28_2014_1020PM
 
 #include <hpx/config.hpp>
-#include <hpx/traits/concepts.hpp>
 #include <hpx/lcos/future.hpp>
-#include <hpx/util/unused.hpp>
-#include <hpx/util/invoke.hpp>
 #include <hpx/parallel/execution_policy.hpp>
+#include <hpx/traits/concepts.hpp>
+#include <hpx/util/invoke.hpp>
+#include <hpx/util/unused.hpp>
 
-#include <boost/type_traits/is_lvalue_reference.hpp>
+#include <type_traits>
 
 namespace hpx { namespace parallel { namespace util { namespace detail
 {
@@ -25,6 +25,11 @@ namespace hpx { namespace parallel { namespace util { namespace detail
         typedef T type;
 
         // Obtain initiating function's return type.
+        static type get()
+        {
+            return T();
+        }
+
         static type get(T && t)
         {
             return t;
@@ -183,7 +188,7 @@ namespace hpx { namespace parallel { namespace util { namespace detail
     struct algorithm_result
       : algorithm_result_impl<typename hpx::util::decay<ExPolicy>::type, T>
     {
-        static_assert(!boost::is_lvalue_reference<T>::value,
+        static_assert(!std::is_lvalue_reference<T>::value,
             "T shouldn't be a lvalue reference");
     };
 

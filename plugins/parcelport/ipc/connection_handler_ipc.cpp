@@ -4,7 +4,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
 
 #if defined(HPX_HAVE_PARCELPORT_IPC)
 
@@ -15,12 +15,15 @@
 #include <hpx/plugins/parcelport/ipc/receiver.hpp>
 #include <hpx/lcos/local/spinlock.hpp>
 #include <hpx/util/asio_util.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/runtime_configuration.hpp>
 
 #include <boost/asio/placeholders.hpp>
 #include <boost/assign/std/vector.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/locks.hpp>
+
+#include <memory>
+#include <mutex>
+#include <string>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx
@@ -35,7 +38,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
         // load all components as described in the configuration information
         if (ini.has_section("hpx.parcel")) {
             util::section const* sec = ini.get_section("hpx.parcel");
-            if (NULL != sec) {
+            if (nullptr != sec) {
                 return parcelset::locality(
                     locality(
                         sec->get_entry("address", HPX_INITIAL_IP_ADDRESS)
@@ -73,7 +76,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
 
     connection_handler::~connection_handler()
     {
-        if (NULL != acceptor_) {
+        if (nullptr != acceptor_) {
             boost::system::error_code ec;
             acceptor_->close(ec);
             delete acceptor_;
@@ -93,7 +96,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
 
     bool connection_handler::do_run()
     {
-        if (NULL == acceptor_)
+        if (nullptr == acceptor_)
             acceptor_ = new acceptor(io_service_pool_.get_io_service(0));
 
         // initialize network
@@ -106,14 +109,14 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
              it != end; ++it, ++tried)
         {
             try {
-                boost::shared_ptr<receiver> conn(
+                std::shared_ptr<receiver> conn(
                     new receiver(
                         io_service_pool_.get_io_service(), here(), *this));
 
                 boost::asio::ip::tcp::endpoint ep = *it;
 
                 std::string fullname(ep.address().to_string() + "." +
-                    boost::lexical_cast<std::string>(ep.port()));
+                    std::to_string(ep.port()));
 
                 acceptor_->set_option(acceptor::msg_num(10));
                 acceptor_->set_option(acceptor::manage(true));
@@ -121,7 +124,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
                 acceptor_->open();
 
                 acceptor_->async_accept(conn->window(),
-                    boost::bind(&connection_handler::handle_accept,
+                    util::bind(&connection_handler::handle_accept,
                         this,
                         boost::asio::placeholders::error, conn));
             }
@@ -144,8 +147,8 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
     {
         {
             // cancel all pending read operations, close those sockets
-            boost::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
-            for (boost::shared_ptr<receiver> const& c : accepted_connections_)
+            std::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
+            for (std::shared_ptr<receiver> const& c : accepted_connections_)
             {
                 boost::system::error_code ec;
                 data_window& w = c->window();
@@ -158,20 +161,20 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
         data_buffer_cache_.clear();
 
         // cancel all pending accept operations
-        if (NULL != acceptor_)
+        if (nullptr != acceptor_)
         {
             boost::system::error_code ec;
             acceptor_->close(ec);
             delete acceptor_;
-            acceptor_ = NULL;
+            acceptor_ = nullptr;
         }
     }
 
-    boost::shared_ptr<sender> connection_handler::create_connection(
+    std::shared_ptr<sender> connection_handler::create_connection(
         parcelset::locality const& l, error_code& ec)
     {
         boost::asio::io_service& io_service = io_service_pool_.get_io_service();
-        boost::shared_ptr<sender> sender_connection(new sender(io_service,
+        std::shared_ptr<sender> sender_connection(new sender(io_service,
                 here_, l, data_buffer_cache_, parcels_sent_, ++connection_count_));
 
         // Connect to the target locality, retry if needed
@@ -186,7 +189,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
                 {
                     boost::asio::ip::tcp::endpoint const& ep = *it;
                     std::string fullname(ep.address().to_string() + "." +
-                        boost::lexical_cast<std::string>(ep.port()));
+                        std::to_string(ep.port()));
 
                     data_window& w = sender_connection->window();
                     w.close();
@@ -245,35 +248,35 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
 
     // accepted new incoming connection
     void connection_handler::handle_accept(boost::system::error_code const & e,
-        boost::shared_ptr<receiver> receiver_conn)
+        std::shared_ptr<receiver> receiver_conn)
     {
         if (!e) {
             // handle this incoming parcel
-            boost::shared_ptr<receiver> c(receiver_conn); // hold on to receiver_conn
+            std::shared_ptr<receiver> c(receiver_conn); // hold on to receiver_conn
 
             // create new connection waiting for next incoming parcel
             receiver_conn.reset(new receiver(
                 io_service_pool_.get_io_service(), here(), *this));
 
             acceptor_->async_accept(receiver_conn->window(),
-                boost::bind(&connection_handler::handle_accept,
+                util::bind(&connection_handler::handle_accept,
                     this,
                     boost::asio::placeholders::error, receiver_conn));
 
             {
                 // keep track of all the accepted connections
-                boost::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
+                std::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
                 accepted_connections_.insert(c);
             }
 
             // now accept the incoming connection by starting to read from the
             // data window
-            c->async_read(boost::bind(&connection_handler::handle_read_completion,
+            c->async_read(util::bind(&connection_handler::handle_read_completion,
                 this, boost::asio::placeholders::error, c));
         }
         else {
             // remove this connection from the list of known connections
-            boost::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
+            std::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
             accepted_connections_.erase(receiver_conn);
         }
     }
@@ -281,7 +284,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
     // Handle completion of a read operation.
     void connection_handler::handle_read_completion(
         boost::system::error_code const& e,
-        boost::shared_ptr<receiver> receiver_conn)
+        std::shared_ptr<receiver> receiver_conn)
     {
         if (!e) return;
 
@@ -296,7 +299,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
 //         if (e != boost::asio::error::eof)
         {
             // remove this connection from the list of known connections
-            boost::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
+            std::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
             accepted_connections_.erase(receiver_conn);
         }
     }

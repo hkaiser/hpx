@@ -8,9 +8,12 @@
 #define HPX_PARALLEL_TEST_IS_SORTED_MAY28_15_1320
 
 //
-#include <random>
-#include <limits>
 #include <iomanip>
+#include <limits>
+#include <numeric>
+#include <random>
+#include <string>
+#include <vector>
 //
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
@@ -75,7 +78,7 @@ void rnd_strings(std::vector<std::string> &V)
     V.reserve(test_size);
     // random strings up to 128 chars long
     for (std::size_t i=0; i<test_size; i++) {
-        V.push_back(random_string( std::rand() % 128));
+        V.push_back(random_string( std::rand() % 128)); //-V106
     }
 }
 

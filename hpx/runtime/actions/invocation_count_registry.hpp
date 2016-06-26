@@ -12,23 +12,28 @@
 #include <hpx/util/jenkins_hash.hpp>
 #include <hpx/util/static.hpp>
 
-#include <boost/preprocessor/cat.hpp>
-#include <boost/noncopyable.hpp>
 #include <boost/atomic.hpp>
+#include <boost/preprocessor/cat.hpp>
 
+#include <cstdint>
+#include <string>
 #include <unordered_map>
 
 #include <hpx/config/warnings_prefix.hpp>
 
 namespace hpx { namespace actions { namespace detail
 {
-    class HPX_EXPORT invocation_count_registry : boost::noncopyable
+    class HPX_EXPORT invocation_count_registry
     {
+        HPX_NON_COPYABLE(invocation_count_registry);
+
     public:
-        typedef boost::int64_t (*get_invocation_count_type)(bool);
+        typedef std::int64_t (*get_invocation_count_type)(bool);
         typedef std::unordered_map<
                 std::string, get_invocation_count_type, hpx::util::jenkins_hash
             > map_type;
+
+        invocation_count_registry() {}
 
         static invocation_count_registry& local_instance();
         static invocation_count_registry& remote_instance();

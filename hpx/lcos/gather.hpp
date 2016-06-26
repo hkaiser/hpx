@@ -128,20 +128,21 @@ namespace hpx { namespace lcos
 #else
 
 #include <hpx/config.hpp>
+#include <hpx/dataflow.hpp>
+#include <hpx/lcos/future.hpp>
+#include <hpx/lcos/local/and_gate.hpp>
+#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/runtime/basename_registration.hpp>
+#include <hpx/runtime/components/new.hpp>
+#include <hpx/runtime/components/server/simple_component_base.hpp>
+#include <hpx/runtime/get_num_localities.hpp>
 #include <hpx/runtime/naming/id_type.hpp>
 #include <hpx/runtime/naming/unmanaged.hpp>
-#include <hpx/runtime/components/server/simple_component_base.hpp>
-#include <hpx/runtime/components/new.hpp>
-#include <hpx/lcos/future.hpp>
-#include <hpx/lcos/local/spinlock.hpp>
-#include <hpx/dataflow.hpp>
-#include <hpx/lcos/local/and_gate.hpp>
 #include <hpx/util/decay.hpp>
 
 #include <boost/preprocessor/cat.hpp>
-#include <boost/thread/locks.hpp>
-#include <boost/lexical_cast.hpp>
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -163,7 +164,7 @@ namespace hpx { namespace lcos
                 std::vector<T> data(num_sites_);
 
                 {
-                    boost::unique_lock<mutex_type> l(mtx_);
+                    std::unique_lock<mutex_type> l(mtx_);
                     std::swap(data, data_);
                 }
 
@@ -171,7 +172,7 @@ namespace hpx { namespace lcos
             }
 
         public:
-            gather_server()
+            gather_server() //-V730
             {
                 HPX_ASSERT(false);  // shouldn't ever be called
             }
@@ -182,7 +183,7 @@ namespace hpx { namespace lcos
 
             hpx::future<std::vector<T> > get_result(std::size_t which, T && t)
             {
-                boost::unique_lock<mutex_type> l(mtx_);
+                std::unique_lock<mutex_type> l(mtx_);
 
                 using util::placeholders::_1;
                 hpx::future<std::vector<T> > f = gate_.get_future().then(
@@ -195,7 +196,7 @@ namespace hpx { namespace lcos
 
             void set_result(std::size_t which, T && t)
             {
-                boost::unique_lock<mutex_type> l(mtx_);
+                std::unique_lock<mutex_type> l(mtx_);
                 set_result_locked(which, std::move(t), l);
             }
 
@@ -260,7 +261,7 @@ namespace hpx { namespace lcos
         if (num_sites == std::size_t(-1))
             num_sites = hpx::get_num_localities_sync();
         if (this_site == std::size_t(-1))
-            this_site = hpx::get_locality_id();
+            this_site = static_cast<std::size_t>(hpx::get_locality_id());
 
         // create a new gather_server
         typedef typename util::decay<T>::type result_type;
@@ -270,7 +271,7 @@ namespace hpx { namespace lcos
 
         std::string name(basename);
         if (generation != std::size_t(-1))
-            name += boost::lexical_cast<std::string>(generation) + "/";
+            name += std::to_string(generation) + "/";
 
         // register the gatherer's id using the given basename
         using util::placeholders::_1;
@@ -287,11 +288,10 @@ namespace hpx { namespace lcos
         std::size_t this_site = std::size_t(-1))
     {
         if (this_site == std::size_t(-1))
-            this_site = hpx::get_locality_id();
+            this_site = static_cast<std::size_t>(hpx::get_locality_id());
 
         using util::placeholders::_1;
         using util::placeholders::_2;
-
         return dataflow(
                 util::bind(&detail::gather_data<T>, _1, this_site, _2),
                 std::move(f), std::move(result)
@@ -308,7 +308,7 @@ namespace hpx { namespace lcos
         if (num_sites == std::size_t(-1))
             num_sites = hpx::get_num_localities_sync();
         if (this_site == std::size_t(-1))
-            this_site = hpx::get_locality_id();
+            this_site = static_cast<std::size_t>(hpx::get_locality_id());
 
         return gather_here(
             create_gatherer<T>(basename, num_sites, generation, this_site),
@@ -323,7 +323,7 @@ namespace hpx { namespace lcos
         std::size_t this_site = std::size_t(-1))
     {
         if (this_site == std::size_t(-1))
-            this_site = hpx::get_locality_id();
+            this_site = static_cast<std::size_t>(hpx::get_locality_id());
 
         using util::placeholders::_1;
         using util::placeholders::_2;
@@ -345,7 +345,7 @@ namespace hpx { namespace lcos
         if (num_sites == std::size_t(-1))
             num_sites = hpx::get_num_localities_sync();
         if (this_site == std::size_t(-1))
-            this_site = hpx::get_locality_id();
+            this_site = static_cast<std::size_t>(hpx::get_locality_id());
 
         return gather_here(
             create_gatherer<T>(basename, num_sites, generation, this_site),
@@ -359,11 +359,10 @@ namespace hpx { namespace lcos
         std::size_t this_site = std::size_t(-1))
     {
         if (this_site == std::size_t(-1))
-            this_site = hpx::get_locality_id();
+            this_site = static_cast<std::size_t>(hpx::get_locality_id());
 
         using util::placeholders::_1;
         using util::placeholders::_2;
-
         return dataflow(
                 util::bind(&detail::set_data<T>, _1, this_site, _2),
                 std::move(id), std::move(result)
@@ -377,11 +376,11 @@ namespace hpx { namespace lcos
         std::size_t this_site = std::size_t(-1))
     {
         if (this_site == std::size_t(-1))
-            this_site = hpx::get_locality_id();
+            this_site = static_cast<std::size_t>(hpx::get_locality_id());
 
         std::string name(basename);
         if (generation != std::size_t(-1))
-            name += boost::lexical_cast<std::string>(generation) + "/";
+            name += std::to_string(generation) + "/";
 
         return gather_there(
             hpx::find_from_basename(name, root_site),
@@ -396,7 +395,7 @@ namespace hpx { namespace lcos
         std::size_t this_site = std::size_t(-1))
     {
         if (this_site == std::size_t(-1))
-            this_site = hpx::get_locality_id();
+            this_site = static_cast<std::size_t>(hpx::get_locality_id());
 
         using util::placeholders::_1;
         using util::placeholders::_2;
@@ -415,11 +414,11 @@ namespace hpx { namespace lcos
         std::size_t this_site = std::size_t(-1))
     {
         if (this_site == std::size_t(-1))
-            this_site = hpx::get_locality_id();
+            this_site = static_cast<std::size_t>(hpx::get_locality_id());
 
         std::string name(basename);
         if (generation != std::size_t(-1))
-            name += boost::lexical_cast<std::string>(generation) + "/";
+            name += std::to_string(generation) + "/";
 
         return gather_there(
             hpx::find_from_basename(name, root_site),

@@ -10,19 +10,17 @@
 
 #if defined(HPX_HAVE_PAPI)
 
-#include <hpx/hpx.hpp>
-#include <hpx/config/export_definitions.hpp>
 #include <hpx/performance_counters/counters.hpp>
-#include <hpx/exception.hpp>
+#include <hpx/throw_exception.hpp>
 
-#include <vector>
-#include <string>
 #include <cstring>
+#include <string>
+#include <vector>
 
-#include <boost/program_options/options_description.hpp>
-#include <boost/program_options/variables_map.hpp>
 #include <boost/format.hpp>
 #include <boost/generator_iterator.hpp>
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/variables_map.hpp>
 
 #include <papi.h>
 

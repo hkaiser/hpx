@@ -3,20 +3,20 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#if !defined(HPX_LCOS_BASE_LCO_JUN_12_2008_0852PM)
-#define HPX_LCOS_BASE_LCO_JUN_12_2008_0852PM
+#ifndef HPX_LCOS_BASE_LCO_HPP
+#define HPX_LCOS_BASE_LCO_HPP
 
 #include <hpx/config.hpp>
-#include <hpx/lcos_fwd.hpp>
-#include <hpx/exception.hpp>
+#include <hpx/runtime/actions/basic_action.hpp>
+#include <hpx/runtime/actions/component_action.hpp>
 #include <hpx/runtime/components/component_type.hpp>
 #include <hpx/runtime/components/server/managed_component_base.hpp>
-#include <hpx/runtime/actions/component_action.hpp>
-#include <hpx/util/ini.hpp>
+#include <hpx/runtime/components_fwd.hpp>
+#include <hpx/runtime/naming/id_type.hpp>
 
 #include <hpx/plugins/parcel/coalescing_message_handler_registration.hpp>
 
-#include <boost/mpl/bool.hpp>
+#include <boost/exception_ptr.hpp>
 
 namespace hpx { namespace lcos
 {
@@ -25,9 +25,9 @@ namespace hpx { namespace lcos
     class HPX_API_EXPORT base_lco
     {
     public:
-        virtual void set_event () = 0;
+        virtual void set_event() = 0;
 
-        virtual void set_exception (boost::exception_ptr const& e);
+        virtual void set_exception(boost::exception_ptr const& e);
 
         // noop by default
         virtual void connect(naming::id_type const &);
@@ -65,7 +65,7 @@ namespace hpx { namespace lcos
         ///
         /// \param e      [in] The exception encapsulating the error to report
         ///               to this LCO instance.
-        void set_exception_nonvirt (boost::exception_ptr const& e);
+        void set_exception_nonvirt(boost::exception_ptr const& e);
 
         /// The \a function connect_nonvirt is called whenever a
         /// \a connect_action is applied on a instance of a LCO. This function
@@ -125,10 +125,10 @@ HPX_REGISTER_ACTION_DECLARATION(
     hpx::lcos::base_lco::disconnect_action, base_disconnect_action)
 
 ///////////////////////////////////////////////////////////////////////////////
-HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW(
+HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW_DECLARATION(
     hpx::lcos::base_lco::set_event_action, "lco_set_value_action",
     std::size_t(-1), std::size_t(-1))
-HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW(
+HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW_DECLARATION(
     hpx::lcos::base_lco::set_exception_action, "lco_set_value_action",
     std::size_t(-1), std::size_t(-1))
 

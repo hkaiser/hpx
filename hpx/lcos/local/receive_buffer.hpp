@@ -7,18 +7,17 @@
 #if !defined(HPX_LCOS_LOCAL_RECEIVE_BUFFER_MAY_08_2014_1102AM)
 #define HPX_LCOS_LOCAL_RECEIVE_BUFFER_MAY_08_2014_1102AM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/config.hpp>
 #include <hpx/lcos/future.hpp>
 #include <hpx/lcos/local/promise.hpp>
+#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/throw_exception.hpp>
 #include <hpx/util/assert.hpp>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/thread/locks.hpp>
-
-#include <utility>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <utility>
 
 namespace hpx { namespace lcos { namespace local
 {
@@ -33,7 +32,7 @@ namespace hpx { namespace lcos { namespace local
         struct entry_data
         {
         private:
-            HPX_MOVABLE_BUT_NOT_COPYABLE(entry_data)
+            HPX_MOVABLE_ONLY(entry_data);
 
         public:
             entry_data()
@@ -60,7 +59,7 @@ namespace hpx { namespace lcos { namespace local
             bool can_be_deleted_;
         };
 
-        typedef std::map<std::size_t, boost::shared_ptr<entry_data> >
+        typedef std::map<std::size_t, std::shared_ptr<entry_data> >
             buffer_map_type;
         typedef typename buffer_map_type::iterator iterator;
 
@@ -80,7 +79,7 @@ namespace hpx { namespace lcos { namespace local
         };
 
     private:
-        HPX_MOVABLE_BUT_NOT_COPYABLE(receive_buffer)
+        HPX_MOVABLE_ONLY(receive_buffer);
 
     public:
         receive_buffer() {}
@@ -88,6 +87,11 @@ namespace hpx { namespace lcos { namespace local
         receive_buffer(receive_buffer && other)
           : buffer_map_(std::move(other.buffer_map_))
         {}
+
+        ~receive_buffer()
+        {
+            HPX_ASSERT(buffer_map_.empty());
+        }
 
         receive_buffer& operator=(receive_buffer && other)
         {
@@ -100,7 +104,7 @@ namespace hpx { namespace lcos { namespace local
 
         hpx::future<T> receive(std::size_t step)
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
 
             iterator it = get_buffer_entry(step);
             HPX_ASSERT(it != buffer_map_.end());
@@ -120,10 +124,10 @@ namespace hpx { namespace lcos { namespace local
 
         void store_received(std::size_t step, T && val)
         {
-            boost::shared_ptr<entry_data> entry;
+            std::shared_ptr<entry_data> entry;
 
             {
-                boost::lock_guard<mutex_type> l(mtx_);
+                std::lock_guard<mutex_type> l(mtx_);
 
                 iterator it = get_buffer_entry(step);
                 HPX_ASSERT(it != buffer_map_.end());
@@ -156,7 +160,7 @@ namespace hpx { namespace lcos { namespace local
             {
                 std::pair<iterator, bool> res =
                     buffer_map_.insert(
-                        std::make_pair(step, boost::make_shared<entry_data>()));
+                        std::make_pair(step, std::make_shared<entry_data>()));
                 if (!res.second)
                 {
                     HPX_THROW_EXCEPTION(invalid_status,
@@ -184,7 +188,7 @@ namespace hpx { namespace lcos { namespace local
         struct entry_data
         {
         private:
-            HPX_MOVABLE_BUT_NOT_COPYABLE(entry_data)
+            HPX_MOVABLE_ONLY(entry_data);
 
         public:
             entry_data()
@@ -210,7 +214,7 @@ namespace hpx { namespace lcos { namespace local
             bool can_be_deleted_;
         };
 
-        typedef std::map<std::size_t, boost::shared_ptr<entry_data> >
+        typedef std::map<std::size_t, std::shared_ptr<entry_data> >
             buffer_map_type;
         typedef typename buffer_map_type::iterator iterator;
 
@@ -230,7 +234,7 @@ namespace hpx { namespace lcos { namespace local
         };
 
     private:
-        HPX_MOVABLE_BUT_NOT_COPYABLE(receive_buffer)
+        HPX_MOVABLE_ONLY(receive_buffer);
 
     public:
         receive_buffer() {}
@@ -238,6 +242,11 @@ namespace hpx { namespace lcos { namespace local
         receive_buffer(receive_buffer && other)
           : buffer_map_(std::move(other.buffer_map_))
         {}
+
+        ~receive_buffer()
+        {
+            HPX_ASSERT(buffer_map_.empty());
+        }
 
         receive_buffer& operator=(receive_buffer && other)
         {
@@ -250,7 +259,7 @@ namespace hpx { namespace lcos { namespace local
 
         hpx::future<void> receive(std::size_t step)
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
 
             iterator it = get_buffer_entry(step);
             HPX_ASSERT(it != buffer_map_.end());
@@ -270,10 +279,10 @@ namespace hpx { namespace lcos { namespace local
 
         void store_received(std::size_t step)
         {
-            boost::shared_ptr<entry_data> entry;
+            std::shared_ptr<entry_data> entry;
 
             {
-                boost::lock_guard<mutex_type> l(mtx_);
+                std::lock_guard<mutex_type> l(mtx_);
 
                 iterator it = get_buffer_entry(step);
                 HPX_ASSERT(it != buffer_map_.end());
@@ -306,7 +315,7 @@ namespace hpx { namespace lcos { namespace local
             {
                 std::pair<iterator, bool> res =
                     buffer_map_.insert(
-                        std::make_pair(step, boost::make_shared<entry_data>()));
+                        std::make_pair(step, std::make_shared<entry_data>()));
                 if (!res.second)
                 {
                     HPX_THROW_EXCEPTION(invalid_status,

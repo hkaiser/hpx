@@ -7,15 +7,16 @@
 #if !defined(HPX_9FEC203D_0AAB_4213_BA36_456BE578ED3D)
 #define HPX_9FEC203D_0AAB_4213_BA36_456BE578ED3D
 
-#include <iostream>
-
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/include/components.hpp>
 #include <hpx/runtime/applier/applier.hpp>
 #include <hpx/runtime/threads/thread_data.hpp>
 #include <hpx/runtime/components/component_type.hpp>
 #include <hpx/runtime/actions/component_action.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
+
+#include <iostream>
+#include <vector>
 
 namespace nqueen
 {

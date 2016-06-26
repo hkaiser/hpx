@@ -10,13 +10,10 @@
 
 #include <hpx/util/plugin.hpp>
 #include <hpx/util/plugin/export_plugin.hpp>
-#include <boost/mpl/list.hpp>
+#include <hpx/util_fwd.hpp>
 
-///////////////////////////////////////////////////////////////////////////////
-namespace hpx { namespace util
-{
-    struct command_line_handling;
-}}
+#include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace plugins

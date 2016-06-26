@@ -6,11 +6,9 @@
 #if !defined(HPX_PARCELSET_POLICIES_IBVERBS_MESSAGES_HPP)
 #define HPX_PARCELSET_POLICIES_IBVERBS_MESSAGES_HPP
 
-#include <hpx/config/defines.hpp>
-#if defined(HPX_HAVE_PARCELPORT_IBVERBS)
-
 #include <hpx/config.hpp>
-#include <boost/noncopyable.hpp>
+
+#if defined(HPX_HAVE_PARCELPORT_IBVERBS)
 
 namespace hpx { namespace parcelset { namespace policies { namespace ibverbs {
 
@@ -25,8 +23,14 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs {
         MSG_SHUTDOWN = 6
     };
 
-    struct message : boost::noncopyable
+    struct message
     {
+    private:
+        HPX_NON_COPYABLE(message);
+
+    public:
+        message() {}
+
         boost::uint32_t id;
         boost::uint32_t rkey;
         boost::uint64_t addr;

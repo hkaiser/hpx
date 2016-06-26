@@ -8,10 +8,12 @@
 #include <hpx/include/parallel_inner_product.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
-#include "test_utils.hpp"
-
-#include <iostream>
 #include <ctime>
+#include <iostream>
+#include <string>
+#include <vector>
+
+#include "test_utils.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////
 template <typename ExPolicy, typename IteratorTag>
@@ -27,7 +29,7 @@ void test_inner_product_bad_alloc(ExPolicy policy, IteratorTag)
 
     std::vector<std::size_t> c = test::random_iota(10007);
     std::vector<std::size_t> d = test::random_iota(10007);
-    std::size_t init = std::rand() % 1007;
+    std::size_t init = std::rand() % 1007; //-V101
 
     bool caught_exception = false;
     try {
@@ -58,7 +60,7 @@ void test_inner_product_bad_alloc_async(ExPolicy p, IteratorTag)
 
     std::vector<std::size_t> c = test::random_iota(10007);
     std::vector<std::size_t> d = test::random_iota(10007);
-    std::size_t init = std::rand() % 1007;
+    std::size_t init = std::rand() % 1007; //-V101
 
     bool returned_from_algorithm = false;
     bool caught_exception = false;
@@ -103,11 +105,13 @@ void test_inner_product_bad_alloc()
     test_inner_product_bad_alloc_async(seq(task), IteratorTag());
     test_inner_product_bad_alloc_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_inner_product_bad_alloc(execution_policy(seq), IteratorTag());
     test_inner_product_bad_alloc(execution_policy(par), IteratorTag());
 
     test_inner_product_bad_alloc(execution_policy(seq(task)), IteratorTag());
     test_inner_product_bad_alloc(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void inner_product_bad_alloc_test()
@@ -119,7 +123,7 @@ void inner_product_bad_alloc_test()
 ///////////////////////////////////////////////////////////////////////////////
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if (vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 

@@ -6,11 +6,14 @@
 #if !defined(HPX_PERFORMANCE_COUNTERS_SERVER_ARITHMETICS_COUNTER_APR_10_2013_1002AM)
 #define HPX_PERFORMANCE_COUNTERS_SERVER_ARITHMETICS_COUNTER_APR_10_2013_1002AM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/runtime/components/server/component_base.hpp>
-#include <hpx/performance_counters/server/base_performance_counter.hpp>
-#include <hpx/util/interval_timer.hpp>
+#include <hpx/config.hpp>
 #include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/performance_counters/server/base_performance_counter.hpp>
+#include <hpx/runtime/components/server/component_base.hpp>
+#include <hpx/util/interval_timer.hpp>
+
+#include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace performance_counters { namespace server
@@ -31,7 +34,9 @@ namespace hpx { namespace performance_counters { namespace server
         typedef arithmetics_counter type_holder;
         typedef base_performance_counter base_type_holder;
 
-        arithmetics_counter() {}
+        arithmetics_counter()
+          : mtx_(), invocation_count_(0)
+        {}
 
         arithmetics_counter(counter_info const& info,
             std::vector<std::string> const& base_counter_names);

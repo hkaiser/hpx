@@ -9,11 +9,14 @@
 #include <hpx/include/serialization.hpp>
 #include <hpx/util/high_resolution_timer.hpp>
 
-#include <algorithm>
-#include <iterator>
-#include <fstream>
-
 #include <boost/format.hpp>
+#include <boost/lexical_cast.hpp>
+
+#include <algorithm>
+#include <fstream>
+#include <iterator>
+#include <string>
+#include <vector>
 
 // This function will never be called
 int test_function(hpx::serialization::serialize_buffer<double> const& b)
@@ -102,7 +105,7 @@ double benchmark_serialization(std::size_t data_size, std::size_t iterations,
     outp.parcel_id() = hpx::parcelset::parcel::generate_unique_id();
     outp.set_source_id(here);
 
-    std::vector<hpx::serialization::serialization_chunk>* chunks = 0;
+    std::vector<hpx::serialization::serialization_chunk>* chunks = nullptr;
     if (zerocopy)
         chunks = new std::vector<hpx::serialization::serialization_chunk>();
 

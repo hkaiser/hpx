@@ -8,11 +8,14 @@
 #include <hpx/runtime/threads/thread_helpers.hpp>
 #include <hpx/lcos/local/barrier.hpp>
 #include <hpx/lcos/local/mutex.hpp>
+#include <hpx/util/bind.hpp>
 
 #include <boost/chrono/duration.hpp>
 #include <boost/lockfree/queue.hpp>
 
 #include <iostream>
+#include <mutex>
+#include <vector>
 
 using boost::lockfree::queue;
 
@@ -57,7 +60,7 @@ void lock_and_wait(
     while (true)
     {
         // Try to acquire the mutex.
-        boost::unique_lock<mutex> l(m, boost::try_to_lock);
+        std::unique_lock<mutex> l(m, std::try_to_lock);
 
         if (l.owns_lock())
         {
@@ -115,7 +118,7 @@ int hpx_main(variables_map& vm)
             // Compute the mutex to be used for this thread.
             const std::size_t index = j % mutex_count;
 
-            register_thread(boost::bind
+            register_thread(hpx::util::bind
                 (&lock_and_wait, boost::ref(m[index])
                                , boost::ref(b0)
                                , boost::ref(b1)

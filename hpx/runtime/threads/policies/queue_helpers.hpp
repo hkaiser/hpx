@@ -10,9 +10,8 @@
 #define HPX_F0153C92_99B1_4F31_8FA9_4208DB2F26CE
 
 #include <hpx/config.hpp>
-#include <hpx/util/try_lock_wrapper.hpp>
-#include <hpx/util/logging.hpp>
 #include <hpx/runtime/threads/thread_data.hpp>
+#include <hpx/util/logging.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace threads { namespace policies
@@ -50,11 +49,10 @@ namespace detail
 #else
         if (!minimal_deadlock_detection)
             return false;
-        if (HPX_LIKELY(idle_loop_count++ < HPX_IDLE_LOOP_COUNT_MAX))
-            return false;
 
-        // reset idle loop count
-        idle_loop_count = 0;
+        // attempt to output possibly deadlocked threads occasionally only
+        if (HPX_LIKELY((idle_loop_count++ % HPX_IDLE_LOOP_COUNT_MAX) != 0))
+            return false;
 
         bool result = false;
         bool collect_suspended = true;
@@ -64,8 +62,8 @@ namespace detail
         for (typename Map::const_iterator it = tm.begin(); it != end; ++it)
         {
             threads::thread_data const* thrd = (*it).get();
-            threads::thread_state state = thrd->get_state();
-            threads::thread_state marked_state = thrd->get_marked_state();
+            threads::thread_state_enum state = thrd->get_state().state();
+            threads::thread_state_enum marked_state = thrd->get_marked_state();
 
             if (state != marked_state) {
                 // log each thread only once
@@ -122,7 +120,7 @@ namespace detail
 
                 // result should be true if we found only suspended threads
                 if (collect_suspended) {
-                    switch(state.get_state()) {
+                    switch(state) {
                     case threads::suspended:
                         result = true;    // at least one is suspended
                         break;

@@ -6,15 +6,16 @@
 #if !defined(HPX_LCOS_FUTURE_WAIT_OCT_23_2008_1140AM)
 #define HPX_LCOS_FUTURE_WAIT_OCT_23_2008_1140AM
 
-#include <hpx/hpx_fwd.hpp>
-
-#include <hpx/traits/acquire_shared_state.hpp>
+#include <hpx/config.hpp>
 #include <hpx/lcos/future.hpp>
+#include <hpx/lcos/local/futures_factory.hpp>
 #include <hpx/lcos/wait_all.hpp>
+#include <hpx/traits/acquire_shared_state.hpp>
+#include <hpx/traits/future_access.hpp>
+#include <hpx/traits/future_traits.hpp>
 
 #include <boost/atomic.hpp>
 #include <boost/dynamic_bitset.hpp>
-#include <boost/tuple/tuple.hpp>
 #include <boost/type_traits/is_void.hpp>
 #include <boost/utility/enable_if.hpp>
 
@@ -29,8 +30,6 @@ namespace hpx { namespace lcos
         template <typename Future>
         struct wait_acquire_future
         {
-            typedef Future result_type;
-
             template <typename R>
             HPX_FORCEINLINE hpx::future<R>
             operator()(hpx::future<R>& future) const
@@ -53,7 +52,7 @@ namespace hpx { namespace lcos
         struct wait_each
         {
         private:
-            HPX_MOVABLE_BUT_NOT_COPYABLE(wait_each)
+            HPX_MOVABLE_ONLY(wait_each);
 
         protected:
             void on_future_ready_(threads::thread_id_type const& id)
@@ -109,7 +108,6 @@ namespace hpx { namespace lcos
 
         public:
             typedef std::vector<Future> argument_type;
-            typedef std::vector<Future> result_type;
 
             template <typename F_>
             wait_each(argument_type const& lazy_values, F_ && f,
@@ -135,7 +133,7 @@ namespace hpx { namespace lcos
                 f_(std::move(rhs.f_)),
                 success_counter_(rhs.success_counter_)
             {
-                rhs.success_counter_ = 0;
+                rhs.success_counter_ = nullptr;
             }
 
             wait_each& operator= (wait_each && rhs)
@@ -146,12 +144,12 @@ namespace hpx { namespace lcos
                     rhs.ready_count_ = 0;
                     f_ = std::move(rhs.f_);
                     success_counter_ = rhs.success_counter_;
-                    rhs.success_counter_ = 0;
+                    rhs.success_counter_ = nullptr;
                 }
                 return *this;
             }
 
-            result_type operator()()
+            std::vector<Future> operator()()
             {
                 ready_count_.store(0);
                 goal_reached_on_calling_thread_ = false;

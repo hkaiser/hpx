@@ -3,8 +3,10 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
 #include <hpx/runtime/components/component_type.hpp>
+
+#include <cstddef>
+#include <string>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace components
@@ -40,7 +42,7 @@ namespace hpx { namespace components
     }
 
     // Return the string representation for a given component type id
-    std::string const get_component_type_name(boost::int32_t type)
+    std::string const get_component_type_name(std::int32_t type)
     {
         std::string result;
 
@@ -55,12 +57,12 @@ namespace hpx { namespace components
             result = "component";
 
         if (type == get_base_type(type) || component_invalid == type)
-            result += "[" + boost::lexical_cast<std::string>(type) + "]";
+            result += "[" + std::to_string(type) + "]";
         else {
             result += "[" +
-                boost::lexical_cast<std::string>
+                std::to_string
                   (static_cast<int>(get_derived_type(type))) +
-                "(" + boost::lexical_cast<std::string>
+                "(" + std::to_string
                     (static_cast<int>(get_base_type(type))) + ")"
                 "]";
         }

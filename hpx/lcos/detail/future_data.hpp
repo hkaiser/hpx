@@ -7,30 +7,32 @@
 #define HPX_LCOS_DETAIL_FUTURE_DATA_MAR_06_2012_1055AM
 
 #include <hpx/config.hpp>
+#include <hpx/error_code.hpp>
 #include <hpx/lcos/local/detail/condition_variable.hpp>
 #include <hpx/lcos/local/spinlock.hpp>
-#include <hpx/traits/get_remote_result.hpp>
-#include <hpx/runtime/threads/thread_helpers.hpp>
-#include <hpx/runtime/threads/thread_executor.hpp>
-#include <hpx/runtime/launch_policy.hpp>
 #include <hpx/runtime/get_worker_thread_num.hpp>
+#include <hpx/runtime/launch_policy.hpp>
+#include <hpx/runtime/threads/thread_executor.hpp>
+#include <hpx/runtime/threads/thread_helpers.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/traits/get_remote_result.hpp>
+#include <hpx/util/atomic_count.hpp>
 #include <hpx/util/bind.hpp>
 #include <hpx/util/decay.hpp>
-#include <hpx/util/unused.hpp>
-#include <hpx/util/unique_function.hpp>
 #include <hpx/util/deferred_call.hpp>
+#include <hpx/util/unique_function.hpp>
+#include <hpx/util/unused.hpp>
 
-#include <boost/detail/atomic_count.hpp>
 #include <boost/exception_ptr.hpp>
 #include <boost/intrusive_ptr.hpp>
 #include <boost/math/common_factor_ct.hpp>
-#include <boost/mpl/sizeof.hpp>
 #include <boost/mpl/max.hpp>
-#include <boost/thread/locks.hpp>
+#include <boost/mpl/sizeof.hpp>
 #include <boost/type_traits/aligned_storage.hpp>
 #include <boost/type_traits/alignment_of.hpp>
 
 #include <memory>
+#include <mutex>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace lcos
@@ -84,7 +86,7 @@ namespace detail
         friend void intrusive_ptr_add_ref(future_data_refcnt_base* p);
         friend void intrusive_ptr_release(future_data_refcnt_base* p);
 
-        boost::detail::atomic_count count_;
+        util::atomic_count count_;
     };
 
     /// support functions for boost::intrusive_ptr
@@ -174,7 +176,7 @@ namespace detail
     template <typename F1, typename F2>
     class compose_cb_impl
     {
-        HPX_MOVABLE_BUT_NOT_COPYABLE(compose_cb_impl)
+        HPX_MOVABLE_ONLY(compose_cb_impl);
 
     public:
         template <typename A1, typename A2>
@@ -187,8 +189,6 @@ namespace detail
           : f1_(std::move(other.f1_))
           , f2_(std::move(other.f2_))
         {}
-
-        typedef void result_type;
 
         void operator()() const
         {
@@ -241,7 +241,7 @@ namespace detail
     template <typename Result>
     struct future_data : future_data_refcnt_base
     {
-        HPX_NON_COPYABLE(future_data)
+        HPX_NON_COPYABLE(future_data);
 
         typedef typename future_data_result<Result>::type result_type;
         typedef util::unique_function_nonser<void()> completed_callback_type;
@@ -299,7 +299,7 @@ namespace detail
         {
             // yields control if needed
             wait(ec);
-            if (ec) return NULL;
+            if (ec) return nullptr;
 
             // No locking is required. Once a future has been made ready, which
             // is a postcondition of wait, either:
@@ -313,7 +313,7 @@ namespace detail
                 HPX_THROWS_IF(ec, no_state,
                     "future_data::get_result",
                     "this future has no valid shared state");
-                return NULL;
+                return nullptr;
             }
 
             // the thread has been re-activated by one of the actions
@@ -332,7 +332,7 @@ namespace detail
                 else {
                     ec = make_error_code(*exception_ptr);
                 }
-                return NULL;
+                return nullptr;
             }
             return static_cast<result_type*>(storage_.address());
         }
@@ -355,26 +355,25 @@ namespace detail
         // allowed
         void handle_on_completed(completed_callback_type && on_completed)
         {
+            // We need to run the completion asynchronously if we aren't on a
+            // HPX thread
+            if (HPX_UNLIKELY(nullptr == threads::get_self_ptr()))
+            {
+                HPX_THROW_EXCEPTION(null_thread_id,
+                        "future_data::handle_on_completed",
+                        "null thread id encountered");
+            }
+
 #if defined(HPX_WINDOWS)
             bool recurse_asynchronously = false;
 #elif defined(HPX_HAVE_THREADS_GET_STACK_POINTER)
-            std::ptrdiff_t remaining_stack =
-                this_thread::get_available_stack_space();
-
-            if(remaining_stack < 0)
-            {
-                HPX_THROW_EXCEPTION(out_of_memory,
-                    "future_data::handle_on_completed",
-                    "Stack overflow");
-            }
             bool recurse_asynchronously =
-                remaining_stack < 8 * HPX_THREADS_STACK_OVERHEAD;
+                !this_thread::has_sufficient_stack_space();
 #else
             handle_continuation_recursion_count cnt;
             bool recurse_asynchronously =
                 cnt.count_ > HPX_CONTINUATION_MAX_RECURSION_DEPTH;
 #endif
-
             if (!recurse_asynchronously)
             {
                 // directly execute continuation on this thread
@@ -410,7 +409,7 @@ namespace detail
         template <typename Target>
         void set_value(Target && data, error_code& ec = throws)
         {
-            boost::unique_lock<mutex_type> l(this->mtx_);
+            std::unique_lock<mutex_type> l(this->mtx_);
 
             // check whether the data has already been set
             if (is_ready_locked()) {
@@ -446,7 +445,7 @@ namespace detail
         template <typename Target>
         void set_exception(Target && data, error_code& ec = throws)
         {
-            boost::unique_lock<mutex_type> l(this->mtx_);
+            std::unique_lock<mutex_type> l(this->mtx_);
 
             // check whether the data has already been set
             if (is_ready_locked()) {
@@ -496,7 +495,7 @@ namespace detail
                 set_value(std::move(get_remote_result_type::call(
                         std::forward<T>(result))));
             }
-            catch (hpx::exception const&) {
+            catch (...) {
                 // store the error instead
                 return set_exception(boost::current_exception());
             }
@@ -508,7 +507,7 @@ namespace detail
             try {
                 HPX_THROW_EXCEPTION(e, f, msg);
             }
-            catch (hpx::exception const&) {
+            catch (...) {
                 // store the error code
                 set_exception(boost::current_exception());
             }
@@ -553,7 +552,7 @@ namespace detail
         {
             if (!data_sink) return;
 
-            boost::unique_lock<mutex_type> l(this->mtx_);
+            std::unique_lock<mutex_type> l(this->mtx_);
 
             if (is_ready_locked()) {
 
@@ -573,14 +572,12 @@ namespace detail
 
         virtual void wait(error_code& ec = throws)
         {
-            boost::unique_lock<mutex_type> l(mtx_);
+            std::unique_lock<mutex_type> l(mtx_);
 
             // block if this entry is empty
             if (state_ == empty) {
-                cond_.wait(l, "future_data::wait", ec);
+                cond_.wait(std::move(l), "future_data::wait", ec);
                 if (ec) return;
-
-                HPX_ASSERT(state_ != empty);
             }
 
             if (&ec != &throws)
@@ -591,18 +588,18 @@ namespace detail
         wait_until(boost::chrono::steady_clock::time_point const& abs_time,
             error_code& ec = throws)
         {
-            boost::unique_lock<mutex_type> l(mtx_);
+            std::unique_lock<mutex_type> l(mtx_);
 
             // block if this entry is empty
             if (state_ == empty) {
                 threads::thread_state_ex_enum const reason =
-                    cond_.wait_until(l, abs_time, "future_data::wait_until", ec);
+                    cond_.wait_until(std::move(l), abs_time,
+                        "future_data::wait_until", ec);
                 if (ec) return future_status::uninitialized;
 
                 if (reason == threads::wait_timeout)
                     return future_status::timeout;
 
-                HPX_ASSERT(state_ != empty);
                 return future_status::ready;
             }
 
@@ -616,7 +613,7 @@ namespace detail
         /// \a future.
         bool is_ready() const
         {
-            boost::unique_lock<mutex_type> l(mtx_);
+            std::unique_lock<mutex_type> l(mtx_);
             return is_ready_locked();
         }
 
@@ -627,13 +624,13 @@ namespace detail
 
         bool has_value() const
         {
-            boost::unique_lock<mutex_type> l(mtx_);
+            std::unique_lock<mutex_type> l(mtx_);
             return state_ == value;
         }
 
         bool has_exception() const
         {
-            boost::unique_lock<mutex_type> l(mtx_);
+            std::unique_lock<mutex_type> l(mtx_);
             return state_ == exception;
         }
 
@@ -705,12 +702,12 @@ namespace detail
 
     public:
         task_base()
-          : started_(false), sched_(0)
+          : started_(false), sched_(nullptr)
         {}
 
         task_base(threads::executor& sched)
           : started_(false),
-            sched_(sched ? &sched : 0)
+            sched_(sched ? &sched : nullptr)
         {}
 
         virtual void execute_deferred(error_code& ec = throws)
@@ -742,18 +739,18 @@ namespace detail
             if (!started_test())
                 return future_status::deferred; //-V110
             return this->future_data<Result>::wait_until(abs_time, ec);
-        };
+        }
 
     private:
         bool started_test() const
         {
-            boost::lock_guard<mutex_type> l(this->mtx_);
+            std::lock_guard<mutex_type> l(this->mtx_);
             return started_;
         }
 
         bool started_test_and_set()
         {
-            boost::lock_guard<mutex_type> l(this->mtx_);
+            std::lock_guard<mutex_type> l(this->mtx_);
             if (started_)
                 return true;
 
@@ -764,7 +761,7 @@ namespace detail
     protected:
         void check_started()
         {
-            boost::lock_guard<mutex_type> l(this->mtx_);
+            std::lock_guard<mutex_type> l(this->mtx_);
             if (started_) {
                 HPX_THROW_EXCEPTION(task_already_started,
                     "task_base::check_started",
@@ -804,9 +801,10 @@ namespace detail
             this->future_data<Result>::set_data(std::forward<T>(result));
         }
 
-        void set_exception(boost::exception_ptr const& e)
+        void set_exception(
+            boost::exception_ptr const& e, error_code& ec = throws)
         {
-            this->future_data<Result>::set_exception(e);
+            this->future_data<Result>::set_exception(e, ec);
         }
 
         virtual void do_run()
@@ -831,12 +829,12 @@ namespace detail
     protected:
         threads::thread_id_type get_thread_id() const
         {
-            boost::lock_guard<mutex_type> l(this->mtx_);
+            std::lock_guard<mutex_type> l(this->mtx_);
             return id_;
         }
         void set_thread_id(threads::thread_id_type id)
         {
-            boost::lock_guard<mutex_type> l(this->mtx_);
+            std::lock_guard<mutex_type> l(this->mtx_);
             id_ = id;
         }
 
@@ -881,10 +879,10 @@ namespace detail
 
         void cancel()
         {
-            boost::unique_lock<mutex_type> l(this->mtx_);
+            std::unique_lock<mutex_type> l(this->mtx_);
             try {
                 if (!this->started_)
-                    boost::throw_exception(hpx::thread_interrupted());
+                    HPX_THROW_THREAD_INTERRUPTED_EXCEPTION();
 
                 if (this->is_ready_locked())
                     return;   // nothing we can do
@@ -906,7 +904,7 @@ namespace detail
                         "future can't be canceled at this time");
                 }
             }
-            catch (hpx::exception const&) {
+            catch (...) {
                 this->started_ = true;
                 this->set_exception(boost::current_exception());
                 throw;

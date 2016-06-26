@@ -9,16 +9,17 @@
 #define HPX_APPLIER_APPLIER_JUN_03_2008_0438PM
 
 #include <hpx/config.hpp>
-#include <hpx/util/thread_specific_ptr.hpp>
 #include <hpx/runtime/agas_fwd.hpp>
-#include <hpx/runtime/parcelset_fwd.hpp>
+#include <hpx/runtime/applier_fwd.hpp> // this needs to go first
+#include <hpx/runtime/applier_fwd.hpp>
 #include <hpx/runtime/components/component_type.hpp>
-#include <hpx/runtime/naming/name.hpp>
 #include <hpx/runtime/naming/address.hpp>
+#include <hpx/runtime/naming/name.hpp>
 #include <hpx/runtime/parcelset/parcel.hpp>
+#include <hpx/runtime/parcelset_fwd.hpp>
 #include <hpx/runtime/threads/thread_data_fwd.hpp>
+#include <hpx/util/thread_specific_ptr.hpp>
 
-#include <boost/noncopyable.hpp>
 #include <boost/cstdint.hpp>
 
 #include <vector>
@@ -31,8 +32,10 @@ namespace hpx { namespace applier
     /// has to be issued on a local or a remote resource. If the target
     /// component is local a new \a thread will be created, if the target is
     /// remote a parcel will be sent.
-    class HPX_EXPORT applier : private boost::noncopyable
+    class HPX_EXPORT applier
     {
+        HPX_NON_COPYABLE(applier);
+
     public:
         // constructor
         applier(parcelset::parcelhandler &ph, threads::threadmanager_base& tm);

@@ -9,27 +9,29 @@
 #if !defined(HPX_A16135FC_AA32_444F_BB46_549AD456A661)
 #define HPX_A16135FC_AA32_444F_BB46_549AD456A661
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/exception.hpp>
+#include <hpx/config.hpp>
+#include <hpx/exception_fwd.hpp>
+#include <hpx/lcos/local/mutex.hpp>
+#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/runtime/agas/namespace_action_code.hpp>
 #include <hpx/runtime/agas/request.hpp>
 #include <hpx/runtime/agas/response.hpp>
-#include <hpx/runtime/agas/namespace_action_code.hpp>
 #include <hpx/runtime/components/component_type.hpp>
 #include <hpx/runtime/components/server/fixed_component_base.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
-#include <hpx/util/insert_checked.hpp>
-#include <hpx/util/logging.hpp>
 #include <hpx/util/function.hpp>
 #include <hpx/util/high_resolution_clock.hpp>
-#include <hpx/lcos/local/mutex.hpp>
-#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/util/insert_checked.hpp>
+#include <hpx/util/logging.hpp>
 
 #include <map>
 #include <set>
+#include <string>
+#include <vector>
 
-#include <boost/format.hpp>
-#include <boost/bimap.hpp>
 #include <boost/atomic.hpp>
+#include <boost/bimap.hpp>
+#include <boost/format.hpp>
 
 namespace hpx { namespace agas
 {
@@ -75,8 +77,12 @@ struct HPX_EXPORT component_namespace
     struct update_time_on_exit;
 
     // data structure holding all counters for the omponent_namespace component
-    struct counter_data :  boost::noncopyable
+    struct counter_data
     {
+    private:
+        HPX_NON_COPYABLE(counter_data);
+
+    public:
         typedef lcos::local::spinlock mutex_type;
 
         struct api_counter_data
@@ -267,6 +273,12 @@ struct HPX_EXPORT component_namespace
 };
 
 }}}
+
+HPX_ACTION_USES_MEDIUM_STACK(
+    hpx::agas::server::component_namespace::service_action)
+
+HPX_ACTION_USES_MEDIUM_STACK(
+    hpx::agas::server::component_namespace::bulk_service_action)
 
 HPX_REGISTER_ACTION_DECLARATION(
     hpx::agas::server::component_namespace::service_action,

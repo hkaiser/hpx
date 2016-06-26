@@ -7,17 +7,20 @@
 #ifndef HPX_PARCELSET_POLICIES_MPI_HEADER_HPP
 #define HPX_PARCELSET_POLICIES_MPI_HEADER_HPP
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
+
 #if defined(HPX_HAVE_PARCELPORT_MPI)
 
 #include <mpi.h>
 
 #include <hpx/runtime/parcelset/parcel_buffer.hpp>
 
-#include <hpx/util/assert.hpp>
 #include <hpx/plugins/parcelport/mpi/mpi_environment.hpp>
+#include <hpx/util/assert.hpp>
 
 #include <boost/array.hpp>
+
+#include <cstring>
 
 namespace hpx { namespace parcelset { namespace policies { namespace mpi
 {
@@ -120,7 +123,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace mpi
         {
             if(data_[pos_piggy_back_flag])
                 return &data_[pos_piggy_back_data];
-            return 0;
+            return nullptr;
         }
 
     private:

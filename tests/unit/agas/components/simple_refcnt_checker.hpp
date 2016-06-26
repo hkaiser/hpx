@@ -8,7 +8,7 @@
 #if !defined(HPX_8E877149_A22D_4120_8C0A_BC206BBFA3B4)
 #define HPX_8E877149_A22D_4120_8C0A_BC206BBFA3B4
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/lcos/promise.hpp>
 #include <hpx/include/client.hpp>
 #include <hpx/runtime/threads/thread_data.hpp>
@@ -31,7 +31,8 @@ struct simple_refcnt_monitor
     > base_type;
 
   private:
-    lcos::promise<void> flag_;
+    lcos::promise<void> flag_promise_;
+    lcos::future<void> flag_;
     naming::id_type const locality_;
 
     using base_type::create;
@@ -40,22 +41,26 @@ struct simple_refcnt_monitor
     typedef server::simple_refcnt_checker server_type;
 
     /// Create a new component on the target locality.
-    explicit simple_refcnt_monitor(
-        naming::gid_type const& locality
-        )
-      : locality_(naming::get_locality_from_gid(locality)
-                , naming::id_type::unmanaged)
+    explicit simple_refcnt_monitor(naming::gid_type const& locality)
+      : base_type()
+      , flag_promise_()
+      , flag_(flag_promise_.get_future())
+      , locality_(
+            naming::get_locality_from_gid(locality), naming::id_type::unmanaged)
     {
-        gid_ = stub_type::create_async(locality_, flag_.get_id());
+        static_cast<base_type&>(*this) =
+            stub_type::create_async(locality_, flag_promise_.get_id());
     }
 
     /// Create a new component on the target locality.
-    explicit simple_refcnt_monitor(
-        naming::id_type const& locality
-        )
-      : locality_(naming::get_locality_from_id(locality))
+    explicit simple_refcnt_monitor(naming::id_type const& locality)
+      : base_type()
+      , flag_promise_()
+      , flag_(flag_promise_.get_future())
+      , locality_(naming::get_locality_from_id(locality))
     {
-        gid_ = stub_type::create_async(locality_, flag_.get_id());
+        static_cast<base_type&>(*this) =
+            stub_type::create_async(locality_, flag_promise_.get_id());
     }
 
     lcos::future<void> take_reference_async(
@@ -121,18 +126,18 @@ struct simple_object
     explicit simple_object(
         naming::gid_type const& locality
         )
-    {
-        gid_ = stub_type::create_async(
+      : base_type(stub_type::create_async(
             naming::id_type(locality, naming::id_type::unmanaged),
-            naming::invalid_id);
+            naming::invalid_id))
+    {
     }
 
     /// Create a new component on the target locality.
     explicit simple_object(
         naming::id_type const& locality
         )
+      : base_type(stub_type::create_async(locality, naming::invalid_id))
     {
-        gid_ = stub_type::create_async(locality, naming::invalid_id);
     }
 };
 

@@ -12,22 +12,21 @@
 #if !defined(HPX_PARCELSET_IPC_DATA_BUFFER_NOV_25_2012_0854PM)
 #define HPX_PARCELSET_IPC_DATA_BUFFER_NOV_25_2012_0854PM
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
+
 #if defined(HPX_HAVE_PARCELPORT_IPC)
 
-#include <hpx/hpx_fwd.hpp>
 #include <hpx/util/assert.hpp>
 
-#include <boost/interprocess/containers/vector.hpp>
 #include <boost/interprocess/allocators/allocator.hpp>
+#include <boost/interprocess/containers/vector.hpp>
 #if defined(HPX_WINDOWS)
 #include <boost/interprocess/managed_windows_shared_memory.hpp>
 #else
 #include <boost/interprocess/managed_shared_memory.hpp>
 #endif
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
 
+#include <memory>
 #include <string>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -319,12 +318,12 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
         {}
 
         data_buffer(char const* segment_name, std::size_t size)
-          : data_(boost::make_shared<data>(segment_name, size))
+          : data_(std::make_shared<data>(segment_name, size))
         {
         }
 
         data_buffer(char const* segment_name)
-          : data_(boost::make_shared<data>(segment_name))
+          : data_(std::make_shared<data>(segment_name))
         {
         }
 
@@ -404,7 +403,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ipc
         }
 
     private:
-        boost::shared_ptr<data> data_;
+        std::shared_ptr<data> data_;
     };
 }}}}
 

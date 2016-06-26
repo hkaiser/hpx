@@ -11,6 +11,10 @@
 //
 #include <boost/random/uniform_int_distribution.hpp>
 //
+#include <numeric>
+#include <string>
+#include <vector>
+//
 #if defined(HPX_DEBUG)
 #define HPX_SORT_BY_KEY_TEST_SIZE (1 << 16)
 #else
@@ -88,14 +92,16 @@ void sort_by_key_benchmark()
         double elapsed = t.elapsed();
 
         // after sorting by key, the values should be equal to the original keys
-        bool is_equal = std::equal(keys.begin(), keys.begin(), o_values.begin());
+        bool is_equal = std::equal(keys.begin(), keys.end(), o_values.begin());
         HPX_TEST(is_equal);
         if (is_equal) {
             std::cout << "<DartMeasurement name=\"SortByKeyTime\" \n"
             << "type=\"numeric/double\">" << elapsed << "</DartMeasurement> \n";
         }
     }
-    catch (...) {}
+    catch (...) {
+        HPX_TEST(false);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,7 +139,7 @@ void test_sort_by_key1(ExPolicy &&policy, Tkey, Tval, const Op &op, const Helper
         values.begin());
 
     // after sorting by key, the values should be equal to the original keys
-    bool is_equal = std::equal(keys.begin(), keys.begin(), o_values.begin());
+    bool is_equal = std::equal(keys.begin(), keys.end(), o_values.begin());
     if (is_equal) {
         //std::cout << "Test Passed\n";
     } else {
@@ -183,7 +189,7 @@ void test_sort_by_key_async(ExPolicy &&policy, Tkey, Tval, const Op &op,
     fresult.get();
 
     // after sorting by key, the values should be equal to the original keys
-    bool is_equal = std::equal(keys.begin(), keys.begin(), o_values.begin());
+    bool is_equal = std::equal(keys.begin(), keys.end(), o_values.begin());
     if (is_equal) {
         //std::cout << "Test Passed\n";
     } else {
@@ -223,13 +229,13 @@ void test_sort_by_key1()
             [](int key) { return key; });
         // custom compare
         test_sort_by_key1(seq, double(), double(),
-            [](double a, double b) { return std::floor(a) == std::floor(b); },
+            [](double a, double b) { return std::floor(a) == std::floor(b); }, //-V550
             [](double a) { return std::floor(a); });
         test_sort_by_key1(par, double(), double(),
-            [](double a, double b) { return std::floor(a) == std::floor(b); },
+            [](double a, double b) { return std::floor(a) == std::floor(b); }, //-V550
             [](double a) { return std::floor(a); });
         test_sort_by_key1(par_vec, double(), double(),
-            [](double a, double b) { return std::floor(a) == std::floor(b); },
+            [](double a, double b) { return std::floor(a) == std::floor(b); }, //-V550
             [](double a) { return std::floor(a); });
     } while (t.elapsed() < seconds);
     //
@@ -250,7 +256,7 @@ void test_sort_by_key1()
 ////////////////////////////////////////////////////////////////////////////////
 int hpx_main(boost::program_options::variables_map &vm)
 {
-    unsigned int seed = (unsigned int) std::time(0);
+    unsigned int seed = (unsigned int) std::time(nullptr);
     if (vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 
@@ -284,7 +290,7 @@ int main(int argc, char *argv[])
     // By default this test should run on all available cores
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
 
     HPX_TEST_EQ_MSG(hpx::init(desc_commandline, argc, argv, cfg), 0,
         "HPX main exited with non-zero status");

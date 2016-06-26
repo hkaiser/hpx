@@ -9,13 +9,15 @@
 #define HPX_UTIL_DETAIL_FUNCTION_TEMPLATE_HPP
 
 #include <hpx/config.hpp>
-#include <hpx/traits/is_callable.hpp>
 #include <hpx/traits/get_function_address.hpp>
+#include <hpx/traits/is_callable.hpp>
 #include <hpx/util/detail/basic_function.hpp>
 #include <hpx/util/detail/vtable/callable_vtable.hpp>
 #include <hpx/util/detail/vtable/copyable_vtable.hpp>
 #include <hpx/util/detail/vtable/vtable.hpp>
+#include <hpx/util_fwd.hpp>
 
+#include <cstddef>
 #include <type_traits>
 #include <utility>
 
@@ -61,7 +63,7 @@ namespace hpx { namespace util { namespace detail
 namespace hpx { namespace util
 {
     ///////////////////////////////////////////////////////////////////////////
-    template <typename Sig, bool Serializable = true>
+    template <typename Sig, bool Serializable>
     class function;
 
     template <typename R, typename ...Ts, bool Serializable>
@@ -78,6 +80,10 @@ namespace hpx { namespace util
         typedef typename base_type::result_type result_type;
 
         function() HPX_NOEXCEPT
+          : base_type()
+        {}
+
+        function(std::nullptr_t) HPX_NOEXCEPT
           : base_type()
         {}
 
@@ -167,12 +173,7 @@ namespace hpx { namespace util
     }
 
     ///////////////////////////////////////////////////////////////////////////
-#   ifdef HPX_HAVE_CXX11_ALIAS_TEMPLATES
-
-    template <typename Sig>
-    using function_nonser = function<Sig, false>;
-
-#   else
+#   ifndef HPX_HAVE_CXX11_ALIAS_TEMPLATES
 
     template <typename T>
     class function_nonser;
@@ -185,6 +186,10 @@ namespace hpx { namespace util
 
     public:
         function_nonser() HPX_NOEXCEPT
+          : base_type()
+        {}
+
+        function_nonser(std::nullptr_t) HPX_NOEXCEPT
           : base_type()
         {}
 

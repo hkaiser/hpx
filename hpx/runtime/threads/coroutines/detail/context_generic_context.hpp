@@ -10,9 +10,9 @@
 #define HPX_RUNTIME_THREADS_COROUTINES_DETAIL_CONTEXT_GENERIC_HPP
 
 #include <hpx/config.hpp>
-#include <hpx/runtime/threads/coroutines/exception.hpp>
 #include <hpx/runtime/threads/coroutines/detail/get_stack_pointer.hpp>
 #include <hpx/runtime/threads/coroutines/detail/swap_context.hpp>
+#include <hpx/runtime/threads/coroutines/exception.hpp>
 #include <hpx/util/assert.hpp>
 #include <hpx/util/get_and_reset_value.hpp>
 
@@ -26,17 +26,16 @@
 #include <hpx/runtime/threads/coroutines/detail/posix_utility.hpp>
 #endif
 
-#include <boost/version.hpp>
 #include <boost/cstdint.hpp>
+#include <boost/version.hpp>
 
 #if BOOST_VERSION < 105100
 #error Boost.Context is available only with Boost V1.51 or later
 #endif
 
-#include <boost/detail/atomic_count.hpp>
+#include <boost/atomic.hpp>
 
 #include <boost/context/all.hpp>
-#include <boost/noncopyable.hpp>
 
 #include <cstddef>
 #include <cstdlib>
@@ -169,8 +168,9 @@ namespace hpx { namespace threads { namespace coroutines
         }
 
         class fcontext_context_impl
-          : private boost::noncopyable
         {
+            HPX_NON_COPYABLE(fcontext_context_impl);
+
         public:
             typedef fcontext_context_impl context_impl_base;
 
@@ -237,7 +237,8 @@ namespace hpx { namespace threads { namespace coroutines
             std::ptrdiff_t get_available_stack_space()
             {
 #if defined(HPX_HAVE_THREADS_GET_STACK_POINTER)
-                return reinterpret_cast<std::size_t>(stack_pointer_) - get_stack_ptr();
+                return stack_size_ -
+                    (reinterpret_cast<std::size_t>(stack_pointer_) - get_stack_ptr());
 #else
                 return (std::numeric_limits<std::ptrdiff_t>::max)();
 #endif

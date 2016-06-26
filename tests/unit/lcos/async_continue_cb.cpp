@@ -9,6 +9,10 @@
 #include <hpx/include/async.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
+#include <boost/atomic.hpp>
+
+#include <vector>
+
 ///////////////////////////////////////////////////////////////////////////////
 boost::int32_t increment(boost::int32_t i)
 {

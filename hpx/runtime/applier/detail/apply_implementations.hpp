@@ -7,15 +7,17 @@
 #define HPX_APPLY_IMPLEMENTATIONS_APR_13_2015_0945AM
 
 #include <hpx/config.hpp>
-#include <hpx/runtime_fwd.hpp>
-#include <hpx/runtime/applier/detail/apply_implementations_fwd.hpp>
 #include <hpx/runtime/agas/interface.hpp>
+#include <hpx/runtime/applier/detail/apply_implementations_fwd.hpp>
 #include <hpx/runtime/naming/address.hpp>
 #include <hpx/runtime/naming/id_type.hpp>
 #include <hpx/runtime/parcelset/parcel.hpp>
-#include <hpx/traits/is_continuation.hpp>
-#include <hpx/traits/component_supports_migration.hpp>
+#include <hpx/runtime_fwd.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/traits/action_is_target_valid.hpp>
 #include <hpx/traits/action_was_object_migrated.hpp>
+#include <hpx/traits/component_supports_migration.hpp>
+#include <hpx/traits/is_continuation.hpp>
 
 #include <boost/format.hpp>
 
@@ -113,7 +115,8 @@ namespace hpx { namespace detail
             {
                 // apply remotely
                 return applier::detail::apply_r_p<Action>(std::move(addr),
-                    std::forward<Continuation>(c), id, priority, std::forward<Ts>(vs)...);
+                    std::forward<Continuation>(c), id, priority,
+                    std::forward<Ts>(vs)...);
             }
         }
         return

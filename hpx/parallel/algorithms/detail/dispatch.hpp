@@ -6,21 +6,25 @@
 #if !defined(HPX_PARALLEL_DISPATCH_JUN_25_2014_1145PM)
 #define HPX_PARALLEL_DISPATCH_JUN_25_2014_1145PM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/runtime/serialization/serialize.hpp>
+#include <hpx/config.hpp>
+#include <hpx/lcos/future.hpp>
+#include <hpx/runtime/serialization/serialization_fwd.hpp>
+#include <hpx/throw_exception.hpp>
 #include <hpx/traits/segmented_iterator_traits.hpp>
-#include <hpx/util/bind.hpp>
 #include <hpx/util/decay.hpp>
-#include <hpx/util/invoke.hpp>
-#include <hpx/util/invoke_fused.hpp>
-#include <hpx/util/tuple.hpp>
+
 #include <hpx/parallel/exception_list.hpp>
 #include <hpx/parallel/execution_policy.hpp>
+#include <hpx/parallel/executors/executor_traits.hpp>
 #include <hpx/parallel/util/detail/algorithm_result.hpp>
-
-#include <boost/mpl/bool.hpp>
+#include <hpx/parallel/util/detail/scoped_executor_parameters.hpp>
 
 #include <string>
+#include <type_traits>
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
+#include <typeinfo>
+#endif
+#include <utility>
 
 namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
 {
@@ -73,23 +77,36 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
 
         ///////////////////////////////////////////////////////////////////////
         template <typename ExPolicy, typename... Args>
+        HPX_HOST_DEVICE
         typename parallel::util::detail::algorithm_result<
             ExPolicy, local_result_type
         >::type
-        call(ExPolicy && policy, boost::mpl::true_, Args&&... args) const
+        operator()(ExPolicy && policy, Args&&... args) const
         {
+#if !defined(__CUDA_ARCH__)
             try {
+#endif
+                typedef typename
+                    hpx::util::decay<ExPolicy>::type::executor_parameters_type
+                    parameters_type;
+
+                parallel::util::detail::scoped_executor_parameters<
+                        parameters_type
+                    > scoped_param(policy.parameters());
+
                 return parallel::util::detail::algorithm_result<
                         ExPolicy, local_result_type
-                    >::get(Derived::sequential(std::forward<ExPolicy>(policy),
-                        std::forward<Args>(args)...));
+                    >::get(
+                        Derived::sequential(std::forward<ExPolicy>(policy),
+                            std::forward<Args>(args)...)
+                    );
+#if !defined(__CUDA_ARCH__)
             }
-            catch (...) {
-                detail::handle_exception<
-                    typename hpx::util::decay<ExPolicy>::type,
-                    local_result_type
-                >::call();
+            catch(...) {
+                // this does not return
+                return detail::handle_exception<ExPolicy, local_result_type>::call();
             }
+#endif
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -97,19 +114,52 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
         typename parallel::util::detail::algorithm_result<
             ExPolicy, local_result_type
         >::type
-        operator()(ExPolicy && policy, Args&&... args) const
+        call_execute(ExPolicy && policy, std::false_type, Args&&... args) const
+        {
+            typedef typename hpx::util::decay<ExPolicy>::type::executor_type
+                executor_type;
+            typedef hpx::parallel::executor_traits<executor_type>
+                executor_traits;
+
+            executor_type exec = policy.executor();
+
+            return parallel::util::detail::algorithm_result<
+                    ExPolicy, local_result_type
+                >::get(executor_traits::execute(exec, derived(),
+                    std::forward<ExPolicy>(policy), std::forward<Args>(args)...));
+        }
+
+        template <typename ExPolicy, typename... Args>
+        typename parallel::util::detail::algorithm_result<ExPolicy>::type
+        call_execute(ExPolicy && policy, std::true_type, Args&&... args) const
+        {
+            typedef typename hpx::util::decay<ExPolicy>::type::executor_type
+                executor_type;
+            typedef hpx::parallel::executor_traits<executor_type>
+                executor_traits;
+
+            executor_type exec = policy.executor();
+
+            executor_traits::execute(exec, derived(),
+                std::forward<ExPolicy>(policy), std::forward<Args>(args)...);
+
+            return parallel::util::detail::algorithm_result<ExPolicy>::get();
+        }
+
+        template <typename ExPolicy, typename... Args>
+        typename parallel::util::detail::algorithm_result<
+            ExPolicy, local_result_type
+        >::type
+        call(ExPolicy && policy, std::true_type, Args&&... args) const
         {
             try {
-                return parallel::util::detail::algorithm_result<
-                        ExPolicy, local_result_type
-                    >::get(Derived::sequential(std::forward<ExPolicy>(policy),
-                        std::forward<Args>(args)...));
+                typedef std::is_void<local_result_type> is_void;
+                return call_execute(std::forward<ExPolicy>(policy),
+                    is_void(), std::forward<Args>(args)...);
             }
             catch (...) {
-                return detail::handle_exception<
-                        typename hpx::util::decay<ExPolicy>::type,
-                        local_result_type
-                    >::call();
+                return detail::handle_exception<ExPolicy, local_result_type>::
+                    call();
             }
         }
 
@@ -121,8 +171,16 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
         call_sequential(ExPolicy && policy, Args&&... args) const
         {
             try {
+                // run the launched task on the requested executor
+                typedef typename hpx::util::decay<ExPolicy>::type::executor_type
+                    executor_type;
+                typedef hpx::parallel::executor_traits<executor_type>
+                    executor_traits;
+
+                executor_type exec = policy.executor();
                 hpx::future<local_result_type> result =
-                    hpx::async(derived(), std::forward<ExPolicy>(policy),
+                    executor_traits::async_execute(exec, derived(),
+                        std::forward<ExPolicy>(policy),
                         std::forward<Args>(args)...);
 
                 return parallel::util::detail::algorithm_result<
@@ -130,10 +188,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
                     >::get(std::move(result));
             }
             catch (...) {
-                return detail::handle_exception<
-                        typename hpx::util::decay<ExPolicy>::type,
-                        local_result_type
-                    >::call();
+                return detail::handle_exception<ExPolicy, local_result_type>::
+                    call();
             }
         }
 
@@ -142,7 +198,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
         typename parallel::util::detail::algorithm_result<
             sequential_task_execution_policy, local_result_type
         >::type
-        call(sequential_task_execution_policy policy, boost::mpl::true_,
+        call(sequential_task_execution_policy policy, std::true_type,
             Args&&... args) const
         {
             return call_sequential(policy, std::forward<Args>(args)...);
@@ -154,7 +210,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
             local_result_type
         >::type
         call(sequential_task_execution_policy_shim<Executor, Parameters>& policy,
-            boost::mpl::true_, Args&&... args) const
+            std::true_type, Args&&... args) const
         {
             return call_sequential(policy, std::forward<Args>(args)...);
         }
@@ -165,7 +221,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
             local_result_type
         >::type
         call(sequential_task_execution_policy_shim<Executor, Parameters> && policy,
-            boost::mpl::true_, Args&&... args) const
+            std::true_type, Args&&... args) const
         {
             return call_sequential(policy, std::forward<Args>(args)...);
         }
@@ -176,7 +232,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
             local_result_type
         >::type
         call(sequential_task_execution_policy_shim<Executor, Parameters> const& policy,
-            boost::mpl::true_, Args&&... args) const
+            std::true_type, Args&&... args) const
         {
             return call_sequential(policy, std::forward<Args>(args)...);
         }
@@ -186,7 +242,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
         typename parallel::util::detail::algorithm_result<
             parallel_task_execution_policy, local_result_type
         >::type
-        call(parallel_task_execution_policy policy, boost::mpl::true_,
+        call(parallel_task_execution_policy policy, std::true_type,
             Args&&... args) const
         {
             return call_sequential(policy, std::forward<Args>(args)...);
@@ -198,7 +254,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
             local_result_type
         >::type
         call(parallel_task_execution_policy_shim<Executor, Parameters>& policy,
-            boost::mpl::true_, Args&&... args) const
+            std::true_type, Args&&... args) const
         {
             return call_sequential(policy, std::forward<Args>(args)...);
         }
@@ -209,7 +265,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
             local_result_type
         >::type
         call(parallel_task_execution_policy_shim<Executor, Parameters> && policy,
-            boost::mpl::true_, Args&&... args) const
+            std::true_type, Args&&... args) const
         {
             return call_sequential(policy, std::forward<Args>(args)...);
         }
@@ -220,7 +276,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
             local_result_type
         >::type
         call(parallel_task_execution_policy_shim<Executor, Parameters> const& policy,
-            boost::mpl::true_, Args&&... args) const
+            std::true_type, Args&&... args) const
         {
             return call_sequential(policy, std::forward<Args>(args)...);
         }
@@ -229,16 +285,17 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
         typename parallel::util::detail::algorithm_result<
             ExPolicy, local_result_type
         >::type
-        call(ExPolicy && policy, boost::mpl::false_, Args&&... args) const
+        call(ExPolicy && policy, std::false_type, Args&&... args) const
         {
             return Derived::parallel(std::forward<ExPolicy>(policy),
                 std::forward<Args>(args)...);
         }
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
         ///////////////////////////////////////////////////////////////////////////
         template <typename... Args>
         local_result_type
-        call(parallel::execution_policy policy, boost::mpl::false_,
+        call(parallel::execution_policy policy, std::false_type,
             Args&&... args) const
         {
             // this implementation is not nice, however we don't have variadic
@@ -249,19 +306,19 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
             if (t == typeid(sequential_execution_policy))
             {
                 return call(*policy.get<sequential_execution_policy>(),
-                    boost::mpl::true_(), std::forward<Args>(args)...);
+                    std::true_type(), std::forward<Args>(args)...);
             }
 
             if (t == typeid(sequential_task_execution_policy))
             {
-                return call(seq, boost::mpl::true_(),
+                return call(seq, std::true_type(),
                     std::forward<Args>(args)...);
             }
 
             if (t == typeid(parallel_execution_policy))
             {
                 return call(*policy.get<parallel_execution_policy>(),
-                    boost::mpl::false_(), std::forward<Args>(args)...);
+                    std::false_type(), std::forward<Args>(args)...);
             }
 
             if (t == typeid(parallel_task_execution_policy))
@@ -270,13 +327,13 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
                     *policy.get<parallel_task_execution_policy>();
 
                 return call(par.with(t.parameters()),
-                    boost::mpl::false_(), std::forward<Args>(args)...);
+                    std::false_type(), std::forward<Args>(args)...);
             }
 
             if (t == typeid(parallel_vector_execution_policy))
             {
                 return call(*policy.get<parallel_vector_execution_policy>(),
-                    boost::mpl::false_(), std::forward<Args>(args)...);
+                    std::false_type(), std::forward<Args>(args)...);
             }
 
             HPX_THROW_EXCEPTION(hpx::bad_parameter,
@@ -286,10 +343,11 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
 
         template <typename... Args>
         local_result_type
-        call(parallel::execution_policy, boost::mpl::true_, Args&&... args) const
+        call(parallel::execution_policy, std::true_type, Args&&... args) const
         {
-            return call(seq, boost::mpl::true_(), std::forward<Args>(args)...);
+            return call(seq, std::true_type(), std::forward<Args>(args)...);
         }
+#endif
 
     private:
         char const* const name_;

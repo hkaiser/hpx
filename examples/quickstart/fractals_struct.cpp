@@ -13,6 +13,7 @@
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/serialization.hpp>
 
+#include <memory>
 #include <vector>
 
 const std::size_t sizeY = 256;
@@ -36,11 +37,11 @@ class FracInfo
     }
 };
 
-std::size_t fractals(boost::shared_ptr<FracInfo> Info);
+std::size_t fractals(std::shared_ptr<FracInfo> Info);
 
 HPX_PLAIN_ACTION(fractals, fractals_action);
 
-std::size_t fractals(boost::shared_ptr<FracInfo> Info)
+std::size_t fractals(std::shared_ptr<FracInfo> Info)
 {
     float x = 0, y = 0;
     std::size_t iteration = 0;
@@ -76,7 +77,7 @@ int hpx_main()
                 float x0 = (float) i * 3.5f / (float) sizeX - 2.5f;
                 float y0 = (float) j * 2.0f / (float) sizeY - 1.0f;
 
-                boost::shared_ptr<FracInfo> Info(new FracInfo);
+                std::shared_ptr<FracInfo> Info(new FracInfo);
                 Info->x0 = x0;
                 Info->y0 = y0;
                 Info->max_iteration = max_iteration;

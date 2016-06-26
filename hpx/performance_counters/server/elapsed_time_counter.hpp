@@ -6,12 +6,10 @@
 #if !defined(HPX_PERFORMANCE_COUNTERS_SERVER_ELAPSED_TIME_COUNTER_SEP_18_2011_1133AM)
 #define HPX_PERFORMANCE_COUNTERS_SERVER_ELAPSED_TIME_COUNTER_SEP_18_2011_1133AM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/runtime/components/server/component_base.hpp>
+#include <hpx/config.hpp>
 #include <hpx/performance_counters/server/base_performance_counter.hpp>
+#include <hpx/runtime/components/server/component_base.hpp>
 #include <hpx/util/high_resolution_timer.hpp>
-
-#include <boost/detail/atomic_count.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace performance_counters { namespace server

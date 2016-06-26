@@ -7,26 +7,30 @@
 #ifndef HPX_PARCELSET_POLICIES_IBVERBS_SENDER_HPP
 #define HPX_PARCELSET_POLICIES_IBVERBS_SENDER_HPP
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
+
 #if defined(HPX_HAVE_PARCELPORT_IBVERBS)
 
-#include <hpx/runtime/parcelset/locality.hpp>
-#include <hpx/runtime/parcelset/parcelport_connection.hpp>
-#include <hpx/plugins/parcelport/ibverbs/context.hpp>
-#include <hpx/plugins/parcelport/ibverbs/messages.hpp>
-#include <hpx/plugins/parcelport/ibverbs/allocator.hpp>
 #include <hpx/performance_counters/parcels/data_point.hpp>
 #include <hpx/performance_counters/parcels/gatherer.hpp>
+#include <hpx/plugins/parcelport/ibverbs/allocator.hpp>
+#include <hpx/plugins/parcelport/ibverbs/context.hpp>
+#include <hpx/plugins/parcelport/ibverbs/messages.hpp>
+#include <hpx/runtime/parcelset/locality.hpp>
+#include <hpx/runtime/parcelset/parcelport_connection.hpp>
 #include <hpx/util/high_resolution_timer.hpp>
 
 #include <boost/asio/placeholders.hpp>
-#include <boost/thread/locks.hpp>
+
+#include <memory>
+#include <mutex>
+#include <vector>
 
 namespace hpx { namespace parcelset { namespace policies { namespace ibverbs
 {
     class connection_handler;
     void add_sender(connection_handler & handler,
-        boost::shared_ptr<sender> const& sender_connection);
+        std::shared_ptr<sender> const& sender_connection);
 
     ibverbs_mr register_buffer(connection_handler & handler,
         ibv_pd * pd, char * buffer, std::size_t size, int access);
@@ -47,7 +51,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs
                 void(
                     boost::system::error_code const &
                   , parcelset::locality const&
-                  , boost::shared_ptr<sender>
+                  , std::shared_ptr<sender>
                 )
             >
             postprocess_function_type;
@@ -81,14 +85,14 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs
             return there_;
         }
 
-        boost::shared_ptr<parcel_buffer_type> get_buffer(parcel const & p,
+        std::shared_ptr<parcel_buffer_type> get_buffer(parcel const & p,
             std::size_t arg_size)
         {
             if(!buffer_)
             {
                 boost::system::error_code ec;
                 buffer_
-                    = boost::shared_ptr<parcel_buffer_type>(
+                    = std::shared_ptr<parcel_buffer_type>(
                         new parcel_buffer_type(
                             allocator<message::payload_size>(memory_pool_)
                         )
@@ -117,7 +121,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs
         {
             next_function_type f = 0;
             {
-                boost::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
+                std::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
                 f = next_;
             }
             if(f != 0)
@@ -234,7 +238,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs
 
         bool next(next_function_type f)
         {
-            boost::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
+            std::lock_guard<hpx::lcos::local::spinlock> l(mtx_);
             next_ = f;
             return false;
         }

@@ -7,13 +7,15 @@
 #define HPX_RUNTIME_COMPONENTS_SERVER_MIGRATE_COMPONENT_JAN_30_2014_0737AM
 
 #include <hpx/config.hpp>
-#include <hpx/traits/is_component.hpp>
-#include <hpx/traits/component_supports_migration.hpp>
 #include <hpx/runtime/actions/plain_action.hpp>
-#include <hpx/runtime/naming/name.hpp>
-#include <hpx/runtime/get_ptr.hpp>
-#include <hpx/runtime/components/stubs/runtime_support.hpp>
 #include <hpx/runtime/agas/interface.hpp>
+#include <hpx/runtime/components/stubs/runtime_support.hpp>
+#include <hpx/runtime/get_ptr.hpp>
+#include <hpx/runtime/naming/name.hpp>
+#include <hpx/traits/component_supports_migration.hpp>
+#include <hpx/traits/is_component.hpp>
+
+#include <memory>
 
 namespace hpx { namespace components { namespace server
 {
@@ -114,7 +116,7 @@ namespace hpx { namespace components { namespace server
         template <typename Component>
         id_type migrate_component_cleanup(
             future<id_type> && f,
-            boost::shared_ptr<Component> ptr,
+            std::shared_ptr<Component> ptr,
             id_type const& to_migrate)
         {
             ptr->mark_as_migrated();
@@ -124,7 +126,7 @@ namespace hpx { namespace components { namespace server
         // trigger the actual migration
         template <typename Component, typename DistPolicy>
         future<id_type> migrate_component_postproc(
-            boost::shared_ptr<Component> const& ptr,
+            std::shared_ptr<Component> const& ptr,
             id_type const& to_migrate, DistPolicy const& policy)
         {
             using components::stubs::runtime_support;
@@ -178,7 +180,7 @@ namespace hpx { namespace components { namespace server
         }
 
         // retrieve pointer to object (must be local)
-        boost::shared_ptr<Component> ptr =
+        std::shared_ptr<Component> ptr =
             hpx::detail::get_ptr_for_migration<Component>(addr, to_migrate);
 
         // perform actual migration by sending data over to target locality
@@ -274,12 +276,12 @@ namespace hpx { namespace components { namespace server
         // retrieve pointer to object (must be local)
         return hpx::get_ptr<Component>(to_migrate)
             .then(
-                [=](future<boost::shared_ptr<Component> > && f) -> future<id_type>
+                [=](future<std::shared_ptr<Component> > && f) -> future<id_type>
                 {
                     future<void> trigger_migration;
 
                     {
-                        boost::shared_ptr<Component> ptr = f.get();
+                        std::shared_ptr<Component> ptr = f.get();
 
                         // Delay the start of the migration operation until no
                         // more actions (threads) are pending or currently

@@ -4,35 +4,38 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
-
+#include <hpx/config.hpp>
 #include <hpx/state.hpp>
 #include <hpx/exception.hpp>
-#include <hpx/include/runtime.hpp>
 #include <hpx/runtime_impl.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/logging.hpp>
 #include <hpx/util/set_thread_name.hpp>
 #include <hpx/util/thread_mapper.hpp>
 #include <hpx/util/apex.hpp>
+#include <hpx/runtime/agas/big_boot_barrier.hpp>
+#include <hpx/runtime/get_config_entry.hpp>
 #include <hpx/runtime/components/console_error_sink.hpp>
 #include <hpx/runtime/components/server/console_error_sink.hpp>
 #include <hpx/runtime/components/runtime_support.hpp>
+#include <hpx/runtime/shutdown_function.hpp>
+#include <hpx/runtime/startup_function.hpp>
+#include <hpx/runtime/threads/coroutines/detail/context_impl.hpp>
 #include <hpx/runtime/threads/threadmanager_impl.hpp>
-#include <hpx/runtime/agas/big_boot_barrier.hpp>
-#include <hpx/runtime/get_config_entry.hpp>
-#include <hpx/include/performance_counters.hpp>
 #include <hpx/lcos/latch.hpp>
 
-#include <boost/bind.hpp>
 #include <boost/cstdint.hpp>
+#include <boost/exception_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition.hpp>
-#include <boost/thread/locks.hpp>
-#include <boost/thread/thread.hpp>
 #include <boost/ref.hpp>
 
 #include <iostream>
+#include <list>
+#include <mutex>
 #include <sstream>
+#include <string>
+#include <utility>
 #include <vector>
 
 #if defined(_WIN64) && defined(_DEBUG) && !defined(HPX_HAVE_FIBER_BASED_COROUTINES)
@@ -44,78 +47,78 @@ namespace hpx {
     ///////////////////////////////////////////////////////////////////////////
     // There is no need to protect these global from thread concurrent access
     // as they are access during early startup only.
-    std::list<util::function_nonser<void()> > global_pre_startup_functions;
-    std::list<util::function_nonser<void()> > global_startup_functions;
+    std::list<startup_function_type> global_pre_startup_functions;
+    std::list<startup_function_type> global_startup_functions;
 
-    std::list<util::function_nonser<void()> > global_pre_shutdown_functions;
-    std::list<util::function_nonser<void()> > global_shutdown_functions;
+    std::list<shutdown_function_type> global_pre_shutdown_functions;
+    std::list<shutdown_function_type> global_shutdown_functions;
 
     ///////////////////////////////////////////////////////////////////////////
-    void register_pre_startup_function(startup_function_type const& f)
+    void register_pre_startup_function(startup_function_type f)
     {
         runtime* rt = get_runtime_ptr();
-        if (NULL != rt) {
+        if (nullptr != rt) {
             if (rt->get_state() > state_pre_startup) {
                 HPX_THROW_EXCEPTION(invalid_status,
                     "register_pre_startup_function",
                     "Too late to register a new pre-startup function.");
                 return;
             }
-            rt->add_pre_startup_function(f);
+            rt->add_pre_startup_function(std::move(f));
         }
         else {
-            global_pre_startup_functions.push_back(f);
+            global_pre_startup_functions.push_back(std::move(f));
         }
     }
 
-    void register_startup_function(startup_function_type const& f)
+    void register_startup_function(startup_function_type f)
     {
         runtime* rt = get_runtime_ptr();
-        if (NULL != rt) {
+        if (nullptr != rt) {
             if (rt->get_state() > state_startup) {
                 HPX_THROW_EXCEPTION(invalid_status,
                     "register_startup_function",
                     "Too late to register a new startup function.");
                 return;
             }
-            rt->add_startup_function(f);
+            rt->add_startup_function(std::move(f));
         }
         else {
-            global_startup_functions.push_back(f);
+            global_startup_functions.push_back(std::move(f));
         }
     }
 
-    void register_pre_shutdown_function(shutdown_function_type const& f)
+    void register_pre_shutdown_function(shutdown_function_type f)
     {
         runtime* rt = get_runtime_ptr();
-        if (NULL != rt) {
+        if (nullptr != rt) {
             if (rt->get_state() > state_pre_shutdown) {
                 HPX_THROW_EXCEPTION(invalid_status,
                     "register_pre_shutdown_function",
                     "Too late to register a new pre-shutdown function.");
                 return;
             }
-            rt->add_pre_shutdown_function(f);
+            rt->add_pre_shutdown_function(std::move(f));
         }
         else {
-            global_pre_shutdown_functions.push_back(f);
+            global_pre_shutdown_functions.push_back(std::move(f));
         }
     }
 
-    void register_shutdown_function(shutdown_function_type const& f)
+    void register_shutdown_function(shutdown_function_type f)
     {
         runtime* rt = get_runtime_ptr();
-        if (NULL != rt) {
+        if (nullptr != rt) {
             if (rt->get_state() > state_shutdown) {
                 HPX_THROW_EXCEPTION(invalid_status,
                     "register_shutdown_function",
                     "Too late to register a new shutdown function.");
                 return;
             }
-            rt->add_shutdown_function(f);
+            rt->add_shutdown_function(std::move(f));
         }
         else {
-            global_shutdown_functions.push_back(f);
+            global_shutdown_functions.push_back(std::move(f));
         }
     }
 
@@ -129,17 +132,17 @@ namespace hpx {
       : runtime(rtcfg, init_affinity),
         mode_(locality_mode), result_(0), num_threads_(num_threads),
         main_pool_(1,
-            boost::bind(&runtime_impl::init_tss, This(),
-                "main-thread", ::_1, ::_2, false),
-            boost::bind(&runtime_impl::deinit_tss, This()), "main_pool"),
+            util::bind(&runtime_impl::init_tss, This(), "main-thread",
+                util::placeholders::_1, util::placeholders::_2, false),
+            util::bind(&runtime_impl::deinit_tss, This()), "main_pool"),
         io_pool_(rtcfg.get_thread_pool_size("io_pool"),
-            boost::bind(&runtime_impl::init_tss, This(), "io-thread",
-                ::_1, ::_2, true),
-            boost::bind(&runtime_impl::deinit_tss, This()), "io_pool"),
+            util::bind(&runtime_impl::init_tss, This(), "io-thread",
+                util::placeholders::_1, util::placeholders::_2, true),
+            util::bind(&runtime_impl::deinit_tss, This()), "io_pool"),
         timer_pool_(rtcfg.get_thread_pool_size("timer_pool"),
-            boost::bind(&runtime_impl::init_tss, This(), "timer-thread",
-                ::_1, ::_2, true),
-            boost::bind(&runtime_impl::deinit_tss, This()), "timer_pool"),
+            util::bind(&runtime_impl::init_tss, This(), "timer-thread",
+                util::placeholders::_1, util::placeholders::_2, true),
+            util::bind(&runtime_impl::deinit_tss, This()), "timer_pool"),
         scheduler_(init),
         notifier_(runtime_impl<SchedulingPolicy>::
             get_notification_policy("worker-thread")),
@@ -147,9 +150,9 @@ namespace hpx {
             new hpx::threads::threadmanager_impl<SchedulingPolicy>(
                 timer_pool_, scheduler_, notifier_, num_threads)),
         parcel_handler_(rtcfg, thread_manager_.get(),
-            boost::bind(&runtime_impl::init_tss, This(), "parcel-thread",
-                ::_1, ::_2, true),
-            boost::bind(&runtime_impl::deinit_tss, This())),
+            util::bind(&runtime_impl::init_tss, This(), "parcel-thread",
+                util::placeholders::_1, util::placeholders::_2, true),
+            util::bind(&runtime_impl::deinit_tss, This())),
         agas_client_(parcel_handler_, ini_, mode_),
         init_logging_(ini_, mode_ == runtime_mode_console, agas_client_),
         applier_(parcel_handler_, *thread_manager_)
@@ -180,27 +183,27 @@ namespace hpx {
 #endif
 
         // copy over all startup functions registered so far
-        for (util::function_nonser<void()> const& f : global_pre_startup_functions)
+        for (startup_function_type& f : global_pre_startup_functions)
         {
-            add_pre_startup_function(f);
+            add_pre_startup_function(std::move(f));
         }
         global_pre_startup_functions.clear();
 
-        for (util::function_nonser<void()> const& f : global_startup_functions)
+        for (startup_function_type& f : global_startup_functions)
         {
-            add_startup_function(f);
+            add_startup_function(std::move(f));
         }
         global_startup_functions.clear();
 
-        for (util::function_nonser<void()> const& f : global_pre_shutdown_functions)
+        for (shutdown_function_type& f : global_pre_shutdown_functions)
         {
-            add_pre_shutdown_function(f);
+            add_pre_shutdown_function(std::move(f));
         }
         global_pre_shutdown_functions.clear();
 
-        for (util::function_nonser<void()> const& f : global_shutdown_functions)
+        for (shutdown_function_type& f : global_shutdown_functions)
         {
-            add_shutdown_function(f);
+            add_shutdown_function(std::move(f));
         }
         global_shutdown_functions.clear();
 
@@ -213,6 +216,8 @@ namespace hpx {
     runtime_impl<SchedulingPolicy>::~runtime_impl()
     {
         LRT_(debug) << "~runtime_impl(entering)";
+
+        runtime_support_->delete_function_lists();
 
         // stop all services
         parcel_handler_.stop();     // stops parcel pools as well
@@ -228,7 +233,7 @@ namespace hpx {
     int pre_main(hpx::runtime_mode);
 
     template <typename SchedulingPolicy>
-    threads::thread_state
+    threads::thread_state_enum
     runtime_impl<SchedulingPolicy>::run_helper(
         util::function_nonser<runtime::hpx_main_function_type> func, int& result)
     {
@@ -242,7 +247,7 @@ namespace hpx {
         if (result) {
             LBT_(info) << "runtime_impl::run_helper: bootstrap "
                           "aborted, bailing out";
-            return threads::thread_state(threads::terminated);
+            return threads::terminated;
         }
 
         LBT_(info) << "(4th stage) runtime_impl::run_helper: bootstrap complete";
@@ -280,7 +285,7 @@ namespace hpx {
             // Call hpx_main
             result = func();
         }
-        return threads::thread_state(threads::terminated);
+        return threads::terminated;
     }
 
     template <typename SchedulingPolicy>
@@ -327,7 +332,7 @@ namespace hpx {
                       "HPX thread";
 
         threads::thread_init_data data(
-            boost::bind(&runtime_impl::run_helper, this, func,
+            util::bind(&runtime_impl::run_helper, this, func,
                 boost::ref(result_)),
             "run_helper", 0, threads::thread_priority_normal, std::size_t(-1),
             threads::get_stack_size(threads::thread_stacksize_large));
@@ -358,11 +363,11 @@ namespace hpx {
     ///////////////////////////////////////////////////////////////////////////
     template <typename SchedulingPolicy>
     void runtime_impl<SchedulingPolicy>::wait_helper(
-        boost::mutex& mtx, boost::condition& cond, bool& running)
+        boost::mutex& mtx, boost::condition_variable& cond, bool& running)
     {
         // signal successful initialization
         {
-            boost::lock_guard<boost::mutex> lk(mtx);
+            std::lock_guard<boost::mutex> lk(mtx);
             running = true;
             cond.notify_all();
         }
@@ -390,10 +395,10 @@ namespace hpx {
 
         // start the wait_helper in a separate thread
         boost::mutex mtx;
-        boost::condition cond;
+        boost::condition_variable cond;
         bool running = false;
 
-        boost::thread t (boost::bind(
+        boost::thread t (util::bind(
                 &runtime_impl<SchedulingPolicy>::wait_helper,
                 this, boost::ref(mtx), boost::ref(cond), boost::ref(running)
             ));
@@ -439,10 +444,10 @@ namespace hpx {
             // from a HPX thread, so it would deadlock by waiting for the thread
             // manager
             boost::mutex mtx;
-            boost::condition cond;
+            boost::condition_variable cond;
             boost::unique_lock<boost::mutex> l(mtx);
 
-            boost::thread t(boost::bind(&runtime_impl::stopped, this, blocking,
+            boost::thread t(util::bind(&runtime_impl::stopped, this, blocking,
                 boost::ref(cond), boost::ref(mtx)));
             cond.wait(l);
 
@@ -471,7 +476,7 @@ namespace hpx {
     // a HPX thread!
     template <typename SchedulingPolicy>
     void runtime_impl<SchedulingPolicy>::stopped(
-        bool blocking, boost::condition& cond, boost::mutex& mtx)
+        bool blocking, boost::condition_variable& cond, boost::mutex& mtx)
     {
         // wait for thread manager to exit
         runtime_support_->stopped();         // re-activate shutdown HPX-thread
@@ -482,7 +487,7 @@ namespace hpx {
 
         LRT_(info) << "runtime_impl: stopped all services";
 
-        boost::lock_guard<boost::mutex> l(mtx);
+        std::lock_guard<boost::mutex> l(mtx);
         cond.notify_all();                  // we're done now
     }
 
@@ -499,7 +504,7 @@ namespace hpx {
 
             // store the exception to be able to rethrow it later
             {
-                boost::lock_guard<boost::mutex> l(mtx_);
+                std::lock_guard<boost::mutex> l(mtx_);
                 exception_ = e;
             }
 
@@ -543,7 +548,7 @@ namespace hpx {
     {
         if (state_.load() > state_running)
         {
-            boost::lock_guard<boost::mutex> l(mtx_);
+            std::lock_guard<boost::mutex> l(mtx_);
             if (exception_)
             {
                 boost::exception_ptr e = exception_;
@@ -604,16 +609,22 @@ namespace hpx {
     threads::policies::callback_notifier runtime_impl<SchedulingPolicy>::
         get_notification_policy(char const* prefix)
     {
+        typedef void (runtime_impl::*report_error_t)(
+            std::size_t, boost::exception_ptr const&);
+
+        using util::placeholders::_1;
+        using util::placeholders::_2;
         return notification_policy_type(
-            boost::bind(&runtime_impl::init_tss, This(), prefix, ::_1, ::_2, false),
-            boost::bind(&runtime_impl::deinit_tss, This()),
-            boost::bind(&runtime_impl::report_error, This(), _1, _2));
+            util::bind(&runtime_impl::init_tss, This(), prefix, _1, _2, false),
+            util::bind(&runtime_impl::deinit_tss, This()),
+            util::bind(static_cast<report_error_t>(&runtime_impl::report_error),
+                This(), _1, _2));
     }
 
     template <typename SchedulingPolicy>
-    void runtime_impl<SchedulingPolicy>::init_tss(
+    void runtime_impl<SchedulingPolicy>::init_tss_ex(
         char const* context, std::size_t num, char const* postfix,
-        bool service_thread)
+        bool service_thread, error_code& ec)
     {
         // initialize our TSS
         this->runtime::init_tss();
@@ -622,18 +633,18 @@ namespace hpx {
         applier_.init_tss();
 
         // set the thread's name, if it's not already set
-        if (NULL == runtime::thread_name_.get())
+        if (nullptr == runtime::thread_name_.get())
         {
             std::string* fullname = new std::string(context);
             if (postfix && *postfix)
                 *fullname += postfix;
-            *fullname += "#" + boost::lexical_cast<std::string>(num);
+            *fullname += "#" + std::to_string(num);
             runtime::thread_name_.reset(fullname);
 
             char const* name = runtime::thread_name_.get()->c_str();
 
             // initialize thread mapping for external libraries (i.e. PAPI)
-            thread_support_->register_thread(name);
+            thread_support_->register_thread(name, ec);
 
             // initialize coroutines context switcher
             hpx::threads::coroutines::thread_startup(name);
@@ -697,30 +708,30 @@ namespace hpx {
 
     template <typename SchedulingPolicy>
     void runtime_impl<SchedulingPolicy>::
-        add_pre_startup_function(util::function_nonser<void()> const& f)
+        add_pre_startup_function(startup_function_type f)
     {
-        runtime_support_->add_pre_startup_function(f);
+        runtime_support_->add_pre_startup_function(std::move(f));
     }
 
     template <typename SchedulingPolicy>
     void runtime_impl<SchedulingPolicy>::
-        add_startup_function(util::function_nonser<void()> const& f)
+        add_startup_function(startup_function_type f)
     {
-        runtime_support_->add_startup_function(f);
+        runtime_support_->add_startup_function(std::move(f));
     }
 
     template <typename SchedulingPolicy>
     void runtime_impl<SchedulingPolicy>::
-        add_pre_shutdown_function(util::function_nonser<void()> const& f)
+        add_pre_shutdown_function(shutdown_function_type f)
     {
-        runtime_support_->add_pre_shutdown_function(f);
+        runtime_support_->add_pre_shutdown_function(std::move(f));
     }
 
     template <typename SchedulingPolicy>
     void runtime_impl<SchedulingPolicy>::
-        add_shutdown_function(util::function_nonser<void()> const& f)
+        add_shutdown_function(shutdown_function_type f)
     {
-        runtime_support_->add_shutdown_function(f);
+        runtime_support_->add_shutdown_function(std::move(f));
     }
 
     template <typename SchedulingPolicy>
@@ -735,7 +746,7 @@ namespace hpx {
     runtime_impl<SchedulingPolicy>::
         get_thread_pool(char const* name)
     {
-        HPX_ASSERT(name != 0);
+        HPX_ASSERT(name != nullptr);
 
         if (0 == std::strncmp(name, "io", 2))
             return &io_pool_;
@@ -746,23 +757,24 @@ namespace hpx {
         if (0 == std::strncmp(name, "main", 4)) //-V112
             return &main_pool_;
 
-        return 0;
+        return nullptr;
     }
 
     /// Register an external OS-thread with HPX
     template <typename SchedulingPolicy>
     bool runtime_impl<SchedulingPolicy>::
-        register_thread(char const* name, std::size_t num, bool service_thread)
+        register_thread(char const* name, std::size_t num, bool service_thread,
+            error_code& ec)
     {
-        if (NULL != runtime::thread_name_.get())
+        if (nullptr != runtime::thread_name_.get())
             return false;       // already registered
 
         std::string thread_name(name);
         thread_name += "-thread";
 
-        init_tss(thread_name.c_str(), num, 0, service_thread);
+        init_tss_ex(thread_name.c_str(), num, nullptr, service_thread, ec);
 
-        return true;
+        return !ec ? true : false;
     }
 
     /// Unregister an external OS-thread with HPX
@@ -770,7 +782,7 @@ namespace hpx {
     bool runtime_impl<SchedulingPolicy>::
         unregister_thread()
     {
-        if (NULL == runtime::thread_name_.get())
+        if (nullptr == runtime::thread_name_.get())
             return false;       // never registered
 
         deinit_tss();

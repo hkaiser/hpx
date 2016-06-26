@@ -20,8 +20,8 @@
 #ifndef JT28092007_BOOST_TSS_IMPL_PTHREAD
 #define JT28092007_BOOST_TSS_IMPL_PTHREAD
 
-#include <vector>
 #include <memory>
+#include <vector>
 #include <pthread.h>
 
 namespace hpx { namespace util { namespace logging { namespace detail {
@@ -35,9 +35,9 @@ inline pthread_key_t & tss_data_native_key() {
 
 inline tss_slots* get_slots()
 {
-    tss_slots* slots = 0;
+    tss_slots* slots = nullptr;
     slots = static_cast<tss_slots*>( pthread_getspecific(tss_data_native_key()));
-    if (slots == 0)
+    if (slots == nullptr)
     {
         std::auto_ptr<tss_slots> temp( new_object_ensure_delete<tss_slots>() );
         // pre-allocate a few elems, so that we'll be fast

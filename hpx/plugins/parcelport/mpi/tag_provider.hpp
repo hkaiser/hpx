@@ -6,12 +6,14 @@
 #ifndef HPX_PARCELSET_POLICIES_MPI_TAG_PROVIDER_HPP
 #define HPX_PARCELSET_POLICIES_MPI_TAG_PROVIDER_HPP
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
+
 #if defined(HPX_HAVE_PARCELPORT_MPI)
 
 #include <hpx/lcos/local/spinlock.hpp>
 
 #include <deque>
+#include <mutex>
 
 namespace hpx { namespace parcelset { namespace policies { namespace mpi
 {
@@ -26,7 +28,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace mpi
         int acquire()
         {
             int tag = -1;
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             if(free_tags_.empty())
             {
                 HPX_ASSERT(next_tag_ < (std::numeric_limits<int>::max)());
@@ -44,7 +46,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace mpi
         void release(int tag)
         {
             HPX_ASSERT(tag > 1);
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             HPX_ASSERT(tag <= next_tag_);
 
             if(tag == next_tag_) return;

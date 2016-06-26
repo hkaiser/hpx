@@ -14,10 +14,11 @@
 #include <cstdlib>
 #include <cstdarg>
 
-#include <list>
-#include <vector>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <list>
+#include <string>
+#include <vector>
 
 #include <hpx/exception.hpp>
 #include <hpx/util/assert.hpp>
@@ -28,9 +29,7 @@
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/bind.hpp>
 #include <boost/regex.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/assign/std/vector.hpp>
 
 #ifdef __APPLE__
@@ -99,7 +98,7 @@ section::section ()
 }
 
 section::section (std::string const& filename, section* root)
-  : root_(NULL != root ? root : this_()), name_(filename)
+  : root_(nullptr != root ? root : this_()), name_(filename)
 {
     read(filename);
 }
@@ -344,7 +343,7 @@ void section::add_section (std::string const& sec_name, section& sec, section* r
     sec.parent_name_ = get_full_name();
 
     section& newsec = sections_[sec_name];
-    newsec.clone_from(sec, (NULL != root) ? root : get_root());
+    newsec.clone_from(sec, (nullptr != root) ? root : get_root());
 }
 
 bool section::has_section (std::string const& sec_name) const
@@ -384,7 +383,7 @@ section* section::get_section (std::string const& sec_name)
 
         HPX_THROW_EXCEPTION(bad_parameter, "section::get_section",
             "No such section (" + sec_name + ") in section: " + name);
-        return NULL;
+        return nullptr;
     }
 
     section_map::iterator it = sections_.find(sec_name);
@@ -393,7 +392,7 @@ section* section::get_section (std::string const& sec_name)
 
     HPX_THROW_EXCEPTION(bad_parameter, "section::get_section",
         "No such section (" + sec_name + ") in section: " + get_name());
-    return NULL;
+    return nullptr;
 }
 
 section const* section::get_section (std::string const& sec_name) const
@@ -415,7 +414,7 @@ section const* section::get_section (std::string const& sec_name) const
 
         HPX_THROW_EXCEPTION(bad_parameter, "section::get_section",
             "No such section (" + sec_name + ") in section: " + name);
-        return NULL;
+        return nullptr;
     }
 
     section_map::const_iterator it = sections_.find(sec_name);
@@ -424,7 +423,7 @@ section const* section::get_section (std::string const& sec_name) const
 
     HPX_THROW_EXCEPTION(bad_parameter, "section::get_section",
         "No such section (" + sec_name + ") in section: " + get_name());
-    return NULL;
+    return nullptr;
 }
 
 void section::add_entry (std::string const& key, std::string val)
@@ -616,7 +615,7 @@ void section::line_msg(std::string msg, std::string const& file,
 {
     msg += " " + file;
     if (lnum > 0)
-        msg += ": line " + boost::lexical_cast<std::string>(lnum);
+        msg += ": line " + std::to_string(lnum);
     if (!line.empty())
         msg += " (offending entry: " + line + ")";
 
@@ -688,12 +687,12 @@ void section::expand_brace(std::string& value, std::string::size_type begin) con
         std::string::size_type colon = find_next(":", to_expand);
         if (colon == std::string::npos) {
             char* env = getenv(to_expand.c_str());
-            value.replace(begin, end-begin+1, 0 != env ? env : "");
+            value.replace(begin, end-begin+1, nullptr != env ? env : "");
         }
         else {
             char* env = getenv(to_expand.substr(0, colon).c_str());
             value.replace(begin, end-begin+1,
-                0 != env ? std::string(env) : to_expand.substr(colon+1));
+                nullptr != env ? std::string(env) : to_expand.substr(colon+1));
         }
     }
 }
@@ -758,12 +757,12 @@ void section::expand_brace_only(std::string& value,
         std::string::size_type colon = find_next(":", to_expand);
         if (colon == std::string::npos) {
             char* env = getenv(to_expand.c_str());
-            value.replace(begin, end-begin+1, 0 != env ? env : "");
+            value.replace(begin, end-begin+1, nullptr != env ? env : "");
         }
         else {
             char* env = getenv(to_expand.substr(0, colon).c_str());
             value.replace(begin, end-begin+1,
-                0 != env ? std::string(env) : to_expand.substr(colon+1));
+                nullptr != env ? std::string(env) : to_expand.substr(colon+1));
         }
     }
 }

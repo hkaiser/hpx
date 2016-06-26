@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //  Copyright (c) 2007-2012 Hartmut Kaiser
 //  Copyright (c) 2011 Bryce Adelstein-Lelbach
-//  Copyright (c) 2012 Thomas Heller
+//  Copyright (c) 2012-2016 Thomas Heller
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -13,13 +13,13 @@
 #include <hpx/include/actions.hpp>
 #include <hpx/include/components.hpp>
 #include <hpx/include/runtime.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
-#include <vector>
 #include <list>
 #include <set>
+#include <vector>
 
-#include <boost/bind.hpp>
 #include <boost/ref.hpp>
 
 #if defined(HPX_HAVE_HWLOC) && !defined(__APPLE__)
@@ -37,8 +37,10 @@ std::size_t thread_affinity_worker(std::size_t desired)
         bool numa_sensitive = hpx::is_scheduler_numa_sensitive();
 
         // extract the desired affinity mask
-        hpx::threads::topology const& t = hpx::get_runtime().get_topology();
-        hpx::threads::mask_type desired_mask = t.get_thread_affinity_mask(current,
+        hpx::runtime & rt = hpx::get_runtime();
+        hpx::threads::topology const& t = rt.get_topology();
+        hpx::threads::mask_type desired_mask = t.get_thread_affinity_mask(
+            rt.get_thread_manager().get_pu_num(current),
             numa_sensitive);
 
         std::size_t logical_idx = hpx::threads::find_first(desired_mask);
@@ -132,8 +134,9 @@ void thread_affinity_foreman()
         // is the index of the future in the vector, and the second is the
         // return value of the future. hpx::lcos::wait doesn't return until
         // all the futures in the vector have returned.
+        using hpx::util::placeholders::_1;
         hpx::lcos::wait_each(hpx::util::unwrapped(
-            boost::bind(&check_in, boost::ref(attendance), ::_1)), futures);
+            hpx::util::bind(&check_in, boost::ref(attendance), _1)), futures);
     }
 }
 

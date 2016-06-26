@@ -8,10 +8,10 @@
 #define HPX_RUNTIME_APPLIER_APPLY_CONTINUE_CALLBACK_MAR_09_2014_1207PM
 
 #include <hpx/config.hpp>
-#include <hpx/traits.hpp>
 #include <hpx/runtime/actions/action_support.hpp>
 #include <hpx/runtime/applier/apply.hpp>
 #include <hpx/runtime/applier/apply_callback.hpp>
+#include <hpx/traits/extract_action.hpp>
 
 namespace hpx
 {
@@ -21,11 +21,13 @@ namespace hpx
     bool apply_continue_cb(Cont&& cont, naming::id_type const& gid,
         Callback && cb, Ts&&... vs)
     {
-        typedef typename hpx::actions::extract_action<Action>::type action_type;
-        typedef typename action_type::result_type result_type;
+        typedef typename hpx::traits::extract_action<Action>::type action_type;
+        typedef typename action_type::local_result_type local_result_type;
+        typedef typename action_type::remote_result_type result_type;
 
         return apply_cb<Action>(
-            hpx::actions::typed_continuation<result_type>(std::forward<Cont>(cont)),
+            hpx::actions::typed_continuation<
+                local_result_type, result_type>(std::forward<Cont>(cont)),
             gid, std::forward<Callback>(cb), std::forward<Ts>(vs)...);
     }
 
@@ -44,11 +46,13 @@ namespace hpx
     bool apply_continue_cb(naming::id_type const& cont,
         naming::id_type const& gid, Callback && cb, Ts&&... vs)
     {
-        typedef typename hpx::actions::extract_action<Action>::type action_type;
-        typedef typename action_type::result_type result_type;
+        typedef typename hpx::traits::extract_action<Action>::type action_type;
+        typedef typename action_type::local_result_type local_result_type;
+        typedef typename action_type::remote_result_type result_type;
 
         return apply_cb<Action>(
-            hpx::actions::typed_continuation<result_type>(cont, make_continuation()),
+            hpx::actions::typed_continuation<
+                local_result_type, result_type>(cont, make_continuation()),
             gid, std::forward<Callback>(cb), std::forward<Ts>(vs)...);
     }
 

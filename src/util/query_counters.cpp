@@ -3,13 +3,15 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/agas/interface.hpp>
 #include <hpx/runtime/threads/thread_helpers.hpp>
 #include <hpx/util/assert.hpp>
-#include <hpx/util/query_counters.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/high_resolution_clock.hpp>
 #include <hpx/util/apex.hpp>
+#include <hpx/util/query_counters.hpp>
+#include <hpx/util/unlock_guard.hpp>
 #include <hpx/runtime/actions/continuation.hpp>
 #include <hpx/runtime/get_config_entry.hpp>
 #include <hpx/performance_counters/counters.hpp>
@@ -17,11 +19,13 @@
 #include <hpx/lcos/wait_all.hpp>
 
 #include <boost/format.hpp>
-#include <boost/thread/locks.hpp>
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <mutex>
 #include <sstream>
+#include <string>
+#include <vector>
 
 namespace hpx { namespace util
 {
@@ -30,8 +34,8 @@ namespace hpx { namespace util
             std::vector<std::string> const& shortnames, bool csv_header)
       : names_(names), destination_(dest), format_(form),
             counter_shortnames_(shortnames), csv_header_(csv_header),
-        timer_(boost::bind(&query_counters::evaluate, this_()),
-            boost::bind(&query_counters::terminate, this_()),
+        timer_(util::bind(&query_counters::evaluate, this_()),
+            util::bind(&query_counters::terminate, this_()),
             interval*1000, "query_counters", true)
     {
         // add counter prefix, if necessary
@@ -67,7 +71,7 @@ namespace hpx { namespace util
 
     void query_counters::find_counters()
     {
-        boost::unique_lock<mutex_type> l(mtx_);
+        std::unique_lock<mutex_type> l(mtx_);
 
         std::vector<std::string> names;
         std::swap(names, names_);
@@ -90,7 +94,7 @@ namespace hpx { namespace util
 
                 // find matching counter type
                 {
-                    hpx::util::unlock_guard<boost::unique_lock<mutex_type> > ul(l);
+                    hpx::util::unlock_guard<std::unique_lock<mutex_type> > ul(l);
                     performance_counters::discover_counter_type(name, func,
                         performance_counters::discover_counters_full);
                 }
@@ -186,7 +190,7 @@ namespace hpx { namespace util
     {
         std::vector<naming::id_type> ids;
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             // give up control over all performance counters
             std::swap(ids, ids_);
         }
@@ -197,7 +201,7 @@ namespace hpx { namespace util
     {
         bool has_been_started = false;
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             has_been_started = !ids_.empty();
         }
 
@@ -242,7 +246,7 @@ namespace hpx { namespace util
     {
         bool has_been_started = false;
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             has_been_started = !ids_.empty();
         }
 
@@ -287,7 +291,7 @@ namespace hpx { namespace util
     {
         bool has_been_started = false;
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             has_been_started = !ids_.empty();
         }
 
@@ -341,7 +345,7 @@ namespace hpx { namespace util
         bool has_been_started = false;
         bool destination_is_cout = false;
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             has_been_started = !ids_.empty();
             destination_is_cout = destination_ == "cout";
         }
@@ -357,7 +361,7 @@ namespace hpx { namespace util
 
         std::vector<id_type> ids;
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             ids = ids_;
         }
 

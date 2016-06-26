@@ -6,15 +6,21 @@
 #if !defined(HPX_PARCELSET_POLICIES_IBVERBS_DATA_BUFFER_HPP)
 #define HPX_PARCELSET_POLICIES_IBVERBS_DATA_BUFFER_HPP
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
+
 #if defined(HPX_HAVE_PARCELPORT_IBVERBS)
+
+#include <cstring>
+#include <vector>
 
 namespace hpx { namespace parcelset { namespace policies { namespace ibverbs
 {
     struct data_buffer
-        : boost::noncopyable
     {
+    private:
+        HPX_NON_COPYABLE(data_buffer);
 
+    public:
         static const std::size_t mr_buffer_offset = 2 * sizeof(boost::uint64_t);
 
         data_buffer()

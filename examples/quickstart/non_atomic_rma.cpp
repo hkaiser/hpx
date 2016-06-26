@@ -22,16 +22,13 @@
 
 //Boost includes
 #include <boost/program_options.hpp>
-#include <boost/lexical_cast.hpp>
 
-#include <boost/thread/locks.hpp>
 #include <boost/ref.hpp>
 
 #include <algorithm>
-#include <vector>
-
-#include <iostream>
 #include <ctime>
+#include <iostream>
+#include <vector>
 
 using namespace hpx;
 namespace po = boost::program_options;
@@ -107,7 +104,7 @@ int hpx_main(po::variables_map &vm)
           n.push_back(hpx::async<set_initialdata_action>(this_prefix,i));
         }
 
-        srand( time(NULL) );
+        srand( time(nullptr) );
 
         std::vector<lcos::future< void > > future_update;
         int N = 10; // number of random accesses to the array
@@ -122,7 +119,7 @@ int hpx_main(po::variables_map &vm)
 
         for (int i=0;i<array_length;i++) {
           components::access_memory_block<data>
-                  result( components::stubs::memory_block::get(n[i].get()) );
+                  result( components::stubs::memory_block::get_data(n[i].get()) );
           std::cout << " Result index: " << i << " value : "
                   << result->val_ << std::endl;
         }

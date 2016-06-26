@@ -8,21 +8,23 @@
 #if !defined(HPX_PARALLEL_ALGORITHMS_IS_PARTITIONED_FEB_11_2015_0331PM)
 #define HPX_PARALLEL_ALGORITHMS_IS_PARTITIONED_FEB_11_2015_0331PM
 
-#include <hpx/parallel/config/inline_namespace.hpp>
+#include <hpx/config.hpp>
+#include <hpx/lcos/future.hpp>
+#include <hpx/traits/is_iterator.hpp>
+
 #include <hpx/parallel/algorithms/detail/dispatch.hpp>
+#include <hpx/parallel/config/inline_namespace.hpp>
 #include <hpx/parallel/execution_policy.hpp>
-#include <hpx/parallel/util/detail/algorithm_result.hpp>
 #include <hpx/parallel/util/cancellation_token.hpp>
-#include <hpx/parallel/util/partitioner.hpp>
+#include <hpx/parallel/util/detail/algorithm_result.hpp>
 #include <hpx/parallel/util/loop.hpp>
+#include <hpx/parallel/util/partitioner.hpp>
 
 #include <algorithm>
-#include <iterator>
 #include <functional>
-
-#include <boost/utility/enable_if.hpp>
-#include <boost/type_traits/is_base_of.hpp>
-#include <boost/type_traits/is_same.hpp>
+#include <iterator>
+#include <type_traits>
+#include <vector>
 
 namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
 {
@@ -31,7 +33,6 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
     namespace detail
     {
         /// \cond NOINTERNAL
-
         inline bool
         sequential_is_partitioned(std::vector<hpx::future<bool > > && res)
         {
@@ -58,7 +59,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
             public detail::algorithm<is_partitioned<Iter>, bool>
         {
             is_partitioned()
-                : is_partitioned::algorithm("is_partitioned")
+              : is_partitioned::algorithm("is_partitioned")
             {}
 
             template<typename ExPolicy, typename Pred>
@@ -75,8 +76,6 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
             static typename util::detail::algorithm_result<ExPolicy, bool>::type
             parallel(ExPolicy && policy, Iter first, Iter last, Pred && pred)
             {
-                typedef typename std::iterator_traits<Iter>::reference
-                    reference;
                 typedef typename std::iterator_traits<Iter>::difference_type
                     difference_type;
                 typedef typename util::detail::algorithm_result<ExPolicy, bool>
@@ -168,24 +167,20 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
     ///           elements, the function is always true.
     ///
     template <typename ExPolicy, typename InIter, typename Pred>
-    inline typename boost::enable_if<
-        is_execution_policy<ExPolicy>,
+    inline typename std::enable_if<
+        is_execution_policy<ExPolicy>::value,
         typename util::detail::algorithm_result<ExPolicy, bool>::type
     >::type
     is_partitioned(ExPolicy && policy, InIter first, InIter last, Pred && pred)
     {
-        typedef typename std::iterator_traits<InIter>::iterator_category
-            iterator_category;
         static_assert(
-            (boost::is_base_of<
-             std::input_iterator_tag, iterator_category
-                 >::value),
+            (hpx::traits::is_input_iterator<InIter>::value),
             "Requires at least input iterator.");
 
-        typedef typename boost::mpl::or_<
-            parallel::is_sequential_execution_policy<ExPolicy>,
-            boost::is_same<std::input_iterator_tag, iterator_category>
-        >::type is_seq;
+        typedef std::integral_constant<bool,
+                is_sequential_execution_policy<ExPolicy>::value ||
+               !hpx::traits::is_forward_iterator<InIter>::value
+            > is_seq;
 
         return detail::is_partitioned<InIter>().call(
             std::forward<ExPolicy>(policy), is_seq(), first, last,

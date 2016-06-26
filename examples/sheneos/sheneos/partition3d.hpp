@@ -6,9 +6,12 @@
 #if !defined(HPX_SHENEOS_PARTITION3D_AUG_08_2011_1223PM)
 #define HPX_SHENEOS_PARTITION3D_AUG_08_2011_1223PM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/lcos/future.hpp>
 #include <hpx/include/client.hpp>
+
+#include <string>
+#include <vector>
 
 #include "stubs/partition3d.hpp"
 

@@ -11,25 +11,25 @@
 #define HPX_PARCELSET_PARCELPORT_MAR_26_2008_1214PM
 
 #include <hpx/config.hpp>
-#include <hpx/util_fwd.hpp>
-#include <hpx/util/runtime_configuration.hpp>
+#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/performance_counters/parcels/data_point.hpp>
+#include <hpx/performance_counters/parcels/gatherer.hpp>
 #include <hpx/runtime/applier_fwd.hpp>
 #include <hpx/runtime/parcelset/locality.hpp>
 #include <hpx/runtime/parcelset/parcel.hpp>
-#include <hpx/performance_counters/parcels/data_point.hpp>
-#include <hpx/performance_counters/parcels/gatherer.hpp>
-#include <hpx/lcos/local/spinlock.hpp>
 #include <hpx/util/function.hpp>
+#include <hpx/util_fwd.hpp>
 
 #include <boost/cstdint.hpp>
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/thread/locks.hpp>
 
+#include <deque>
+#include <list>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <set>
 #include <string>
 #include <vector>
-#include <deque>
 
 #include <hpx/config/warnings_prefix.hpp>
 
@@ -51,9 +51,10 @@ namespace hpx { namespace parcelset
     /// inside a locality. It provides the minimal functionality to send and
     /// to receive parcels.
     class HPX_EXPORT parcelport
-      : public boost::enable_shared_from_this<parcelport>,
-        boost::noncopyable
+      : public std::enable_shared_from_this<parcelport>
     {
+        HPX_NON_COPYABLE(parcelport);
+
     private:
         // avoid warnings about using \a this in member initializer list
         parcelport& This() { return *this; }
@@ -66,7 +67,7 @@ namespace hpx { namespace parcelset
         > write_handler_type;
 
         typedef util::function_nonser<
-            void(parcelport& pp, boost::shared_ptr<std::vector<char> >,
+            void(parcelport& pp, std::shared_ptr<std::vector<char> >,
                  threads::thread_priority)
         > read_handler_type;
 
@@ -190,7 +191,7 @@ namespace hpx { namespace parcelset
 
         virtual locality create_locality() const = 0;
 
-        virtual locality agas_locality(util::runtime_configuration const & ini)
+        virtual locality agas_locality(util::runtime_configuration const& ini)
             const = 0;
 
         /// Performance counter data
@@ -281,6 +282,12 @@ namespace hpx { namespace parcelset
             return parcels_received_.total_bytes(reset);
         }
 
+        /// total data (uncompressed) received (bytes)
+        boost::uint64_t get_raw_data_received(bool reset)
+        {
+            return parcels_received_.total_raw_bytes(reset);
+        }
+
         boost::int64_t get_buffer_allocate_time_sent(bool reset)
         {
             return parcels_sent_.total_buffer_allocate_time(reset);
@@ -291,19 +298,13 @@ namespace hpx { namespace parcelset
             return parcels_received_.total_buffer_allocate_time(reset);
         }
 
-        /// total data (uncompressed) received (bytes)
-        boost::uint64_t get_raw_data_received(bool reset)
-        {
-            return parcels_received_.total_raw_bytes(reset);
-        }
-
         boost::uint64_t get_pending_parcels_count(bool /*reset*/)
         {
-            boost::lock_guard<lcos::local::spinlock> l(mtx_);
+            std::lock_guard<lcos::local::spinlock> l(mtx_);
             return pending_parcels_.size();
         }
 
-
+        ///////////////////////////////////////////////////////////////////////
         void set_applier(applier::applier * applier)
         {
             applier_ = applier;
@@ -366,7 +367,7 @@ namespace hpx { namespace parcelset
         typedef std::map<naming::gid_type, new_gids_type> new_gids_map;
 #if defined(HPX_PARCELSET_PENDING_PARCELS_WORKAROUND)
         typedef util::tuple<
-            boost::shared_ptr<std::vector<parcel> >
+            std::shared_ptr<std::vector<parcel> >
           , std::vector<write_handler_type>
           , new_gids_map
         >

@@ -4,15 +4,16 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
 
 #if defined(HPX_HAVE_SODIUM)
 
+#include <hpx/util/function.hpp>
 #include <hpx/util/plugin.hpp>
 #include <hpx/util/security/root_certificate_authority.hpp>
 #include <hpx/util/security/subordinate_certificate_authority.hpp>
 
-#include <boost/function.hpp>
+#include <string>
 
 namespace hpx { namespace util { namespace security
 {
@@ -21,7 +22,7 @@ namespace hpx { namespace util { namespace security
         // Bind the delete_subordinate_certificate_authority symbol dynamically
         // and invoke it.
         typedef void (*function_type)(certificate_authority_type*);
-        typedef boost::function<void(function_type)> deleter_type;
+        typedef function_nonser<void(function_type)> deleter_type;
 
         hpx::util::plugin::dll dll(
             HPX_MAKE_DLL_STRING(std::string("security")));
@@ -38,7 +39,7 @@ namespace hpx { namespace util { namespace security
         // and invoke it.
         typedef certificate_authority_type* (*function_type)(
             components::security::key_pair const&);
-        typedef boost::function<void(function_type)> deleter_type;
+        typedef function_nonser<void(function_type)> deleter_type;
 
         hpx::util::plugin::dll dll(
             HPX_MAKE_DLL_STRING(std::string("security")));
@@ -61,7 +62,7 @@ namespace hpx { namespace util { namespace security
             components::security::server::subordinate_certificate_authority*
           , components::security::signed_certificate_signing_request*);
 
-        typedef boost::function<void(function_type)> deleter_type;
+        typedef function_nonser<void(function_type)> deleter_type;
 
         hpx::util::plugin::dll dll(
             HPX_MAKE_DLL_STRING(std::string("security")));
@@ -90,7 +91,7 @@ namespace hpx { namespace util { namespace security
           , components::security::signed_certificate_signing_request const &
           , components::security::signed_certificate*);
 
-        typedef boost::function<void(function_type)> deleter_type;
+        typedef function_nonser<void(function_type)> deleter_type;
 
         hpx::util::plugin::dll dll(
             HPX_MAKE_DLL_STRING(std::string("security")));
@@ -119,7 +120,7 @@ namespace hpx { namespace util { namespace security
             components::security::server::subordinate_certificate_authority*
           , components::security::signed_certificate const &);
 
-        typedef boost::function<void(function_type)> deleter_type;
+        typedef function_nonser<void(function_type)> deleter_type;
 
         hpx::util::plugin::dll dll(
             HPX_MAKE_DLL_STRING(std::string("security")));
@@ -148,7 +149,7 @@ namespace hpx { namespace util { namespace security
             components::security::server::certificate_authority_base*
           , components::security::signed_certificate*);
 
-        typedef boost::function<void(function_type)> deleter_type;
+        typedef function_nonser<void(function_type)> deleter_type;
 
         hpx::util::plugin::dll dll(
             HPX_MAKE_DLL_STRING(std::string("security")));
@@ -173,7 +174,7 @@ namespace hpx { namespace util { namespace security
             components::security::server::certificate_authority_base*
           , naming::gid_type*);
 
-        typedef boost::function<void(function_type)> deleter_type;
+        typedef function_nonser<void(function_type)> deleter_type;
 
         hpx::util::plugin::dll dll(
             HPX_MAKE_DLL_STRING(std::string("security")));
@@ -197,7 +198,7 @@ namespace hpx { namespace util { namespace security
             components::security::server::certificate_authority_base*
           , bool*);
 
-        typedef boost::function<void(function_type)> deleter_type;
+        typedef function_nonser<void(function_type)> deleter_type;
 
         hpx::util::plugin::dll dll(
             HPX_MAKE_DLL_STRING(std::string("security")));

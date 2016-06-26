@@ -10,16 +10,15 @@
 #include <hpx/config.hpp>
 #include <hpx/config/asio.hpp>
 #include <hpx/exception.hpp>
+#include <hpx/util/assert.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/io_service_pool.hpp>
 
 #include <boost/asio/io_service.hpp>
-#include <boost/thread/locks.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
-#include <boost/bind.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/locks.hpp>
 
+#include <mutex>
 #include <stdexcept>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -69,7 +68,7 @@ namespace hpx { namespace util
 
     io_service_pool::~io_service_pool()
     {
-        boost::lock_guard<boost::mutex> l(mtx_);
+        std::lock_guard<boost::mutex> l(mtx_);
         stop_locked();
         join_locked();
         clear_locked();
@@ -89,7 +88,7 @@ namespace hpx { namespace util
 
     bool io_service_pool::run(bool join_threads)
     {
-        boost::lock_guard<boost::mutex> l(mtx_);
+        std::lock_guard<boost::mutex> l(mtx_);
 
         // Create a pool of threads to run all of the io_services.
         if (!threads_.empty())   // should be called only once
@@ -120,7 +119,7 @@ namespace hpx { namespace util
 
         for (std::size_t i = 0; i < pool_size_; ++i)
         {
-            boost::thread thread(boost::bind(
+            boost::thread thread(util::bind(
                         &io_service_pool::thread_run, this, i));
             threads_.emplace_back(std::move(thread));
         }
@@ -140,7 +139,7 @@ namespace hpx { namespace util
 
     void io_service_pool::join()
     {
-        boost::lock_guard<boost::mutex> l(mtx_);
+        std::lock_guard<boost::mutex> l(mtx_);
         join_locked();
     }
 
@@ -154,7 +153,7 @@ namespace hpx { namespace util
 
     void io_service_pool::stop()
     {
-        boost::lock_guard<boost::mutex> l(mtx_);
+        std::lock_guard<boost::mutex> l(mtx_);
         stop_locked();
     }
 
@@ -174,7 +173,7 @@ namespace hpx { namespace util
 
     void io_service_pool::clear()
     {
-        boost::lock_guard<boost::mutex> l(mtx_);
+        std::lock_guard<boost::mutex> l(mtx_);
         clear_locked();
     }
 
@@ -190,14 +189,14 @@ namespace hpx { namespace util
 
     bool io_service_pool::stopped()
     {
-        boost::lock_guard<boost::mutex> l(mtx_);
+        std::lock_guard<boost::mutex> l(mtx_);
         return stopped_;
     }
 
     boost::asio::io_service& io_service_pool::get_io_service(int index)
     {
         // use this function for single group io_service pools only
-        boost::lock_guard<boost::mutex> l(mtx_);
+        std::lock_guard<boost::mutex> l(mtx_);
 
         if (index == -1) {
             if (++next_io_service_ == pool_size_)

@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2015 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //  Copyright (c) 2015 Nidhi Makhijani
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -7,14 +7,15 @@
 #if !defined(HPX_RUNTIME_THREADS_RESOURCE_MANAGER_JAN_16_2013_0830AM)
 #define HPX_RUNTIME_THREADS_RESOURCE_MANAGER_JAN_16_2013_0830AM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/runtime/threads/topology.hpp>
-#include <hpx/runtime/threads/thread_executor.hpp>
+#include <hpx/config.hpp>
 #include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/runtime/threads/thread_executor.hpp>
+#include <hpx/runtime/threads/topology.hpp>
 
 #include <boost/atomic.hpp>
-#include <boost/shared_ptr.hpp>
 
+#include <map>
+#include <memory>
 #include <vector>
 
 namespace hpx { namespace  threads
@@ -136,7 +137,7 @@ namespace hpx { namespace  threads
             }
 
             // hold on to proxy
-            boost::shared_ptr<detail::manage_executor> proxy_;
+            std::shared_ptr<detail::manage_executor> proxy_;
 
             // map physical to logical puinit ids
             std::vector<coreids_type> core_ids_;
@@ -159,7 +160,7 @@ namespace hpx { namespace  threads
             {}
 
             // The scheduler proxy this allocation data is for.
-            boost::shared_ptr<detail::manage_executor> proxy_;  // hold on to proxy
+            std::shared_ptr<detail::manage_executor> proxy_;  // hold on to proxy
 
             // Additional allocation to give to a scheduler after proportional
             // allocation decisions are made.

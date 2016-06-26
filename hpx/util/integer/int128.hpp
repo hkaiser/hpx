@@ -9,12 +9,12 @@
 #ifndef HPX_UTIL_INTEGER_INT128_HPP
 #define HPX_UTIL_INTEGER_INT128_HPP
 
-#include <hpx/config/export_definitions.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/serialization/serialization_fwd.hpp>
 
-#include <exception>
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
+#include <exception>
 #include <new>
 
 #include <boost/cstdint.hpp>
@@ -38,7 +38,7 @@ namespace hpx { namespace util { namespace integer
 
     public:
         // Constructors
-        inline int128 () throw () {};
+        inline int128 () throw () : lo(0ull), hi(0ull) {};
 
         inline int128 (const unsigned int & a) throw () : lo (a), hi (0ll) {};
         inline int128 (const signed int & a) throw () : lo (a), hi (0ll) {

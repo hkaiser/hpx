@@ -4,11 +4,13 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include <hpx/hpx.hpp>
+#include <hpx/hpx_init.hpp>
 
 #include "worker_timed.hpp"
 
-#include <iostream>
 #include <algorithm>
+#include <iostream>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 std::size_t num_level_tasks = 16;

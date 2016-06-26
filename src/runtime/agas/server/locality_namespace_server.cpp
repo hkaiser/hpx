@@ -6,20 +6,24 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
+#include <hpx/performance_counters/counters.hpp>
+#include <hpx/performance_counters/counter_creators.hpp>
+#include <hpx/performance_counters/manage_counter_type.hpp>
 #include <hpx/runtime/actions/continuation.hpp>
 #include <hpx/runtime/agas/server/locality_namespace.hpp>
 #include <hpx/runtime/agas/server/primary_namespace.hpp>
 #include <hpx/runtime/naming/resolver_client.hpp>
 #include <hpx/runtime/components/server/runtime_support.hpp>
 #include <hpx/runtime/components/stubs/runtime_support.hpp>
-#include <hpx/include/performance_counters.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/get_and_reset_value.hpp>
 
 #include <list>
-
-#include <boost/fusion/include/at_c.hpp>
-#include <boost/thread/locks.hpp>
+#include <map>
+#include <mutex>
+#include <string>
+#include <vector>
 
 namespace hpx { namespace agas
 {
@@ -171,12 +175,14 @@ void locality_namespace::register_counter_types(
     error_code& ec
     )
 {
+    using util::placeholders::_1;
+    using util::placeholders::_2;
     boost::format help_count(
         "returns the number of invocations of the AGAS service '%s'");
     boost::format help_time(
         "returns the overall execution time of the AGAS service '%s'");
     performance_counters::create_counter_func creator(
-        boost::bind(&performance_counters::agas_raw_counter_creator, _1, _2
+        util::bind(&performance_counters::agas_raw_counter_creator, _1, _2
       , agas::server::locality_namespace_service_name));
 
     for (std::size_t i = 0;
@@ -217,8 +223,10 @@ void locality_namespace::register_global_counter_types(
     error_code& ec
     )
 {
+    using util::placeholders::_1;
+    using util::placeholders::_2;
     performance_counters::create_counter_func creator(
-        boost::bind(&performance_counters::agas_raw_counter_creator, _1, _2
+        util::bind(&performance_counters::agas_raw_counter_creator, _1, _2
       , agas::server::locality_namespace_service_name));
 
     for (std::size_t i = 0;
@@ -308,7 +316,7 @@ response locality_namespace::allocate(
   , error_code& ec
     )
 { // {{{ allocate implementation
-    using boost::fusion::at_c;
+    using hpx::util::get;
 
     // parameters
     parcelset::endpoints_type endpoints = req.get_endpoints();
@@ -316,12 +324,12 @@ response locality_namespace::allocate(
     boost::uint32_t const num_threads = req.get_num_threads();
     naming::gid_type const suggested_prefix = req.get_suggested_prefix();
 
-    boost::unique_lock<mutex_type> l(mutex_);
+    std::unique_lock<mutex_type> l(mutex_);
 
 #if defined(HPX_DEBUG)
     for (partition_table_type::value_type const& partition : partitions_)
     {
-        HPX_ASSERT(at_c<0>(partition.second) != endpoints);
+        HPX_ASSERT(get<0>(partition.second) != endpoints);
     }
 #endif
     // Check for address space exhaustion.
@@ -415,15 +423,15 @@ response locality_namespace::resolve_locality(
     )
 { // {{{ resolve_locality implementation
 
-    using boost::fusion::at_c;
+    using hpx::util::get;
     boost::uint32_t prefix = naming::get_locality_id_from_gid(req.get_gid());
 
-    boost::lock_guard<mutex_type> l(mutex_);
+    std::lock_guard<mutex_type> l(mutex_);
     partition_table_type::iterator it = partitions_.find(prefix);
 
     if(it != partitions_.end())
     {
-        return response(locality_ns_resolve_locality, at_c<0>(it->second));
+        return response(locality_ns_resolve_locality, get<0>(it->second));
     }
 
     return response(locality_ns_resolve_locality, parcelset::endpoints_type(),
@@ -435,13 +443,13 @@ response locality_namespace::free(
   , error_code& ec
     )
 { // {{{ free implementation
-    using boost::fusion::at_c;
+    using hpx::util::get;
 
     // parameters
     naming::gid_type locality = req.get_gid();
     boost::uint32_t prefix = naming::get_locality_id_from_gid(locality);
 
-    boost::unique_lock<mutex_type> l(mutex_);
+    std::unique_lock<mutex_type> l(mutex_);
 
     partition_table_type::iterator pit = partitions_.find(prefix)
                                  , pend = partitions_.end();
@@ -451,10 +459,10 @@ response locality_namespace::free(
         /*
         // Wipe the locality from the tables.
         naming::gid_type locality =
-            naming::get_gid_from_locality_id(at_c<0>(pit->second));
+            naming::get_gid_from_locality_id(get<0>(pit->second));
 
         // first remove entry from reverse partition table
-        prefixes_.erase(at_c<0>(pit->second));
+        prefixes_.erase(get<0>(pit->second));
         */
 
         // now remove it from the main partition table
@@ -526,9 +534,9 @@ response locality_namespace::localities(
   , error_code& ec
     )
 { // {{{ localities implementation
-    using boost::fusion::at_c;
+    using hpx::util::get;
 
-    boost::lock_guard<mutex_type> l(mutex_);
+    std::lock_guard<mutex_type> l(mutex_);
 
     std::vector<boost::uint32_t> p;
 
@@ -553,9 +561,9 @@ response locality_namespace::resolved_localities(
   , error_code& ec
     )
 { // {{{ localities implementation
-    using boost::fusion::at_c;
+    using hpx::util::get;
 
-    boost::lock_guard<mutex_type> l(mutex_);
+    std::lock_guard<mutex_type> l(mutex_);
 
     std::map<naming::gid_type, parcelset::endpoints_type> localities;
 
@@ -567,7 +575,7 @@ response locality_namespace::resolved_localities(
         localities.insert(
             std::make_pair(
                 naming::get_gid_from_locality_id(it->first)
-              , at_c<0>(it->second)
+              , get<0>(it->second)
             )
         );
     }
@@ -587,7 +595,7 @@ response locality_namespace::get_num_localities(
   , error_code& ec
     )
 { // {{{ get_num_localities implementation
-    boost::lock_guard<mutex_type> l(mutex_);
+    std::lock_guard<mutex_type> l(mutex_);
 
     boost::uint32_t num_localities =
         static_cast<boost::uint32_t>(partitions_.size());
@@ -607,7 +615,7 @@ response locality_namespace::get_num_threads(
   , error_code& ec
     )
 { // {{{ get_num_threads implementation
-    boost::lock_guard<mutex_type> l(mutex_);
+    std::lock_guard<mutex_type> l(mutex_);
 
     std::vector<boost::uint32_t> num_threads;
 
@@ -615,8 +623,8 @@ response locality_namespace::get_num_threads(
     for (partition_table_type::iterator it = partitions_.begin();
          it != end; ++it)
     {
-        using boost::fusion::at_c;
-        num_threads.push_back(at_c<1>(it->second));
+        using hpx::util::get;
+        num_threads.push_back(get<1>(it->second));
     }
 
     LAGAS_(info) << (boost::format(
@@ -674,40 +682,41 @@ response locality_namespace::statistics_counter(
 
     typedef locality_namespace::counter_data cd;
 
+    using util::placeholders::_1;
     util::function_nonser<boost::int64_t(bool)> get_data_func;
     if (target == detail::counter_target_count)
     {
         switch (code) {
         case locality_ns_allocate:
-            get_data_func = boost::bind(&cd::get_allocate_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_allocate_count,
+                &counter_data_, _1);
             break;
         case locality_ns_resolve_locality:
-            get_data_func = boost::bind(&cd::get_resolve_locality_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_resolve_locality_count,
+                &counter_data_, _1);
             break;
         case locality_ns_free:
-            get_data_func = boost::bind(&cd::get_free_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_free_count,
+                &counter_data_, _1);
             break;
         case locality_ns_localities:
-            get_data_func = boost::bind(&cd::get_localities_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_localities_count,
+                &counter_data_, _1);
             break;
         case locality_ns_resolved_localities:
-            get_data_func = boost::bind(&cd::get_resolved_localities_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_resolved_localities_count,
+                &counter_data_, _1);
             break;
         case locality_ns_num_localities:
-            get_data_func = boost::bind(&cd::get_num_localities_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_num_localities_count,
+                &counter_data_, _1);
             break;
         case locality_ns_num_threads:
-            get_data_func = boost::bind(&cd::get_num_threads_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_num_threads_count,
+                &counter_data_, _1);
             break;
         case locality_ns_statistics_counter:
-            get_data_func = boost::bind(&cd::get_overall_count, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_overall_count, &counter_data_, _1);
             break;
         default:
             HPX_THROWS_IF(ec, bad_parameter
@@ -720,33 +729,33 @@ response locality_namespace::statistics_counter(
         HPX_ASSERT(detail::counter_target_time == target);
         switch (code) {
         case locality_ns_allocate:
-            get_data_func = boost::bind(&cd::get_allocate_time,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_allocate_time,
+                &counter_data_, _1);
             break;
         case locality_ns_resolve_locality:
-            get_data_func = boost::bind(&cd::get_resolve_locality_time,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_resolve_locality_time,
+                &counter_data_, _1);
             break;
         case locality_ns_free:
-            get_data_func = boost::bind(&cd::get_free_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_free_time, &counter_data_, _1);
             break;
         case locality_ns_localities:
-            get_data_func = boost::bind(&cd::get_localities_time,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_localities_time,
+                &counter_data_, _1);
             break;
         case locality_ns_resolved_localities:
-            get_data_func = boost::bind(&cd::get_resolved_localities_time,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_resolved_localities_time,
+                &counter_data_, _1);
             break;
         case locality_ns_num_localities:
-            get_data_func = boost::bind(&cd::get_num_localities_time,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_num_localities_time,
+                &counter_data_, _1);
             break;
         case locality_ns_num_threads:
-            get_data_func = boost::bind(&cd::get_num_threads_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_num_threads_time, &counter_data_, _1);
             break;
         case locality_ns_statistics_counter:
-            get_data_func = boost::bind(&cd::get_overall_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_overall_time, &counter_data_, _1);
             break;
         default:
             HPX_THROWS_IF(ec, bad_parameter

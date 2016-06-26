@@ -8,22 +8,32 @@
 #if !defined(HPX_UNORDERED_MAP_NOV_11_2014_0852PM)
 #define HPX_UNORDERED_MAP_NOV_11_2014_0852PM
 
-#include <hpx/include/lcos.hpp>
-#include <hpx/include/util.hpp>
-#include <hpx/include/components.hpp>
+#include <hpx/config.hpp>
+#include <hpx/lcos/wait_all.hpp>
+#include <hpx/runtime/components/client_base.hpp>
+#include <hpx/runtime/components/component_type.hpp>
+#include <hpx/runtime/components/copy_component.hpp>
+#include <hpx/runtime/components/new.hpp>
+#include <hpx/runtime/components/server/distributed_metadata_base.hpp>
+#include <hpx/runtime/get_ptr.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/runtime/serialization/vector.hpp>
 #include <hpx/runtime/serialization/unordered_map.hpp>
+#include <hpx/runtime/serialization/vector.hpp>
+#include <hpx/traits/is_distribution_policy.hpp>
+#include <hpx/util/assert.hpp>
+#include <hpx/util/bind.hpp>
 
 #include <hpx/components/containers/container_distribution_policy.hpp>
 #include <hpx/components/containers/unordered/partition_unordered_map_component.hpp>
 #include <hpx/components/containers/unordered/unordered_map_segmented_iterator.hpp>
 
+#include <boost/cstdint.hpp>
+
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <type_traits>
-
-#include <boost/cstdint.hpp>
+#include <vector>
 
 /// The hpx::unordered_map and its API's are defined here.
 ///
@@ -280,7 +290,7 @@ namespace hpx
                 return hpx::async<action_type>(this->partition_.get(), std::move(d));
             }
 
-            boost::shared_ptr<partition_unordered_map_server> local_data_;
+            std::shared_ptr<partition_unordered_map_server> local_data_;
         };
 
         // The list of partitions belonging to this unordered_map.
@@ -337,7 +347,7 @@ namespace hpx
         ///////////////////////////////////////////////////////////////////////
         static void get_ptr_helper(std::size_t loc,
             partitions_vector_type& partitions,
-            future<boost::shared_ptr<partition_unordered_map_server> > && f)
+            future<std::shared_ptr<partition_unordered_map_server> > && f)
         {
             partitions[loc].local_data_ = f.get();
         }
@@ -492,7 +502,7 @@ namespace hpx
         unordered_map(DistPolicy const& policy,
             typename std::enable_if<
                     traits::is_distribution_policy<DistPolicy>::value
-                >::type* = 0)
+                >::type* = nullptr)
         {
             create(policy);
         }
@@ -508,7 +518,7 @@ namespace hpx
         unordered_map(std::size_t bucket_count, DistPolicy const& policy,
             typename std::enable_if<
                     traits::is_distribution_policy<DistPolicy>::value
-                >::type* = 0)
+                >::type* = nullptr)
         {
             create(policy, bucket_count, Hash(), KeyEqual());
         }
@@ -518,7 +528,7 @@ namespace hpx
                 Hash const& hash, DistPolicy const& policy,
                 typename std::enable_if<
                     traits::is_distribution_policy<DistPolicy>::value
-                >::type* = 0)
+                >::type* = nullptr)
           : hash_base_type(hash, KeyEqual())
         {
             create(policy, bucket_count, hash, KeyEqual());
@@ -530,7 +540,7 @@ namespace hpx
                 DistPolicy const& policy,
                 typename std::enable_if<
                     traits::is_distribution_policy<DistPolicy>::value
-                >::type* = 0)
+                >::type* = nullptr)
           : hash_base_type(hash, equal)
         {
             create(policy, bucket_count, hash, equal);

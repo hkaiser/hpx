@@ -16,6 +16,7 @@
 #include <hpx/util/reinitializable_static.hpp>
 #include <hpx/util/safe_lexical_cast.hpp>
 #include <hpx/util/high_resolution_clock.hpp>
+#include <hpx/util/runtime_configuration.hpp>
 #include <hpx/runtime/actions/action_support.hpp>
 #include <hpx/runtime/parcelset/parcel.hpp>
 #include <hpx/runtime/parcelset/parcelport.hpp>
@@ -38,16 +39,18 @@
 #endif
 
 #include <boost/format.hpp>
-#include <boost/thread/thread.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/lexical_cast.hpp>
+#include <boost/thread/thread.hpp>
 #include <boost/ref.hpp>
 
-#include <sstream>
+#include <cstdint>
 #include <cstdlib>
+#include <memory>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <vector>
 
 namespace hpx { namespace detail
 {
@@ -183,7 +186,12 @@ namespace hpx { namespace agas
 // (first round trip)
 struct registration_header
 {
-    registration_header() {}
+    registration_header()
+      : primary_ns_ptr(0)
+      , symbol_ns_ptr(0)
+      , cores_needed(0)
+      , num_threads(0)
+    {}
 
     // TODO: pass head address as a GVA
     registration_header(
@@ -233,7 +241,10 @@ struct registration_header
 // is trying to register (first roundtrip).
 struct notification_header
 {
-    notification_header() {}
+    notification_header()
+      : num_localities(0)
+      , used_cores(0)
+    {}
 
     notification_header(
         naming::gid_type const& prefix_
@@ -634,7 +645,7 @@ void notify_worker(notification_header const& header)
       , rt.get_runtime_support_lva());
     agas_client.bind_local(runtime_support_gid, runtime_support_address);
 
-    runtime_support_gid.set_lsb(boost::uint64_t(0));
+    runtime_support_gid.set_lsb(std::uint64_t(0));
     agas_client.bind_local(runtime_support_gid, runtime_support_address);
 
     naming::gid_type const memory_gid(header.prefix.get_msb()
@@ -932,7 +943,7 @@ void big_boot_barrier::notify()
     naming::resolver_client& agas_client = rt.get_agas_client();
 
     {
-        boost::lock_guard<boost::mutex> lk(mtx, boost::adopt_lock);
+        std::lock_guard<boost::mutex> lk(mtx, std::adopt_lock);
         if (agas_client.get_status() == state_starting)
             --connected;
     }
@@ -972,7 +983,7 @@ void create_big_boot_barrier(
   , parcelset::endpoints_type const& endpoints_
   , util::runtime_configuration const& ini_
 ) {
-    util::reinitializable_static<boost::shared_ptr<big_boot_barrier>, bbb_tag> bbb;
+    util::reinitializable_static<std::shared_ptr<big_boot_barrier>, bbb_tag> bbb;
     if (bbb.get())
     {
         HPX_THROW_EXCEPTION(internal_server_error,
@@ -984,7 +995,7 @@ void create_big_boot_barrier(
 
 void destroy_big_boot_barrier()
 {
-    util::reinitializable_static<boost::shared_ptr<big_boot_barrier>, bbb_tag> bbb;
+    util::reinitializable_static<std::shared_ptr<big_boot_barrier>, bbb_tag> bbb;
     if (!bbb.get())
     {
         HPX_THROW_EXCEPTION(internal_server_error,
@@ -996,7 +1007,7 @@ void destroy_big_boot_barrier()
 
 big_boot_barrier& get_big_boot_barrier()
 {
-    util::reinitializable_static<boost::shared_ptr<big_boot_barrier>, bbb_tag> bbb;
+    util::reinitializable_static<std::shared_ptr<big_boot_barrier>, bbb_tag> bbb;
     if (!bbb.get())
     {
         HPX_THROW_EXCEPTION(internal_server_error,

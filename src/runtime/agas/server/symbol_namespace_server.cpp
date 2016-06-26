@@ -1,23 +1,29 @@
 ////////////////////////////////////////////////////////////////////////////////
 //  Copyright (c) 2011 Bryce Adelstein-Lelbach
-//  Copyright (c) 2012-2014 Hartmut Kaiser
+//  Copyright (c) 2012-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/apply.hpp>
+#include <hpx/performance_counters/counters.hpp>
+#include <hpx/performance_counters/counter_creators.hpp>
+#include <hpx/performance_counters/manage_counter_type.hpp>
 #include <hpx/runtime/naming/resolver_client.hpp>
 #include <hpx/runtime/naming/split_gid.hpp>
 #include <hpx/runtime/actions/continuation.hpp>
 #include <hpx/runtime/agas/interface.hpp>
 #include <hpx/runtime/agas/server/symbol_namespace.hpp>
-#include <hpx/include/performance_counters.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/get_and_reset_value.hpp>
+#include <hpx/util/unlock_guard.hpp>
 
-#include <boost/make_shared.hpp>
-#include <boost/thread/locks.hpp>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
 
 namespace hpx { namespace agas
 {
@@ -155,12 +161,14 @@ void symbol_namespace::register_counter_types(
     error_code& ec
     )
 {
+    using util::placeholders::_1;
+    using util::placeholders::_2;
     boost::format help_count(
         "returns the number of invocations of the AGAS service '%s'");
     boost::format help_time(
         "returns the overall execution time of the AGAS service '%s'");
     performance_counters::create_counter_func creator(
-        boost::bind(&performance_counters::agas_raw_counter_creator, _1, _2
+        util::bind(&performance_counters::agas_raw_counter_creator, _1, _2
       , agas::server::symbol_namespace_service_name));
 
     for (std::size_t i = 0;
@@ -199,8 +207,10 @@ void symbol_namespace::register_global_counter_types(
     error_code& ec
     )
 {
+    using util::placeholders::_1;
+    using util::placeholders::_2;
     performance_counters::create_counter_func creator(
-        boost::bind(&performance_counters::agas_raw_counter_creator, _1, _2
+        util::bind(&performance_counters::agas_raw_counter_creator, _1, _2
       , agas::server::symbol_namespace_service_name));
 
     for (std::size_t i = 0;
@@ -299,7 +309,7 @@ response symbol_namespace::bind(
     std::string key = req.get_name();
     naming::gid_type gid = req.get_gid();
 
-    boost::unique_lock<mutex_type> l(mutex_);
+    std::unique_lock<mutex_type> l(mutex_);
 
     gid_table_type::iterator it = gids_.find(key);
     gid_table_type::iterator end = gids_.end();
@@ -346,7 +356,7 @@ response symbol_namespace::bind(
     }
 
     if (HPX_UNLIKELY(!util::insert_checked(gids_.insert(
-            std::make_pair(key, boost::make_shared<naming::gid_type>(gid))))))
+            std::make_pair(key, std::make_shared<naming::gid_type>(gid))))))
     {
         l.unlock();
 
@@ -392,10 +402,10 @@ response symbol_namespace::bind(
             }
 
             // hold on to the gid while the map is unlocked
-            boost::shared_ptr<naming::gid_type> current_gid = gid_it->second;
+            std::shared_ptr<naming::gid_type> current_gid = gid_it->second;
 
             {
-                util::unlock_guard<boost::unique_lock<mutex_type> > ul(l);
+                util::unlock_guard<std::unique_lock<mutex_type> > ul(l);
 
                 // split the credit as the receiving end will expect to keep the
                 // object alive
@@ -403,7 +413,7 @@ response symbol_namespace::bind(
                     naming::detail::split_gid_if_needed(*current_gid).get();
 
                 // trigger the lco
-                set_lco_value(id, new_gid);
+                set_lco_value(id, std::move(new_gid));
             }
         }
     }
@@ -428,7 +438,7 @@ response symbol_namespace::resolve(
     // parameters
     std::string key = req.get_name();
 
-    boost::unique_lock<mutex_type> l(mutex_);
+    std::unique_lock<mutex_type> l(mutex_);
 
     gid_table_type::iterator it = gids_.find(key);
     gid_table_type::iterator end = gids_.end();
@@ -451,7 +461,7 @@ response symbol_namespace::resolve(
         ec = make_success_code();
 
     // hold on to gid before unlocking the map
-    boost::shared_ptr<naming::gid_type> current_gid(it->second);
+    std::shared_ptr<naming::gid_type> current_gid(it->second);
 
     l.unlock();
     naming::gid_type gid = naming::detail::split_gid_if_needed(*current_gid).get();
@@ -471,7 +481,7 @@ response symbol_namespace::unbind(
     // parameters
     std::string key = req.get_name();
 
-    boost::lock_guard<mutex_type> l(mutex_);
+    std::lock_guard<mutex_type> l(mutex_);
 
     gid_table_type::iterator it = gids_.find(key);
     gid_table_type::iterator end = gids_.end();
@@ -510,7 +520,7 @@ response symbol_namespace::iterate(
 { // {{{ iterate implementation
     iterate_names_function_type f = req.get_iterate_names_function();
 
-    boost::unique_lock<mutex_type> l(mutex_);
+    std::unique_lock<mutex_type> l(mutex_);
 
     for (gid_table_type::iterator it = gids_.begin(); it != gids_.end(); ++it)
     {
@@ -518,7 +528,7 @@ response symbol_namespace::iterate(
         naming::gid_type gid = *(it->second);
 
         {
-            util::unlock_guard<boost::unique_lock<mutex_type> > ul(l);
+            util::unlock_guard<std::unique_lock<mutex_type> > ul(l);
             f(key, gid);
         }
 
@@ -552,7 +562,7 @@ response symbol_namespace::on_event(
         return response(symbol_ns_on_event, no_success);
     }
 
-    boost::unique_lock<mutex_type> l(mutex_);
+    std::unique_lock<mutex_type> l(mutex_);
 
     bool handled = false;
     if (call_for_past_events)
@@ -561,12 +571,12 @@ response symbol_namespace::on_event(
         if (it != gids_.end())
         {
             // hold on to entry while map is unlocked
-            boost::shared_ptr<naming::gid_type> current_gid(it->second);
+            std::shared_ptr<naming::gid_type> current_gid(it->second);
 
             // split the credit as the receiving end will expect to keep the
             // object alive
             {
-                util::unlock_guard<boost::unique_lock<mutex_type> > ul(l);
+                util::unlock_guard<std::unique_lock<mutex_type> > ul(l);
                 naming::gid_type new_gid = naming::detail::split_gid_if_needed(
                     *current_gid).get();
 
@@ -574,7 +584,7 @@ response symbol_namespace::on_event(
                 handled = true;
 
                 // trigger LCO as name is already bound to an id
-                set_lco_value(lco, new_gid);
+                set_lco_value(lco, std::move(new_gid));
             }
         }
     }
@@ -657,28 +667,29 @@ response symbol_namespace::statistics_counter(
 
     typedef symbol_namespace::counter_data cd;
 
+    using util::placeholders::_1;
     util::function_nonser<boost::int64_t(bool)> get_data_func;
     if (target == detail::counter_target_count)
     {
         switch (code) {
         case symbol_ns_bind:
-            get_data_func = boost::bind(&cd::get_bind_count, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_bind_count, &counter_data_, _1);
             break;
         case symbol_ns_resolve:
-            get_data_func = boost::bind(&cd::get_resolve_count, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_resolve_count, &counter_data_, _1);
             break;
         case symbol_ns_unbind:
-            get_data_func = boost::bind(&cd::get_unbind_count, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_unbind_count, &counter_data_, _1);
             break;
         case symbol_ns_iterate_names:
-            get_data_func = boost::bind(&cd::get_iterate_names_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_iterate_names_count,
+                &counter_data_, _1);
             break;
         case symbol_ns_on_event:
-            get_data_func = boost::bind(&cd::get_on_event_count, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_on_event_count, &counter_data_, _1);
             break;
         case symbol_ns_statistics_counter:
-            get_data_func = boost::bind(&cd::get_overall_count, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_overall_count, &counter_data_, _1);
             break;
         default:
             HPX_THROWS_IF(ec, bad_parameter
@@ -691,23 +702,23 @@ response symbol_namespace::statistics_counter(
         HPX_ASSERT(detail::counter_target_time == target);
         switch (code) {
         case symbol_ns_bind:
-            get_data_func = boost::bind(&cd::get_bind_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_bind_time, &counter_data_, _1);
             break;
         case symbol_ns_resolve:
-            get_data_func = boost::bind(&cd::get_resolve_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_resolve_time, &counter_data_, _1);
             break;
         case symbol_ns_unbind:
-            get_data_func = boost::bind(&cd::get_unbind_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_unbind_time, &counter_data_, _1);
             break;
         case symbol_ns_iterate_names:
-            get_data_func = boost::bind(&cd::get_iterate_names_time,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_iterate_names_time,
+                &counter_data_, _1);
             break;
         case symbol_ns_on_event:
-            get_data_func = boost::bind(&cd::get_on_event_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_on_event_time, &counter_data_, _1);
             break;
         case symbol_ns_statistics_counter:
-            get_data_func = boost::bind(&cd::get_overall_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_overall_time, &counter_data_, _1);
             break;
         default:
             HPX_THROWS_IF(ec, bad_parameter

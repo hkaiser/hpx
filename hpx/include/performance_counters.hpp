@@ -7,9 +7,9 @@
 #if !defined(HPX_PERFORMANCE_COUNTERS_MAR_01_2009_0212PM)
 #define HPX_PERFORMANCE_COUNTERS_MAR_01_2009_0212PM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/performance_counters/counters.hpp>
+#include <hpx/config.hpp>
 #include <hpx/performance_counters/counter_creators.hpp>
+#include <hpx/performance_counters/counters.hpp>
 #include <hpx/performance_counters/manage_counter.hpp>
 #include <hpx/performance_counters/manage_counter_type.hpp>
 #include <hpx/performance_counters/performance_counter.hpp>

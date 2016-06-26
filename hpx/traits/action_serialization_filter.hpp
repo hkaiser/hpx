@@ -13,13 +13,13 @@ namespace hpx { namespace traits
 {
     ///////////////////////////////////////////////////////////////////////////
     // Customization point for action stack size
-    template <typename Action, typename Enable>
+    template <typename Action, typename Enable = void>
     struct action_serialization_filter
     {
         // return a new instance of a serialization filter
         static serialization::binary_filter* call(parcelset::parcel const& /*p*/)
         {
-            return 0;   // by default actions don't have a serialization filter
+            return nullptr;   // by default actions don't have a serialization filter
         }
     };
 }}

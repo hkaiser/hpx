@@ -6,11 +6,14 @@
 #if !defined(HPX_SHENEOS_PARTITION3D_AUG_08_2011_1220PM)
 #define HPX_SHENEOS_PARTITION3D_AUG_08_2011_1220PM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/lcos/future.hpp>
 #include <hpx/include/components.hpp>
 #include <hpx/runtime/actions/component_action.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
+
+#include <string>
+#include <vector>
 
 #include "../dimension.hpp"
 

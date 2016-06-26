@@ -6,7 +6,7 @@
 #if !defined(HPX_TRAITS_PROMISE_LOCAL_RESULT_OCT_27_2011_0416PM)
 #define HPX_TRAITS_PROMISE_LOCAL_RESULT_OCT_27_2011_0416PM
 
-#include <hpx/traits.hpp>
+#include <hpx/config.hpp>
 #include <hpx/util/unused.hpp>
 
 #include <boost/mpl/identity.hpp>
@@ -14,7 +14,7 @@
 namespace hpx { namespace traits
 {
     ///////////////////////////////////////////////////////////////////////////
-    template <typename Result, typename Enable>
+    template <typename Result, typename Enable = void>
     struct promise_local_result
       : boost::mpl::identity<Result>
     {};

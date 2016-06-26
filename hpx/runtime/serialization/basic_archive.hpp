@@ -8,14 +8,13 @@
 #define HPX_SERIALIZATION_BASIC_ARCHIVE_HPP
 
 #include <hpx/config.hpp>
-#include <hpx/traits/is_bitwise_serializable.hpp>
 
 #include <boost/cstdint.hpp>
 #include <boost/type_traits/is_pointer.hpp>
 
 #include <algorithm>
-#include <map>
 #include <iostream>
+#include <map>
 
 namespace hpx { namespace serialization
 {

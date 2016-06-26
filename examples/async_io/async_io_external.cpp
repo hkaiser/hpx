@@ -11,6 +11,8 @@
 #include <hpx/include/runtime.hpp>
 #include <hpx/include/iostreams.hpp>
 
+#include <memory>
+
 ///////////////////////////////////////////////////////////////////////////////
 struct registration_wrapper
 {
@@ -21,13 +23,13 @@ struct registration_wrapper
         // each external OS-thread intended to invoke HPX functionality.
         // Calling this function more than once will silently fail (will
         // return false).
-        rt_->register_thread(name);
+        hpx::register_thread(rt_, name);
     }
     ~registration_wrapper()
     {
         // Unregister the thread from HPX, this should be done once in the
         // end before the external thread exists.
-        rt_->unregister_thread();
+        hpx::unregister_thread(rt_);
     }
 
     hpx::runtime* rt_;
@@ -35,7 +37,7 @@ struct registration_wrapper
 
 // this function will be executed by an HPX thread
 void set_value(
-    boost::shared_ptr<hpx::lcos::local::promise<int> > p,
+    std::shared_ptr<hpx::lcos::local::promise<int> > p,
     int result)
 {
     // notify the waiting HPX thread and return a value
@@ -44,7 +46,7 @@ void set_value(
 
 // this function will be executed by a dedicated OS thread
 void do_async_io(char const* string_to_write,
-    boost::shared_ptr<hpx::lcos::local::promise<int> > p,
+    std::shared_ptr<hpx::lcos::local::promise<int> > p,
     hpx::runtime* rt)
 {
     // register this thread in order to be able to call HPX functionality
@@ -62,8 +64,8 @@ void do_async_io(char const* string_to_write,
 // This function will be executed by an HPX thread
 int io(char const* string_to_write)
 {
-    boost::shared_ptr<hpx::lcos::local::promise<int> > p =
-        boost::make_shared<hpx::lcos::local::promise<int> >();
+    std::shared_ptr<hpx::lcos::local::promise<int> > p =
+        std::make_shared<hpx::lcos::local::promise<int> >();
 
     // Create a new external OS-thread and schedule the handler to
     // run on one of its OS-threads.

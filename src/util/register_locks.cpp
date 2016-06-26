@@ -4,7 +4,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
 #include <hpx/exception.hpp>
 #include <hpx/runtime/get_config_entry.hpp>
 #include <hpx/util/logging.hpp>
@@ -12,7 +12,9 @@
 #include <hpx/util/thread_specific_ptr.hpp>
 #include <hpx/lcos/local/spinlock.hpp>
 
-#include <boost/ptr_container/ptr_map.hpp>
+#include <map>
+#include <string>
+#include <utility>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace util
@@ -24,7 +26,7 @@ namespace hpx { namespace util
         {
             lock_data()
               : ignore_(false)
-              , user_data_(0)
+              , user_data_(nullptr)
             {
 #ifdef HPX_HAVE_VERIFY_LOCKS_BACKTRACE
                 backtrace_ = hpx::detail::backtrace_direct();
@@ -55,12 +57,13 @@ namespace hpx { namespace util
         struct register_locks
         {
             typedef lcos::local::spinlock mutex_type;
-            typedef boost::ptr_map<void const*, lock_data> held_locks_map;
+            typedef std::map<void const*, lock_data> held_locks_map;
 
             struct held_locks_data
             {
                 held_locks_data()
                   : enabled_(true)
+                  , ignore_all_locks_(false)
                 {}
 
                 held_locks_map data_;
@@ -75,63 +78,63 @@ namespace hpx { namespace util
 
             static held_locks_map& get_lock_map()
             {
-                if (NULL == held_locks_.get())
+                if (nullptr == held_locks_.get())
                 {
                     held_locks_.reset(new held_locks_data());
                 }
 
-                HPX_ASSERT(NULL != held_locks_.get());
+                HPX_ASSERT(nullptr != held_locks_.get());
                 return held_locks_.get()->data_;
             }
 
             static bool get_lock_enabled()
             {
-                if (NULL == held_locks_.get())
+                if (nullptr == held_locks_.get())
                 {
                     held_locks_.reset(new held_locks_data());
                 }
 
                 detail::register_locks::held_locks_data* m = held_locks_.get();
-                HPX_ASSERT(NULL != m);
+                HPX_ASSERT(nullptr != m);
 
                 return m->enabled_;
             }
 
             static void set_lock_enabled(bool enable)
             {
-                if (NULL == held_locks_.get())
+                if (nullptr == held_locks_.get())
                 {
                     held_locks_.reset(new held_locks_data());
                 }
 
                 detail::register_locks::held_locks_data* m = held_locks_.get();
-                HPX_ASSERT(NULL != m);
+                HPX_ASSERT(nullptr != m);
 
                 m->enabled_ = enable;
             }
 
             static bool get_ignore_all_locks()
             {
-                if (NULL == held_locks_.get())
+                if (nullptr == held_locks_.get())
                 {
                     held_locks_.reset(new held_locks_data());
                 }
 
                 detail::register_locks::held_locks_data* m = held_locks_.get();
-                HPX_ASSERT(NULL != m);
+                HPX_ASSERT(nullptr != m);
 
                 return !m->ignore_all_locks_;
             }
 
             static void set_ignore_all_locks(bool enable)
             {
-                if (NULL == held_locks_.get())
+                if (nullptr == held_locks_.get())
                 {
                     held_locks_.reset(new held_locks_data());
                 }
 
                 detail::register_locks::held_locks_data* m = held_locks_.get();
-                HPX_ASSERT(NULL != m);
+                HPX_ASSERT(nullptr != m);
 
                 m->ignore_all_locks_ = enable;
             }
@@ -175,7 +178,7 @@ namespace hpx { namespace util
         using detail::register_locks;
 
         if (register_locks::lock_detection_enabled_ &&
-            0 != threads::get_self_ptr())
+            nullptr != threads::get_self_ptr())
         {
             register_locks::held_locks_map& held_locks =
                 register_locks::get_lock_map();
@@ -186,10 +189,10 @@ namespace hpx { namespace util
 
             std::pair<register_locks::held_locks_map::iterator, bool> p;
             if (!data) {
-                p = held_locks.insert(lock, new detail::lock_data);
+                p = held_locks.insert(std::make_pair(lock, detail::lock_data()));
             }
             else {
-                p = held_locks.insert(lock, new detail::lock_data(data));
+                p = held_locks.insert(std::make_pair(lock, detail::lock_data(data)));
             }
             return p.second;
         }
@@ -202,7 +205,7 @@ namespace hpx { namespace util
         using detail::register_locks;
 
         if (register_locks::lock_detection_enabled_ &&
-            0 != threads::get_self_ptr())
+            nullptr != threads::get_self_ptr())
         {
             register_locks::held_locks_map& held_locks =
                 register_locks::get_lock_map();
@@ -228,7 +231,7 @@ namespace hpx { namespace util
             for (iterator it = held_locks.begin(); it != end; ++it)
             {
                 //lock_data const& data = *(*it).second;
-                if (!(*it).second->ignore_)
+                if (!it->second.ignore_)
                     return true;
             }
 
@@ -245,7 +248,7 @@ namespace hpx { namespace util
             register_locks::get_lock_enabled();
 
         if (enabled && register_locks::lock_detection_enabled_ &&
-            0 != threads::get_self_ptr())
+            nullptr != threads::get_self_ptr())
         {
             register_locks::held_locks_map& held_locks =
                 register_locks::get_lock_map();
@@ -324,7 +327,7 @@ namespace hpx { namespace util
         void set_ignore_status(void const* lock, bool status)
         {
             if (register_locks::lock_detection_enabled_ &&
-                0 != threads::get_self_ptr())
+                nullptr != threads::get_self_ptr())
             {
                 register_locks::held_locks_map& held_locks =
                     register_locks::get_lock_map();
@@ -340,7 +343,7 @@ namespace hpx { namespace util
                     return;
                 }
 
-                it->second->ignore_ = status;
+                it->second.ignore_ = status;
             }
         }
     }
@@ -410,5 +413,3 @@ namespace hpx { namespace util
     }
 #endif
 }}
-
-

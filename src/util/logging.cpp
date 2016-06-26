@@ -4,7 +4,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
 
 #if defined(HPX_HAVE_LOGGING)
 
@@ -23,12 +23,15 @@
 
 #include <boost/version.hpp>
 #include <boost/config.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/filesystem/operations.hpp>
 
 #include <boost/assign/std/vector.hpp>
 
 #include <cstddef>
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 #if defined(ANDROID) || defined(__ANDROID__)
 #include <android/log.h>
@@ -125,7 +128,7 @@ namespace hpx { namespace util
             return "  <always>";
         }
 
-        std::string unknown = boost::lexical_cast<std::string>(level);
+        std::string unknown = std::to_string(level);
         return std::string((std::max)(7-unknown.size(), std::size_t(0)), ' ') +
             "<" + unknown + ">";
     }
@@ -192,7 +195,7 @@ namespace hpx { namespace util
         void operator()(param str) const
         {
             threads::thread_self* self = threads::get_self_ptr();
-            if (0 != self) {
+            if (nullptr != self) {
                 // called from inside a HPX thread
                 threads::thread_id_type id = threads::get_self_id();
                 if (id != threads::invalid_thread_id) {
@@ -220,7 +223,7 @@ namespace hpx { namespace util
         void operator()(param str) const
         {
             threads::thread_self* self = threads::get_self_ptr();
-            if (0 != self) {
+            if (nullptr != self) {
                 // called from inside a HPX thread
                 std::size_t phase = self->get_thread_phase();
                 if (0 != phase) {
@@ -271,7 +274,7 @@ namespace hpx { namespace util
         void operator()(param str) const
         {
             threads::thread_id_repr_type parent_id = threads::get_parent_id();
-            if (0 != parent_id && threads::invalid_thread_id != parent_id) {
+            if (nullptr != parent_id && threads::invalid_thread_id != parent_id) {
                 // called from inside a HPX thread
                 std::stringstream out;
                 out << std::hex << std::setw(sizeof(void*)*2)
@@ -410,7 +413,7 @@ namespace hpx { namespace util
 
         if (ini.has_section("hpx.logging.agas")) {
             util::section const* logini = ini.get_section("hpx.logging.agas");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);
@@ -462,7 +465,7 @@ namespace hpx { namespace util
 
         if (ini.has_section("hpx.logging.parcel")) {
             util::section const* logini = ini.get_section("hpx.logging.parcel");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);
@@ -515,7 +518,7 @@ namespace hpx { namespace util
 
         if (ini.has_section("hpx.logging.timing")) {
             util::section const* logini = ini.get_section("hpx.logging.timing");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);
@@ -570,7 +573,7 @@ namespace hpx { namespace util
 
         if (ini.has_section("hpx.logging")) {
             util::section const* logini = ini.get_section("hpx.logging");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);
@@ -609,8 +612,8 @@ namespace hpx { namespace util
             hpx_level()->set_enabled(lvl);
 
             // errors are logged to the given destination and to cerr
-            error_writer.add_destination("console", console(lvl, destination_hpx));
-            //-V106
+            error_writer.add_destination("console",
+                console(lvl, destination_hpx)); //-V106
 #if !defined(ANDROID) && !defined(__ANDROID__)
             if (logdest != "cerr")
                 error_writer.write(logformat, logdest + " cerr");
@@ -623,8 +626,8 @@ namespace hpx { namespace util
         else {
             // errors are always logged to cerr
             if (!isconsole) {
-                error_writer.add_destination("console", console(lvl,
-                    destination_hpx)); //-V106
+                error_writer.add_destination("console",
+                    console(lvl, destination_hpx)); //-V106
                 error_writer.write(logformat, "console");
             }
             else {
@@ -657,7 +660,7 @@ namespace hpx { namespace util
 
         if (ini.has_section("hpx.logging.application")) {
             util::section const* logini = ini.get_section("hpx.logging.application");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);
@@ -710,7 +713,7 @@ namespace hpx { namespace util
 
         if (ini.has_section("hpx.logging.debuglog")) {
             util::section const* logini = ini.get_section("hpx.logging.debuglog");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);
@@ -739,8 +742,8 @@ namespace hpx { namespace util
             if (logformat.empty())
                 logformat = "|\\n";
 
-            writer.add_destination("console", console(lvl, destination_debuglog));
-            //-V106
+            writer.add_destination("console",
+                console(lvl, destination_debuglog)); //-V106
             writer.write(logformat, logdest);
             detail::define_formatters(writer);
 
@@ -761,7 +764,7 @@ namespace hpx { namespace util
 
         if (ini.has_section("hpx.logging.console.agas")) {
             util::section const* logini = ini.get_section("hpx.logging.console.agas");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);
@@ -810,7 +813,7 @@ namespace hpx { namespace util
         if (ini.has_section("hpx.logging.console.parcel")) {
             util::section const* logini =
                 ini.get_section("hpx.logging.console.parcel");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);
@@ -858,7 +861,7 @@ namespace hpx { namespace util
 
         if (ini.has_section("hpx.logging.console.timing")) {
             util::section const* logini = ini.get_section("hpx.logging.console.timing");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);
@@ -906,7 +909,7 @@ namespace hpx { namespace util
 
         if (ini.has_section("hpx.logging.console")) {
             util::section const* logini = ini.get_section("hpx.logging.console");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);
@@ -954,7 +957,7 @@ namespace hpx { namespace util
         if (ini.has_section("hpx.logging.console.application")) {
             util::section const* logini =
                 ini.get_section("hpx.logging.console.application");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);
@@ -1003,7 +1006,7 @@ namespace hpx { namespace util
         if (ini.has_section("hpx.logging.console.debuglog")) {
             util::section const* logini =
                 ini.get_section("hpx.logging.console.debuglog");
-            HPX_ASSERT(NULL != logini);
+            HPX_ASSERT(nullptr != logini);
 
             std::string empty;
             loglevel = logini->get_entry("level", empty);

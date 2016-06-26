@@ -3,7 +3,8 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/runtime/threads/executors/thread_pool_executors.hpp>
+
 #include <hpx/runtime/threads/resource_manager.hpp>
 #if defined(HPX_HAVE_LOCAL_SCHEDULER)
 #include <hpx/runtime/threads/policies/local_queue_scheduler.hpp>
@@ -21,12 +22,21 @@
 #include <hpx/runtime/threads/detail/scheduling_loop.hpp>
 #include <hpx/runtime/threads/detail/create_thread.hpp>
 #include <hpx/runtime/threads/detail/set_thread_state.hpp>
-#include <hpx/runtime/threads/executors/thread_pool_executors.hpp>
 #include <hpx/runtime/threads/executors/manage_thread_executor.hpp>
+#include <hpx/runtime/threads/thread_enums.hpp>
 #include <hpx/util/assert.hpp>
 #include <hpx/util/bind.hpp>
+#include <hpx/util/date_time_chrono.hpp>
+#include <hpx/util/thread_description.hpp>
+#include <hpx/util/unique_function.hpp>
 
-#include <boost/thread/locks.hpp>
+#include <boost/atomic.hpp>
+#include <boost/chrono/chrono.hpp>
+
+#include <cstddef>
+#include <cstdint>
+#include <mutex>
+#include <utility>
 
 namespace hpx { namespace threads { namespace detail
 {
@@ -212,7 +222,7 @@ namespace hpx { namespace threads { namespace executors { namespace detail
 
     // Return an estimate of the number of waiting tasks.
     template <typename Scheduler>
-    boost::uint64_t thread_pool_executor<Scheduler>::num_pending_closures(
+    std::uint64_t thread_pool_executor<Scheduler>::num_pending_closures(
         error_code& ec) const
     {
         if (&ec != &throws)
@@ -237,7 +247,7 @@ namespace hpx { namespace threads { namespace executors { namespace detail
         }
         ~on_self_reset()
         {
-            threads::detail::set_self_ptr(0);
+            threads::detail::set_self_ptr(nullptr);
         }
     };
 
@@ -276,7 +286,7 @@ namespace hpx { namespace threads { namespace executors { namespace detail
             shutdown_sem_(shutdown_sem),
             self_(self)
         {
-            threads::detail::set_self_ptr(0);
+            threads::detail::set_self_ptr(nullptr);
             ++current_concurrency_;
         }
 
@@ -307,7 +317,7 @@ namespace hpx { namespace threads { namespace executors { namespace detail
             ++max_current_concurrency_;
 
             {
-                boost::lock_guard<mutex_type> l(mtx_);
+                std::lock_guard<mutex_type> l(mtx_);
                 scheduler_.add_punit(virt_core, thread_num);
                 scheduler_.on_start_thread(virt_core);
             }
@@ -318,8 +328,8 @@ namespace hpx { namespace threads { namespace executors { namespace detail
                 self_[virt_core]);
 
             // FIXME: turn these values into performance counters
-            boost::int64_t executed_threads = 0, executed_thread_phases = 0;
-            boost::uint64_t overall_times = 0, thread_times = 0;
+            std::int64_t executed_threads = 0, executed_thread_phases = 0;
+            std::uint64_t overall_times = 0, thread_times = 0;
 
             threads::detail::scheduling_counters counters(
                 executed_threads, executed_thread_phases,

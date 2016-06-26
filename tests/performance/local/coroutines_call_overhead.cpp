@@ -14,6 +14,9 @@
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
+#include <string>
+#include <vector>
+
 #include "worker_timed.hpp"
 
 char const* benchmark_name = "Context Switching Overhead - HPX";
@@ -46,7 +49,7 @@ std::string format_build_date(std::string timestamp)
 void print_results(
     double w_M
 //  , std::vector<std::string> const& counter_shortnames
-//  , boost::shared_ptr<hpx::util::activate_counters> ac
+//  , std::shared_ptr<hpx::util::activate_counters> ac
     )
 {
 //    std::vector<hpx::performance_counters::counter_value> counter_values;
@@ -199,7 +202,7 @@ int hpx_main(
             header = false;
 
         if (!seed)
-            seed = boost::uint64_t(std::time(0));
+            seed = boost::uint64_t(std::time(nullptr));
 
         boost::uint64_t const os_thread_count = hpx::get_os_thread_count();
 
@@ -244,7 +247,7 @@ int hpx_main(
             }
         }
 
-        boost::shared_ptr<hpx::util::activate_counters> ac;
+        std::shared_ptr<hpx::util::activate_counters> ac;
         if (!counters.empty())
             ac.reset(new hpx::util::activate_counters(counters));
 */

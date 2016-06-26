@@ -6,15 +6,20 @@
 // This test demonstrates the issue described in #1036: Scheduler hangs when
 // user code attempts to "block" OS-threads
 
-#include <hpx/config.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/hpx_init.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/high_resolution_timer.hpp>
 #include <hpx/util/lightweight_test.hpp>
 #include <hpx/runtime/threads/thread_helpers.hpp>
 #include <hpx/runtime/threads/topology.hpp>
 
+#include <boost/atomic.hpp>
 #include <boost/assign/std/vector.hpp>
 #include <boost/scoped_array.hpp>
+
+#include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 void blocker(
@@ -55,7 +60,7 @@ int hpx_main()
         for (boost::uint64_t i = 0; i < (os_thread_count - 1); ++i)
         {
             hpx::threads::register_work(
-                boost::bind(&blocker, &entered, &started, &blocked_threads),
+                hpx::util::bind(&blocker, &entered, &started, &blocked_threads),
                 "blocker", hpx::threads::pending,
                 hpx::threads::thread_priority_normal);
         }
@@ -106,7 +111,7 @@ int main(
     using namespace boost::assign;
     std::vector<std::string> cfg;
     cfg += "hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency());
+        std::to_string(hpx::threads::hardware_concurrency());
 
     // Initialize and run HPX.
     return hpx::init(cmdline, argc, argv, cfg);

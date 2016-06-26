@@ -8,18 +8,16 @@
 #define HPX_PARCELSET_DECODE_PARCELS_HPP
 
 #include <hpx/config.hpp>
-
+#include <hpx/exception.hpp>
 #include <hpx/performance_counters/parcels/data_point.hpp>
-#include <hpx/util/high_resolution_timer.hpp>
-#include <hpx/runtime_fwd.hpp>
 #include <hpx/runtime/naming/name.hpp>
 #include <hpx/runtime/parcelset/parcel.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
+#include <hpx/runtime_fwd.hpp>
+#include <hpx/util/high_resolution_timer.hpp>
 
-#include <boost/shared_ptr.hpp>
-
-#include <vector>
 #include <sstream>
+#include <vector>
 
 namespace hpx { namespace parcelset
 {

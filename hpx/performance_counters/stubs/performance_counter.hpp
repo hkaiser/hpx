@@ -6,9 +6,9 @@
 #if !defined(HPX_PERFORMANCE_COUNTERS_STUBS_COUNTER_MAR_03_2009_0745M)
 #define HPX_PERFORMANCE_COUNTERS_STUBS_COUNTER_MAR_03_2009_0745M
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/runtime/components/stubs/stub_base.hpp>
+#include <hpx/config.hpp>
 #include <hpx/performance_counters/server/base_performance_counter.hpp>
+#include <hpx/runtime/components/stubs/stub_base.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace performance_counters { namespace stubs

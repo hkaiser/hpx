@@ -7,11 +7,13 @@
 #if !defined(HPX_EXAMPLES_SERVER_TEMPLATE_FUNCTION_ACCUMULATOR_JUL_12_2012_1056AM)
 #define HPX_EXAMPLES_SERVER_TEMPLATE_FUNCTION_ACCUMULATOR_JUL_12_2012_1056AM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/include/components.hpp>
 #include <hpx/include/local_lcos.hpp>
 
 #include <boost/lexical_cast.hpp>
+
+#include <mutex>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace examples { namespace server
@@ -51,7 +53,7 @@ namespace examples { namespace server
         void reset()
         {
             // Atomically set value_ to 0.
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             value_ = 0;
         }
 
@@ -60,7 +62,7 @@ namespace examples { namespace server
         void add(T arg)
         {
             // Atomically add value_ to arg, and store the result in value_.
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             value_ += boost::lexical_cast<double>(arg);
         }
 
@@ -68,7 +70,7 @@ namespace examples { namespace server
         double query() const
         {
             // Get the value of value_.
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             return value_;
         }
 

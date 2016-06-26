@@ -6,13 +6,12 @@
 #include <hpx/runtime.hpp>
 #include <hpx/util/ini.hpp>
 #include <hpx/util/parse_command_line.hpp>
-#include <hpx/util/runtime_configuration.hpp>
 #include <hpx/util/safe_lexical_cast.hpp>
 
-#include <string>
-#include <stdexcept>
 #include <cctype>
 #include <fstream>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include <boost/filesystem.hpp>
@@ -96,7 +95,7 @@ namespace hpx { namespace util
                 return result;
 
             util::section const* sec = ini.get_section("hpx.commandline.aliases");
-            if (NULL == sec)
+            if (nullptr == sec)
                 return result;     // no alias mappings are defined
 
             // we found shortcut option definitions, try to find mapping
@@ -680,7 +679,7 @@ namespace hpx { namespace util
         boost::scoped_array<char*> argv(new char* [args.size()+1]);
         for (std::size_t i = 0; i < args.size(); ++i)
             argv[i] = const_cast<char*>(args[i].c_str());
-        argv[args.size()] = 0;
+        argv[args.size()] = nullptr;
 
         return parse_commandline(
             rtcfg, app_options, static_cast<int>(args.size()), argv.get(), vm,
@@ -762,13 +761,13 @@ namespace hpx { namespace util
             }
             else if (boost::any_cast<double>(&value)) {
                 add_as_option(command_line, v.first,
-                    boost::lexical_cast<std::string>(v.second.as<double>()));
+                    std::to_string(v.second.as<double>()));
                 if (!command_line.empty())
                     command_line += " ";
             }
             else if (boost::any_cast<int>(&value)) {
                 add_as_option(command_line, v.first,
-                    boost::lexical_cast<std::string>(v.second.as<int>()));
+                    std::to_string(v.second.as<int>()));
                 if (!command_line.empty())
                     command_line += " ";
             }

@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/components/derived_component_factory.hpp>
 #include <hpx/runtime/actions/continuation.hpp>
 #include <hpx/runtime/agas/interface.hpp>
@@ -14,7 +14,11 @@
 #include <hpx/performance_counters/server/arithmetics_counter.hpp>
 
 #include <boost/algorithm/string.hpp>
-#include <boost/thread/locks.hpp>
+
+#include <mutex>
+
+#include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace performance_counters { namespace server
@@ -76,7 +80,7 @@ namespace hpx { namespace performance_counters { namespace server
         // lock here to avoid checking out multiple reference counted GIDs
         // from AGAS
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
 
             for (std::size_t i = 0; i != base_counter_names_.size(); ++i)
             {
@@ -127,7 +131,7 @@ namespace hpx { namespace performance_counters { namespace server
     template <typename Operation>
     bool arithmetics_counter<Operation>::start()
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
         for (std::size_t i = 0; i != base_counter_names_.size(); ++i)
         {
             if (!base_counter_ids_[i] &&
@@ -158,7 +162,7 @@ namespace hpx { namespace performance_counters { namespace server
     template <typename Operation>
     bool arithmetics_counter<Operation>::stop()
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
         for (std::size_t i = 0; i != base_counter_names_.size(); ++i)
         {
             if (!base_counter_ids_[i] &&
@@ -189,7 +193,7 @@ namespace hpx { namespace performance_counters { namespace server
     template <typename Operation>
     void arithmetics_counter<Operation>::reset_counter_value()
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
         for (std::size_t i = 0; i != base_counter_names_.size(); ++i)
         {
             if (!base_counter_ids_[i] &&

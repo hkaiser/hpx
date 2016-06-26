@@ -10,8 +10,10 @@
 #include <hpx/config.hpp>
 #include <hpx/config/asio.hpp>
 
-#include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/io_service.hpp>
+#include <boost/asio/ip/tcp.hpp>
+
+#include <string>
 
 namespace hpx { namespace util
 {

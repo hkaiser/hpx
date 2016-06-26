@@ -10,10 +10,11 @@
 #ifndef HPX_BACKTRACE_HPP
 #define HPX_BACKTRACE_HPP
 
-#include <hpx/config/export_definitions.hpp>
+#include <hpx/config.hpp>
+
+#include <iosfwd>
 #include <string>
 #include <vector>
-#include <iosfwd>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace util
@@ -37,7 +38,7 @@ namespace hpx { namespace util
         {
             if(frames_no == 0)
                 return;
-            frames_.resize(frames_no,0);
+            frames_.resize(frames_no,nullptr);
             std::size_t size = stack_trace::trace(&frames_.front(),frames_no);
             if(size != 0)
                 frames_.resize(size);
@@ -56,7 +57,7 @@ namespace hpx { namespace util
         {
             if(frame_no < stack_size())
                 return frames_[frame_no];
-            return 0;
+            return nullptr;
         }
 
         void trace_line(std::size_t frame_no,std::ostream &out) const

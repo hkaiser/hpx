@@ -14,9 +14,11 @@
 #include <boost/atomic.hpp>
 #include <boost/chrono.hpp>
 #include <boost/random.hpp>
+#include <boost/thread/locks.hpp>
 
-#include <vector>
 #include <ctime>
+#include <mutex>
+#include <vector>
 
 int const writers = 3;
 int const readers = 3;
@@ -36,14 +38,14 @@ int main()
             [&ready, &stm, i]
             {
                 boost::random::mt19937 urng(
-                    static_cast<boost::uint32_t>(std::time(0)));
+                    static_cast<boost::uint32_t>(std::time(nullptr)));
                 boost::random::uniform_int_distribution<int> dist(1, 1000);
 
                 while (!ready) { /*** wait... ***/ }
 
                 for (int j = 0; j < cycles; ++j)
                 {
-                    boost::unique_lock<hpx::lcos::local::shared_mutex> ul(stm);
+                    std::unique_lock<hpx::lcos::local::shared_mutex> ul(stm);
 
                     hpx::cout << "^^^ Writer " << i << " starting..." << std::endl;
                     hpx::this_thread::sleep_for(milliseconds(dist(urng)));
@@ -63,7 +65,7 @@ int main()
             [&ready, &stm, k, i]
             {
                 boost::random::mt19937 urng(
-                    static_cast<boost::uint32_t>(std::time(0)));
+                    static_cast<boost::uint32_t>(std::time(nullptr)));
                 boost::random::uniform_int_distribution<int> dist(1, 1000);
 
                 while (!ready) { /*** wait... ***/ }

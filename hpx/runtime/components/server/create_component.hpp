@@ -7,15 +7,16 @@
 #if !defined(HPX_COMPONENTS_SERVER_CREATE_COMPONENT_JUN_02_2008_0146PM)
 #define HPX_COMPONENTS_SERVER_CREATE_COMPONENT_JUN_02_2008_0146PM
 
-#include <hpx/exception.hpp>
-#include <hpx/runtime/naming/address.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/applier/applier.hpp>
 #include <hpx/runtime/components/server/create_component_fwd.hpp>
+#include <hpx/runtime/naming/address.hpp>
+#include <hpx/throw_exception.hpp>
 #include <hpx/util/bind.hpp>
 #include <hpx/util/decay.hpp>
+#include <hpx/util/functional/new.hpp>
 #include <hpx/util/tuple.hpp>
 #include <hpx/util/unique_function.hpp>
-#include <hpx/util/functional/new.hpp>
 
 #include <sstream>
 
@@ -52,8 +53,16 @@ namespace hpx { namespace components { namespace server
     naming::gid_type create(
         util::unique_function_nonser<void(void*)> const& ctor)
     {
-        Component* c = (Component*)Component::heap_type::alloc(1);
-        ctor(c);
+        void * cv = Component::heap_type::alloc(1);
+        try {
+            ctor(cv);
+        }
+        catch(...)
+        {
+            Component::heap_type::free(cv, 1); //-V107
+            throw;
+        }
+        Component *c = static_cast<Component *>(cv);
 
         naming::gid_type gid = c->get_base_gid();
         if (gid)
@@ -62,7 +71,7 @@ namespace hpx { namespace components { namespace server
             return gid;
         }
 
-        Component::heap_type::free(c, 1);
+        Component::heap_type::free(c, 1); //-V107
 
         std::ostringstream strm;
         strm << "global id " << gid << " is already bound to a different "
@@ -78,8 +87,16 @@ namespace hpx { namespace components { namespace server
     naming::gid_type create(naming::gid_type const& gid,
         util::unique_function_nonser<void(void*)> const& ctor)
     {
-        Component* c = (Component*)Component::heap_type::alloc(1);
-        ctor(c);
+        void * cv = Component::heap_type::alloc(1);
+        try {
+            ctor(cv);
+        }
+        catch(...)
+        {
+            Component::heap_type::free(cv, 1); //-V107
+            throw;
+        }
+        Component *c = static_cast<Component *>(cv);
 
         naming::gid_type assigned_gid = c->get_base_gid(gid);
         if (assigned_gid && assigned_gid == gid)
@@ -88,7 +105,7 @@ namespace hpx { namespace components { namespace server
             return gid;
         }
 
-        Component::heap_type::free(c, 1);
+        Component::heap_type::free(c, 1); //-V107
 
         std::ostringstream strm;
         strm << "global id " << assigned_gid <<
@@ -98,13 +115,6 @@ namespace hpx { namespace components { namespace server
             strm.str());
 
         return naming::invalid_gid;
-    }
-
-    template <typename Component>
-    Component* internal_create(typename Component::wrapped_type* impl)
-    {
-        Component* p = Component::heap_type::alloc(1);
-        return new (p) typename Component::derived_type(impl);
     }
 
     ///////////////////////////////////////////////////////////////////////////

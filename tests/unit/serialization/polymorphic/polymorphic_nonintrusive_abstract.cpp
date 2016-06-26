@@ -12,6 +12,9 @@
 
 #include <hpx/util/lightweight_test.hpp>
 
+#include <string>
+#include <vector>
+
 template <typename T>
 struct Base
 {
@@ -115,13 +118,13 @@ int main()
         Derived2 d1;
         Derived2 d2;
         Base<double> & b1 = d1;
-        Base<double> * b2 = 0;
+        Base<double> * b2 = nullptr;
 
         hpx::serialization::input_archive iarchive(buffer);
         iarchive >> b1;
         iarchive >> hpx::serialization::detail::raw_ptr(b2);
 
-        HPX_TEST(b2 != 0);
+        HPX_TEST(b2 != nullptr);
 
         HPX_TEST_EQ(d.print(), b1.print());
         HPX_TEST_EQ(d.size(), b1.size());

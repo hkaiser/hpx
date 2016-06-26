@@ -9,50 +9,30 @@
 
 #include <hpx/config.hpp>
 
-#if defined(HPX_GCC_VERSION) && HPX_GCC_VERSION < 40700
+#if defined(HPX_GCC_VERSION) && HPX_GCC_VERSION < 40703
 // this needs to go first to workaround a weird GCC4.6 ICE
 #include <hpx/util/reinitializable_static.hpp>
 #endif
 
-#include <hpx/exception.hpp>
-#include <hpx/traits/is_component.hpp>
-#include <hpx/runtime/components_fwd.hpp>
 #include <hpx/runtime/components/component_type.hpp>
+#include <hpx/runtime/components/server/create_component_fwd.hpp>
 #include <hpx/runtime/components/server/wrapper_heap.hpp>
 #include <hpx/runtime/components/server/wrapper_heap_list.hpp>
-#include <hpx/runtime/components/server/create_component_fwd.hpp>
+#include <hpx/runtime/components_fwd.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/traits/is_component.hpp>
+#include <hpx/traits/managed_component_policies.hpp>
 #include <hpx/util/reinitializable_static.hpp>
 #include <hpx/util/unique_function.hpp>
 
-#include <boost/throw_exception.hpp>
-#include <boost/noncopyable.hpp>
-#include <boost/mpl/if.hpp>
-#include <boost/mpl/bool.hpp>
-#include <boost/detail/atomic_count.hpp>
-#include <boost/type_traits/is_same.hpp>
 #include <boost/intrusive_ptr.hpp>
+#include <boost/mpl/bool.hpp>
+#include <boost/mpl/if.hpp>
+#include <boost/throw_exception.hpp>
+#include <boost/type_traits/is_same.hpp>
 
-#include <utility>
 #include <stdexcept>
-
-///////////////////////////////////////////////////////////////////////////////
-namespace hpx { namespace traits
-{
-    template <typename Component>
-    struct managed_component_ctor_policy<
-        Component, typename Component::has_managed_component_base>
-    {
-        typedef typename Component::ctor_policy type;
-    };
-
-    ///////////////////////////////////////////////////////////////////////////
-    template <typename Component>
-    struct managed_component_dtor_policy<
-        Component, typename Component::has_managed_component_base>
-    {
-        typedef typename Component::dtor_policy type;
-    };
-}}
+#include <utility>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace components
@@ -164,7 +144,7 @@ namespace hpx { namespace components
             template <typename Component>
             static void call(Component* component)
             {
-                // The managed_component's controls the lifetime of the
+                // The managed_component controls the lifetime of the
                 // component implementation.
                 component->finalize();
                 delete component;
@@ -186,8 +166,10 @@ namespace hpx { namespace components
     template <typename Component, typename Wrapper,
         typename CtorPolicy, typename DtorPolicy>
     class managed_component_base
-      : public traits::detail::managed_component_tag, boost::noncopyable
+      : public traits::detail::managed_component_tag
     {
+        HPX_NON_COPYABLE(managed_component_base);
+
     private:
         Component& derived()
         {
@@ -221,7 +203,7 @@ namespace hpx { namespace components
             "traits::managed_object_controls_lifetime>::value");
 
         managed_component_base()
-          : back_ptr_(0)
+          : back_ptr_(nullptr)
         {}
 
         managed_component_base(managed_component<Component, Wrapper>* back_ptr)
@@ -290,7 +272,7 @@ namespace hpx { namespace components
 
         void set_back_ptr(components::managed_component<Component, Wrapper>* bp)
         {
-            HPX_ASSERT(0 == back_ptr_);
+            HPX_ASSERT(nullptr == back_ptr_);
             HPX_ASSERT(bp);
             back_ptr_ = bp;
         }
@@ -374,8 +356,10 @@ namespace hpx { namespace components
     /// \tparam Derived
     ///
     template <typename Component, typename Derived>
-    class managed_component : boost::noncopyable
+    class managed_component
     {
+        HPX_NON_COPYABLE(managed_component);
+
     public:
         typedef typename boost::mpl::if_<
                 boost::is_same<Derived, detail::this_type>,
@@ -409,7 +393,7 @@ namespace hpx { namespace components
         ///        instance
         template <typename ...Ts>
         managed_component(Ts&&... vs)
-          : component_(0)
+          : component_(nullptr)
         {
             detail_adl_barrier::init<
                 typename traits::managed_component_ctor_policy<Component>::type
@@ -455,7 +439,7 @@ namespace hpx { namespace components
         {
             if (!component_) {
                 std::ostringstream strm;
-                strm << "component is NULL ("
+                strm << "component is nullptr ("
                      << components::get_component_type_name(
                         components::get_component_type<wrapped_type>())
                      << ") gid(" << get_base_gid() << ")";
@@ -470,7 +454,7 @@ namespace hpx { namespace components
         {
             if (!component_) {
                 std::ostringstream strm;
-                strm << "component is NULL ("
+                strm << "component is nullptr ("
                      << components::get_component_type_name(
                         components::get_component_type<wrapped_type>())
                      << ") gid(" << get_base_gid() << ")";
@@ -495,7 +479,7 @@ namespace hpx { namespace components
             if (size > sizeof(managed_component))
                 return ::operator new(size);
             void* p = heap_type::alloc();
-            if (NULL == p) {
+            if (nullptr == p) {
                 HPX_THROW_STD_EXCEPTION(std::bad_alloc(),
                     "managed_component::operator new(std::size_t size)");
             }
@@ -503,8 +487,8 @@ namespace hpx { namespace components
         }
         static void operator delete(void* p, std::size_t size)
         {
-            if (NULL == p)
-                return;     // do nothing if given a NULL pointer
+            if (nullptr == p)
+                return;     // do nothing if given a nullptr pointer
 
             if (size != sizeof(managed_component)) {
                 ::operator delete(p);
@@ -531,7 +515,7 @@ namespace hpx { namespace components
         {
             // allocate the memory
             void* p = heap_type::alloc(count);
-            if (NULL == p) {
+            if (nullptr == p) {
                 HPX_THROW_STD_EXCEPTION(std::bad_alloc(),
                     "managed_component::create");
             }
@@ -568,8 +552,8 @@ namespace hpx { namespace components
         //          de-allocation of arrays of wrappers
         static void destroy(value_type* p, std::size_t count = 1)
         {
-            if (NULL == p || 0 == count)
-                return;     // do nothing if given a NULL pointer
+            if (nullptr == p || 0 == count)
+                return;     // do nothing if given a nullptr pointer
 
             // call destructors for all managed_component instances
             value_type* curr = p;
@@ -630,7 +614,7 @@ namespace hpx { namespace components
         }
 #endif
 
-#if defined(HPX_HAVE_CXX11_EXTENDED_FRIEND_DECLARATIONS)
+#if defined(HPX_HAVE_CXX11_EXTENDED_FRIEND_DECLARATIONS) && !defined(__CUDACC__)
     private:
         // declare friends which are allowed to access get_base_gid()
         friend Component;

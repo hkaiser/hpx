@@ -5,9 +5,15 @@
 
 #include <hpx/hpx.hpp>
 #include <hpx/hpx_init.hpp>
-#include <hpx/include/performance_counters.hpp>
+#include <hpx/include/actions.hpp>
 #include <hpx/include/iostreams.hpp>
+#include <hpx/include/parcel_coalescing.hpp>
+#include <hpx/include/performance_counters.hpp>
 #include <hpx/util/lightweight_test.hpp>
+
+#include <string>
+#include <utility>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 std::size_t const vsize_default = 1024;
@@ -31,13 +37,28 @@ generate_parcel(hpx::id_type const& dest, hpx::id_type const& cont, T && data)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-hpx::id_type test1(std::vector<double> const& data)
+struct test_server : hpx::components::component_base<test_server>
 {
-    return hpx::find_here();
-}
-HPX_PLAIN_ACTION(test1);
-HPX_ACTION_USES_MESSAGE_COALESCING(test1_action);
+    typedef hpx::components::component_base<test_server> base_type;
 
+    hpx::id_type test1(std::vector<double> const& data)
+    {
+        return hpx::find_here();
+    }
+
+    HPX_DEFINE_COMPONENT_ACTION(test_server, test1, test1_action);
+};
+
+typedef hpx::components::component<test_server> server_type;
+HPX_REGISTER_COMPONENT(server_type, test_server);
+
+typedef test_server::test1_action test1_action;
+
+HPX_REGISTER_ACTION_DECLARATION(test1_action);
+HPX_ACTION_USES_MESSAGE_COALESCING(test1_action);
+HPX_REGISTER_ACTION(test1_action);
+
+///////////////////////////////////////////////////////////////////////////////
 void test_plain_argument(hpx::id_type const& id)
 {
     std::vector<double> data(vsize_default);
@@ -46,15 +67,20 @@ void test_plain_argument(hpx::id_type const& id)
     std::vector<hpx::future<hpx::id_type> > results;
     results.reserve(numparcels_default);
 
+    hpx::components::client<test_server> c = hpx::new_<test_server>(id);
+
     // create parcels
     std::vector<hpx::parcelset::parcel> parcels;
     for (std::size_t i = 0; i != numparcels_default; ++i)
     {
         hpx::lcos::promise<hpx::id_type> p;
+        auto f = p.get_future();
+
         parcels.push_back(
-            generate_parcel<test1_action>(id, p.get_id(), data)
+            generate_parcel<test1_action>(c.get_id(), p.get_id(), data)
         );
-        results.push_back(p.get_future());
+
+        results.push_back(std::move(f));
     }
 
     // send parcels
@@ -74,8 +100,9 @@ hpx::id_type test2(hpx::future<double> const& data)
 {
     return hpx::find_here();
 }
-HPX_PLAIN_ACTION(test2);
+HPX_DECLARE_PLAIN_ACTION(test2, test2_action);
 HPX_ACTION_USES_MESSAGE_COALESCING(test2_action);
+HPX_PLAIN_ACTION(test2, test2_action);
 
 void test_future_argument(hpx::id_type const& id)
 {
@@ -91,6 +118,7 @@ void test_future_argument(hpx::id_type const& id)
     {
         hpx::lcos::local::promise<double> p_arg;
         hpx::lcos::promise<hpx::id_type> p_cont;
+        auto f_cont = p_cont.get_future();
 
         parcels.push_back(
             generate_parcel<test2_action>(id, p_cont.get_id(),
@@ -98,7 +126,7 @@ void test_future_argument(hpx::id_type const& id)
         );
 
         args.push_back(std::move(p_arg));
-        results.push_back(p_cont.get_future());
+        results.push_back(std::move(f_cont));
     }
 
     // send parcels
@@ -130,16 +158,19 @@ void test_mixed_arguments(hpx::id_type const& id)
     std::vector<hpx::future<hpx::id_type> > results;
     results.reserve(numparcels_default);
 
+    hpx::components::client<test_server> c = hpx::new_<test_server>(id);
+
     // create parcels
     std::vector<hpx::parcelset::parcel> parcels;
     for (std::size_t i = 0; i != numparcels_default; ++i)
     {
         hpx::lcos::promise<hpx::id_type> p_cont;
+        auto f_cont = p_cont.get_future();
 
         if (std::rand() % 2)
         {
             parcels.push_back(
-                generate_parcel<test1_action>(id, p_cont.get_id(), data)
+                generate_parcel<test1_action>(c.get_id(), p_cont.get_id(), data)
             );
         }
         else
@@ -154,7 +185,7 @@ void test_mixed_arguments(hpx::id_type const& id)
             args.push_back(std::move(p_arg));
         }
 
-        results.push_back(p_cont.get_future());
+        results.push_back(std::move(f_cont));
     }
 
     // send parcels
@@ -185,6 +216,8 @@ void print_counters(char const* name)
     for (performance_counter const& c : counters)
     {
         counter_value value = c.get_counter_value_sync();
+        HPX_TEST_NEQ(value.get_value<double>(), 0.0);
+
         hpx::cout
             << "counter: " << c.get_name_sync()
             << ", value: " << value.get_value<double>()
@@ -195,7 +228,7 @@ void print_counters(char const* name)
 ///////////////////////////////////////////////////////////////////////////////
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if (vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 
@@ -209,9 +242,11 @@ int hpx_main(boost::program_options::variables_map& vm)
         test_mixed_arguments(id);
     }
 
-    // compare number of parcels with number of messages generated
-    print_counters("/parcels/count/*/sent");
-    print_counters("/messages/count/*/sent");
+    // make sure coalescing was actually invoked
+    print_counters("/coalescing{locality#0/total}/count/parcels@test1_action");
+    print_counters("/coalescing{locality#0/total}/count/parcels@test2_action");
+    print_counters("/coalescing{locality#0/total}/count/messages@test1_action");
+    print_counters("/coalescing{locality#0/total}/count/messages@test2_action");
 
     return hpx::finalize();
 }

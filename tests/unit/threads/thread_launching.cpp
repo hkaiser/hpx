@@ -9,7 +9,6 @@
 #include <hpx/util/lightweight_test.hpp>
 
 #include <boost/assign/std/vector.hpp>
-#include <boost/lexical_cast.hpp>
 
 #include <string>
 #include <vector>
@@ -50,8 +49,6 @@ void test_thread_function_one_argument()
 ///////////////////////////////////////////////////////////////////////////////
 struct callable_no_args
 {
-    typedef void result_type;
-
     static bool called;
 
     void operator()() const
@@ -71,12 +68,14 @@ void test_thread_callable_object_no_arguments()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-struct callable_noncopyable_no_args
-  : boost::noncopyable
+class callable_noncopyable_no_args
 {
-    typedef void result_type;
+    HPX_NON_COPYABLE(callable_noncopyable_no_args);
 
+public:
     static bool called;
+
+    callable_noncopyable_no_args() {}
 
     void operator()() const
     {
@@ -98,8 +97,6 @@ void test_thread_callable_object_ref_no_arguments()
 ///////////////////////////////////////////////////////////////////////////////
 struct callable_one_arg
 {
-    typedef void result_type;
-
     static bool called;
     static int called_arg;
 
@@ -125,8 +122,6 @@ void test_thread_callable_object_one_argument()
 ///////////////////////////////////////////////////////////////////////////////
 struct callable_multiple_arg
 {
-    typedef void result_type;
-
     static bool called_two;
     static int called_two_arg1;
     static double called_two_arg2;

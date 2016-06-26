@@ -8,16 +8,16 @@
 #define HPX_SERIALIZATION_INPUT_CONTAINER_HPP
 
 #include <hpx/config.hpp>
-#include <hpx/util/assert.hpp>
-#include <hpx/exception.hpp>
+#include <hpx/runtime/serialization/binary_filter.hpp>
 #include <hpx/runtime/serialization/container.hpp>
 #include <hpx/runtime/serialization/serialization_chunk.hpp>
-#include <hpx/runtime/serialization/binary_filter.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/util/assert.hpp>
 
 #include <cstddef> // for size_t
 #include <cstring> // for memcpy
-#include <vector>
 #include <memory>
+#include <vector>
 
 namespace hpx { namespace serialization
 {
@@ -49,7 +49,7 @@ namespace hpx { namespace serialization
         input_container(Container const& cont, std::size_t inbound_data_size)
           : cont_(cont), current_(0), filter_(),
             decompressed_size_(inbound_data_size),
-            chunks_(0), current_chunk_(std::size_t(-1)), current_chunk_size_(0)
+            chunks_(nullptr), current_chunk_(std::size_t(-1)), current_chunk_size_(0)
         {}
 
         input_container(Container const& cont,
@@ -57,7 +57,7 @@ namespace hpx { namespace serialization
                 std::size_t inbound_data_size)
           : cont_(cont), current_(0), filter_(),
             decompressed_size_(inbound_data_size),
-            chunks_(0), current_chunk_(std::size_t(-1)), current_chunk_size_(0)
+            chunks_(nullptr), current_chunk_(std::size_t(-1)), current_chunk_size_(0)
         {
             if (chunks && chunks->size() != 0)
             {
@@ -115,7 +115,7 @@ namespace hpx { namespace serialization
                         {
                             HPX_THROW_EXCEPTION(serialization_error
                               , "input_container::load_binary"
-                              , "archive data bstream structure mismatch")
+                              , "archive data bstream structure mismatch");
                             return;
                         }
                         ++current_chunk_;
@@ -129,7 +129,7 @@ namespace hpx { namespace serialization
         {
             HPX_ASSERT((boost::int64_t)count >= 0);
 
-            if (filter_.get() || chunks_ == 0 ||
+            if (filter_.get() || chunks_ == nullptr ||
                 count < HPX_ZERO_COPY_SERIALIZATION_THRESHOLD) {
                 // fall back to serialization_chunk-less archive
                 this->input_container::load_binary(address, count);

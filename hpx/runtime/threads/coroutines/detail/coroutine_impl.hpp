@@ -36,10 +36,10 @@
 #endif
 
 #include <hpx/config.hpp>
-#include <hpx/runtime/threads/thread_enums.hpp>
+#include <hpx/runtime/naming/id_type.hpp>
 #include <hpx/runtime/threads/coroutines/detail/context_base.hpp>
 #include <hpx/runtime/threads/coroutines/detail/coroutine_accessor.hpp>
-#include <hpx/runtime/naming/id_type.hpp>
+#include <hpx/runtime/threads/thread_enums.hpp>
 #include <hpx/util/assert.hpp>
 #include <hpx/util/unique_function.hpp>
 
@@ -74,8 +74,9 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
         coroutine_impl(functor_type&& f, naming::id_type&& target,
             thread_id_repr_type id, std::ptrdiff_t stack_size)
           : context_base(*this, stack_size, id)
-          , m_arg(0)
-          , m_result(0)
+          , m_result_last(thread_state_enum::unknown)
+          , m_arg(nullptr)
+          , m_result(nullptr)
           , m_fun(std::move(f))
           , target_(std::move(target))
         {}
@@ -89,7 +90,7 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
 
         static inline coroutine_impl* create(
             functor_type&& f,
-            naming::id_type&& target, thread_id_repr_type id = 0,
+            naming::id_type&& target, thread_id_repr_type id = nullptr,
             std::ptrdiff_t stack_size = default_stack_size)
         {
             coroutine_impl* p = allocate(id, stack_size);
@@ -112,7 +113,7 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
 
         static inline void rebind(
             coroutine_impl* p, functor_type&& f,
-            naming::id_type&& target, thread_id_repr_type id = 0)
+            naming::id_type&& target, thread_id_repr_type id = nullptr)
         {
             p->rebind(std::move(f), std::move(target), id);
         }

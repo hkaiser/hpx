@@ -4,7 +4,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/include/iostreams.hpp>
 #include <hpx/include/async.hpp>
 #include <hpx/include/util.hpp>
@@ -12,14 +12,13 @@
 
 #include "allgather_and_gate.hpp"
 
-#include <boost/bind.hpp>
-#include <boost/ref.hpp>
 #include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/thread/locks.hpp>
+#include <boost/ref.hpp>
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <mutex>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace ag { namespace server
@@ -27,7 +26,7 @@ namespace ag { namespace server
     void allgather_and_gate::init(
         std::vector<hpx::naming::id_type> const& components, std::size_t rank)
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
 
         rank_ = rank;
         components_ = components;
@@ -78,7 +77,7 @@ namespace ag { namespace server
         gate_.synchronize(generation, "allgather_and_gate::set_data");
 
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
 
             if (which >= n_.size())
             {
@@ -96,7 +95,7 @@ namespace ag { namespace server
 
     void allgather_and_gate::print()
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
 
         std::cout << " location: " << rank_ << " n size : " << n_.size() << std::endl;
         for (std::size_t i = 0; i < n_.size(); ++i)

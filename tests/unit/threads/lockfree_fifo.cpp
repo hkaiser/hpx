@@ -7,6 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <hpx/config.hpp>
+#include <hpx/util/bind.hpp>
 
 #include <boost/thread/thread.hpp>
 #include <boost/program_options.hpp>
@@ -14,6 +15,8 @@
 #include <boost/detail/lightweight_test.hpp>
 
 #include <boost/lockfree/queue.hpp>
+
+#include <vector>
 
 std::vector<boost::lockfree::queue<boost::uint64_t>*> queues;
 std::vector<boost::uint64_t> stolen;
@@ -107,7 +110,7 @@ int main(int argc, char** argv)
         boost::thread_group tg;
 
         for (boost::uint64_t i = 0; i != threads; ++i)
-            tg.create_thread(boost::bind(&worker_thread, i));
+            tg.create_thread(hpx::util::bind(&worker_thread, i));
 
         tg.join_all();
     }

@@ -10,6 +10,9 @@
 #include <hpx/include/parallel_for_loop.hpp>
 
 #include <algorithm>
+#include <numeric>
+#include <string>
+#include <vector>
 
 #include "test_utils.hpp"
 
@@ -170,7 +173,7 @@ void for_loop_test_idx()
 ///////////////////////////////////////////////////////////////////////////////
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if (vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 
@@ -198,7 +201,7 @@ int main(int argc, char* argv[])
     // By default this test should run on all available cores
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
 
     // Initialize and run HPX
     HPX_TEST_EQ_MSG(hpx::init(desc_commandline, argc, argv, cfg), 0,

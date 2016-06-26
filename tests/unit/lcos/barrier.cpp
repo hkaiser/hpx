@@ -7,9 +7,13 @@
 #include <hpx/hpx.hpp>
 #include <hpx/hpx_init.hpp>
 #include <hpx/include/lcos.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include <boost/atomic.hpp>
+
+#include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 void barrier_test(hpx::id_type const& id, boost::atomic<std::size_t>& c)
@@ -42,7 +46,7 @@ void local_tests(boost::program_options::variables_map& vm)
         boost::atomic<std::size_t> c(0);
         for (std::size_t j = 0; j < pxthreads; ++j)
         {
-            hpx::async(boost::bind(&barrier_test, b.get_id(), boost::ref(c)));
+            hpx::async(hpx::util::bind(&barrier_test, b.get_id(), boost::ref(c)));
         }
 
         b.wait();       // wait for all threads to enter the barrier
@@ -175,7 +179,7 @@ int main(int argc, char* argv[])
     using namespace boost::assign;
     std::vector<std::string> cfg;
     cfg += "hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency());
+        std::to_string(hpx::threads::hardware_concurrency());
     cfg += "hpx.run_hpx_main!=1";
 
     // Initialize and run HPX

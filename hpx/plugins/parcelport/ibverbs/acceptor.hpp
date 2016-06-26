@@ -7,24 +7,26 @@
 #if !defined(HPX_PARCELSET_POLICIES_IBVERBS_ACCEPTOR_HPP)
 #define HPX_PARCELSET_POLICIES_IBVERBS_ACCEPTOR_HPP
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
+
 #if defined(HPX_HAVE_PARCELPORT_IBVERBS)
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/plugins/parcelport/ibverbs/ibverbs_errors.hpp>
 #include <hpx/plugins/parcelport/ibverbs/context.hpp>
-#include <hpx/plugins/parcelport/ibverbs/receiver.hpp>
 #include <hpx/plugins/parcelport/ibverbs/helper.hpp>
+#include <hpx/plugins/parcelport/ibverbs/ibverbs_errors.hpp>
+#include <hpx/plugins/parcelport/ibverbs/receiver.hpp>
 #include <hpx/util/io_service_pool.hpp>
 
 #include <boost/asio/basic_io_object.hpp>
-#include <boost/bind.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <boost/atomic.hpp>
+#include <boost/scope_exit.hpp>
 #include <boost/system/system_error.hpp>
 #include <boost/thread/thread_time.hpp>
-#include <boost/scope_exit.hpp>
-#include <boost/atomic.hpp>
+
+#include <cstring>
+#include <list>
+#include <memory>
+#include <string>
 
 #include <netdb.h>
 #include <rdma/rdma_cma.h>
@@ -82,7 +84,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs
                 }
 
                 int ret = 0;
-                ret = rdma_create_id(event_channel_, &listener_, NULL, RDMA_PS_TCP);
+                ret = rdma_create_id(event_channel_, &listener_, nullptr, RDMA_PS_TCP);
 
                 if(ret)
                 {
@@ -98,11 +100,11 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs
                 }
 
                 std::string host = ep.address().to_string();
-                std::string port = boost::lexical_cast<std::string>(ep.port());
+                std::string port = std::to_string(ep.port());
 
                 addrinfo *addr;
 
-                getaddrinfo(host.c_str(), port.c_str(), NULL, &addr);
+                getaddrinfo(host.c_str(), port.c_str(), nullptr, &addr);
 
                 ret = rdma_bind_addr(listener_, addr->ai_addr);
 
@@ -171,11 +173,11 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs
         }
 
         template <typename Parcelport>
-        boost::shared_ptr<receiver> accept(
+        std::shared_ptr<receiver> accept(
             Parcelport & parcelport, util::memory_chunk_pool & pool,
             boost::system::error_code &ec)
         {
-            boost::shared_ptr<receiver> rcv;
+            std::shared_ptr<receiver> rcv;
             rdma_cm_event event;
             if(!get_next_event(event_channel_, event, this, ec))
             {
@@ -242,7 +244,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs
         rdma_cm_id *listener_;
 
         typedef
-            std::list<std::pair<rdma_cm_event, boost::shared_ptr<receiver> > >
+            std::list<std::pair<rdma_cm_event, std::shared_ptr<receiver> > >
             pending_recv_list_type;
 
         pending_recv_list_type pending_recv_list;

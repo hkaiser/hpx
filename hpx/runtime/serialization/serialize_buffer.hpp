@@ -8,13 +8,14 @@
 #define HPX_SERIALIZATION_SERIALIZE_BUFFER_APR_05_2013_0312PM
 
 #include <hpx/config.hpp>
+#include <hpx/runtime/serialization/array.hpp>
+#include <hpx/runtime/serialization/serialize.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/traits/supports_streaming_with_any.hpp>
 #include <hpx/util/bind.hpp>
 
-#include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/runtime/serialization/array.hpp>
-
-#include <boost/shared_array.hpp>
 #include <boost/mpl/bool.hpp>
+#include <boost/shared_array.hpp>
 
 #include <algorithm>
 
@@ -127,7 +128,7 @@ namespace hpx { namespace serialization
         }
 
         template <typename Deleter>
-        serialize_buffer (T const* data, std::size_t size, init_mode mode,
+        serialize_buffer (T const* data, std::size_t size, init_mode mode, //-V659
                 Deleter const& deleter,
                 allocator_type const& alloc = allocator_type())
           : data_()

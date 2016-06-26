@@ -6,19 +6,19 @@
 #if !defined(HPX_TRAITS_COMPONENT_CONFIG_DATA_MAR_25_2013_0810AM)
 #define HPX_TRAITS_COMPONENT_CONFIG_DATA_MAR_25_2013_0810AM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 
 namespace hpx { namespace traits
 {
     ///////////////////////////////////////////////////////////////////////////
     // Customization point for component config data injection
-    template <typename Component, typename Enable>
+    template <typename Component, typename Enable = void>
     struct component_config_data
     {
         // by default no additional config data is injected into the factory
         static char const* call()
         {
-            return 0;
+            return nullptr;
         }
     };
 }}

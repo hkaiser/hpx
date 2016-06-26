@@ -13,17 +13,18 @@
  // The idea for these iterators is taken from
  // http://afstern.org/matt/segmented.pdf.
 
-#include <hpx/include/naming.hpp>
-#include <hpx/include/util.hpp>
-#include <hpx/include/traits.hpp>
-#include <hpx/include/serialization.hpp>
+#include <hpx/config.hpp>
+//#include <hpx/runtime/naming/id_type.hpp>
+#include <hpx/util/assert.hpp>
 
 #include <hpx/components/containers/unordered/partition_unordered_map_component.hpp>
 
 #include <cstdint>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <type_traits>
+#include <vector>
 
 #include <boost/integer.hpp>
 // #include <boost/iterator/iterator_facade.hpp>
@@ -64,7 +65,7 @@ namespace hpx
 
     public:
         segment_unordered_map_iterator(BaseIter const& it,
-                unordered_map<Key, T, Hash, KeyEqual>* data = 0)
+                unordered_map<Key, T, Hash, KeyEqual>* data = nullptr)
           : base_type(it), data_(data)
         {}
 
@@ -105,7 +106,7 @@ namespace hpx
 
     public:
         const_segment_unordered_map_iterator(BaseIter const& it,
-                unordered_map<Key, T, Hash, KeyEqual> const* data = 0)
+                unordered_map<Key, T, Hash, KeyEqual> const* data = nullptr)
           : base_type(it), data_(data)
         {}
 
@@ -208,7 +209,7 @@ namespace hpx
 //         }
 //
 //     private:
-//         boost::shared_ptr<server::partitioned_vector<T> > data_;
+//         std::shared_ptr<server::partitioned_vector<T> > data_;
 //         predicate predicate_;
 //         BaseIter end_;
 //     };

@@ -1,16 +1,19 @@
-//  Copyright (c) 2007-2015 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //  Copyright (c) 2015 Nidhi Makhijani
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
+#include <hpx/error_code.hpp>
 #include <hpx/runtime/threads/thread_executor.hpp>
 #include <hpx/runtime/threads/resource_manager.hpp>
 #include <hpx/lcos/local/once.hpp>
 #include <hpx/util/reinitializable_static.hpp>
 
-#include <boost/thread/locks.hpp>
+#include <mutex>
+
+#include <vector>
 
 namespace hpx { namespace threads
 {
@@ -34,7 +37,7 @@ namespace hpx { namespace threads
     std::size_t resource_manager::initial_allocation(
         detail::manage_executor* proxy, error_code& ec)
     {
-        if (0 == proxy) {
+        if (nullptr == proxy) {
             HPX_THROWS_IF(ec, bad_parameter,
                 "resource_manager::init_allocation",
                 "manage_executor pointer is a nullptr");
@@ -51,7 +54,7 @@ namespace hpx { namespace threads
         if (ec1) max_punits = get_os_thread_count();
 
         // lock the resource manager from this point on
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
 
         // allocate initial resources for the given executor
         std::vector<std::pair<std::size_t, std::size_t> > cores =
@@ -293,7 +296,7 @@ namespace hpx { namespace threads
                 while (true)
                 {
                     // scaling factor
-                    scaling = total_allocated/total_desired;
+                    scaling = double(total_allocated) / total_desired;
 
                     for (allocation_data_map_type::iterator it =
                             scaled_static_allocation_data.begin();
@@ -374,7 +377,8 @@ namespace hpx { namespace threads
 
                         if (st.min_proxy_cores_ > st.allocation_)
                         {
-                            double new_desired = st.min_proxy_cores_/scaling;
+                            double new_desired =
+                                double(st.min_proxy_cores_) / scaling;
 
                             // Bias desired to get allocation closer to min.
                             total_desired += new_desired - st.adjusted_desired_;
@@ -574,7 +578,7 @@ namespace hpx { namespace threads
     // Stop the executor identified with the given cookie
     void resource_manager::stop_executor(std::size_t cookie, error_code& ec)
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
         proxies_map_type::iterator it = proxies_.find(cookie);
         if (it == proxies_.end()) {
             HPX_THROWS_IF(ec, bad_parameter, "resource_manager::detach",
@@ -593,7 +597,7 @@ namespace hpx { namespace threads
     // Detach the executor identified with the given cookie
     void resource_manager::detach(std::size_t cookie, error_code& ec)
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
         proxies_map_type::iterator it = proxies_.find(cookie);
         if (it == proxies_.end()) {
             HPX_THROWS_IF(ec, bad_parameter, "resource_manager::detach",

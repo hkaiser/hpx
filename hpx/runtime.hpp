@@ -7,16 +7,21 @@
 #if !defined(HPX_RUNTIME_RUNTIME_JUN_10_2008_1012AM)
 #define HPX_RUNTIME_RUNTIME_JUN_10_2008_1012AM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
+#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/runtime/applier_fwd.hpp>
+#include <hpx/runtime/components/component_type.hpp>
+#include <hpx/runtime/parcelset/locality.hpp>
+#include <hpx/runtime/parcelset_fwd.hpp>
+#include <hpx/runtime/runtime_mode.hpp>
+#include <hpx/runtime/threads/policies/affinity_data.hpp>
+#include <hpx/runtime/threads/policies/callback_notifier.hpp>
+#include <hpx/runtime/threads/topology.hpp>
 #include <hpx/runtime_fwd.hpp>
 #include <hpx/state.hpp>
-#include <hpx/runtime/threads/policies/affinity_data.hpp>
-#include <hpx/runtime/threads/topology.hpp>
-#include <hpx/runtime/parcelset/locality.hpp>
-#include <hpx/lcos/local/spinlock.hpp>
-#include <hpx/util/static_reinit.hpp>
-#include <hpx/util/runtime_configuration.hpp>
 #include <hpx/util/one_size_heap_list_base.hpp>
+#include <hpx/util/runtime_configuration.hpp>
+#include <hpx/util/static_reinit.hpp>
 #include <hpx/util/thread_specific_ptr.hpp>
 #if defined(HPX_HAVE_SECURITY)
 #include <hpx/lcos/local/spinlock.hpp>
@@ -26,10 +31,15 @@
 #include <hpx/components/security/certificate_store.hpp>
 #endif
 
+#include <boost/atomic.hpp>
+#include <boost/exception_ptr.hpp>
 #include <boost/smart_ptr/scoped_ptr.hpp>
-#include <boost/thread/locks.hpp>
 
+#include <map>
 #include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
 
 #include <hpx/config/warnings_prefix.hpp>
 
@@ -95,7 +105,7 @@ namespace hpx
         /// \brief Manage list of functions to call on exit
         void on_exit(util::function_nonser<void()> const& f)
         {
-            boost::lock_guard<boost::mutex> l(mtx_);
+            std::lock_guard<boost::mutex> l(mtx_);
             on_exit_functions_.push_back(f);
         }
 
@@ -112,7 +122,7 @@ namespace hpx
 
             typedef util::function_nonser<void()> value_type;
 
-            boost::lock_guard<boost::mutex> l(mtx_);
+            std::lock_guard<boost::mutex> l(mtx_);
             for (value_type const& f : on_exit_functions_)
                 f();
         }
@@ -217,15 +227,13 @@ namespace hpx
 
         virtual util::unique_id_ranges& get_id_pool() = 0;
 
-        virtual void add_pre_startup_function(util::function_nonser<void()>
-            const& f) = 0;
+        virtual void add_pre_startup_function(startup_function_type f) = 0;
 
-        virtual void add_startup_function(util::function_nonser<void()> const& f) = 0;
+        virtual void add_startup_function(startup_function_type f) = 0;
 
-        virtual void add_pre_shutdown_function(util::function_nonser<void()>
-            const& f) = 0;
+        virtual void add_pre_shutdown_function(shutdown_function_type f) = 0;
 
-        virtual void add_shutdown_function(util::function_nonser<void()> const& f) = 0;
+        virtual void add_shutdown_function(shutdown_function_type f) = 0;
 
         /// Keep the factory object alive which is responsible for the given
         /// component type. This a purely internal function allowing to work
@@ -271,7 +279,7 @@ namespace hpx
         ///          succeeded or not.
         ///
         virtual bool register_thread(char const* name, std::size_t num = 0,
-            bool service_thread = true) = 0;
+            bool service_thread = true, error_code& ec = throws) = 0;
 
         /// \brief Unregister an external OS-thread with HPX
         ///
@@ -293,23 +301,16 @@ namespace hpx
         virtual notification_policy_type
             get_notification_policy(char const* prefix) = 0;
 
-        /// This function creates anew base_lco_factory (if none is available
-        /// for the given type yet), registers this factory with the
-        /// runtime_support object and asks the factory for it's heap object
-        // which can be used to create new promises of the given type.
-        boost::shared_ptr<util::one_size_heap_list_base> get_promise_heap(
-            components::component_type type);
-
         ///////////////////////////////////////////////////////////////////////
         // management API for active performance counters
         void register_query_counters(
-            boost::shared_ptr<util::query_counters> const& active_counters);
+            std::shared_ptr<util::query_counters> const& active_counters);
 
         void start_active_counters(error_code& ec = throws);
         void stop_active_counters(error_code& ec = throws);
         void reset_active_counters(error_code& ec = throws);
         void evaluate_active_counters(bool reset = false,
-            char const* description = 0, error_code& ec = throws);
+            char const* description = nullptr, error_code& ec = throws);
 
         // stop periodic evaluation of counters during shutdown
         void stop_evaluating_counters();
@@ -381,8 +382,8 @@ namespace hpx
         mutable boost::mutex mtx_;
 
         util::runtime_configuration ini_;
-        boost::shared_ptr<performance_counters::registry> counters_;
-        boost::shared_ptr<util::query_counters> active_counters_;
+        std::shared_ptr<performance_counters::registry> counters_;
+        std::shared_ptr<util::query_counters> active_counters_;
 
         long instance_number_;
         static boost::atomic<int> instance_number_counter_;
@@ -426,7 +427,7 @@ namespace hpx {
     bool runtime::verify_parcel_suffix(Buffer const& data,
         naming::gid_type& parcel_id, error_code& ec) const
     {
-        boost::lock_guard<lcos::local::spinlock> l(security_mtx_);
+        std::lock_guard<lcos::local::spinlock> l(security_mtx_);
         return components::security::verify(*cert_store(ec), data, parcel_id);
     }
 }

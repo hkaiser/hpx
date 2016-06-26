@@ -13,7 +13,12 @@
 
 #include <hpx/util/lightweight_test.hpp>
 
+#include <boost/intrusive_ptr.hpp>
+
 #include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
 
 // =========================shared_ptr test==============================
 struct A
@@ -90,9 +95,9 @@ HPX_SERIALIZATION_REGISTER_CLASS(C);
 
 void test_shared()
 {
-    boost::shared_ptr<A> ip(new C);
-    boost::shared_ptr<A> op1;
-    boost::shared_ptr<A> op2;
+    std::shared_ptr<A> ip(new C);
+    std::shared_ptr<A> op1;
+    std::shared_ptr<A> op2;
     {
         std::vector<char> buffer;
         hpx::serialization::output_archive oarchive(buffer);

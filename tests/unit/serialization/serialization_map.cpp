@@ -15,7 +15,9 @@
 
 #include <algorithm>
 #include <iterator>
+#include <map>
 #include <numeric>
+#include <vector>
 
 template <typename T>
 struct A

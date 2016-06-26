@@ -7,18 +7,20 @@
 #if !defined(HPX_UTIL_ZIP_ITERATOR_MAY_29_2014_0852PM)
 #define HPX_UTIL_ZIP_ITERATOR_MAY_29_2014_0852PM
 
-#include <hpx/util/tuple.hpp>
+#include <hpx/config.hpp>
+#include <hpx/runtime/naming/id_type.hpp>
 #include <hpx/traits/segmented_iterator_traits.hpp>
 #include <hpx/util/detail/pack.hpp>
-#include <hpx/util/result_of.hpp>
 #include <hpx/util/functional/segmented_iterator_helpers.hpp>
-#include <hpx/runtime/naming/id_type.hpp>
+#include <hpx/util/result_of.hpp>
+#include <hpx/util/tuple.hpp>
 
-#include <boost/fusion/algorithm/iteration/for_each.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 
+#include <cstddef>
 #include <iterator>
 #include <type_traits>
+#include <utility>
 
 namespace hpx { namespace util
 {
@@ -234,12 +236,11 @@ namespace hpx { namespace util
         template <typename ...Ts>
         struct dereference_iterator<tuple<Ts...> >
         {
-            typedef typename zip_iterator_reference<
-                tuple<Ts...>
-            >::type result_type;
-
             template <std::size_t ...Is>
-            static result_type call(detail::pack_c<std::size_t, Is...>,
+            HPX_HOST_DEVICE
+            static typename zip_iterator_reference<
+                tuple<Ts...>
+            >::type call(detail::pack_c<std::size_t, Is...>,
                 tuple<Ts...> const& iterators)
             {
                 return util::forward_as_tuple(*util::get<Is>(iterators)...);
@@ -248,9 +249,8 @@ namespace hpx { namespace util
 
         struct increment_iterator
         {
-            typedef void result_type;
-
             template <typename T>
+            HPX_HOST_DEVICE
             void operator()(T& iter) const
             {
                 ++iter;
@@ -259,9 +259,8 @@ namespace hpx { namespace util
 
         struct decrement_iterator
         {
-            typedef void result_type;
-
             template <typename T>
+            HPX_HOST_DEVICE
             void operator()(T& iter) const
             {
                 --iter;
@@ -272,9 +271,8 @@ namespace hpx { namespace util
         {
             explicit advance_iterator(std::ptrdiff_t n) : n_(n) {}
 
-            typedef void result_type;
-
             template <typename T>
+            HPX_HOST_DEVICE
             void operator()(T& iter) const
             {
                 iter += n_;
@@ -333,25 +331,41 @@ namespace hpx { namespace util
 
             void increment()
             {
-                return boost::fusion::for_each(iterators_,
-                    increment_iterator());
+                this->apply(increment_iterator());
             }
 
             void decrement()
             {
-                return boost::fusion::for_each(iterators_,
-                    decrement_iterator());
+                this->apply(decrement_iterator());
             }
 
             void advance(std::ptrdiff_t n)
             {
-                return boost::fusion::for_each(iterators_,
-                    advance_iterator(n));
+                this->apply(advance_iterator(n));
             }
 
             std::ptrdiff_t distance_to(zip_iterator_base const& other) const
             {
                 return util::get<0>(other.iterators_) - util::get<0>(iterators_);
+            }
+
+        private:
+            template <typename F, std::size_t ...Is>
+            void apply(F&& f, detail::pack_c<std::size_t, Is...>)
+            {
+                int const _sequencer[]= {
+                    ((f(util::get<Is>(iterators_))), 0)...
+                };
+                (void)_sequencer;
+            }
+
+            template <typename F>
+            void apply(F&& f)
+            {
+                return apply(std::forward<F>(f),
+                    detail::make_index_pack<
+                        util::tuple_size<IteratorTuple>::value
+                    >());
             }
 
         private:
@@ -408,23 +422,12 @@ namespace hpx { namespace traits
             template <typename Iterator>
             struct apply
             {
-                template <typename T>
-                struct result;
-
-                template <typename This, typename SegIter>
-                struct result<This(SegIter)>
-                {
-                    typedef typename segmented_iterator_traits<
-                            Iterator
-                        >::local_raw_iterator type;
-                };
-
                 template <typename SegIter>
-                typename result<get_raw_iterator(SegIter)>::type
+                typename segmented_iterator_traits<Iterator>::local_raw_iterator
                 operator()(SegIter iter) const
                 {
                     return iter.local();
-                };
+                }
             };
         };
 
@@ -433,23 +436,12 @@ namespace hpx { namespace traits
             template <typename Iterator>
             struct apply
             {
-                template <typename T>
-                struct result;
-
-                template <typename This, typename SegIter>
-                struct result<This(SegIter)>
-                {
-                    typedef typename segmented_iterator_traits<
-                            Iterator
-                        >::local_iterator type;
-                };
-
                 template <typename SegIter>
-                typename result<get_remote_iterator(SegIter)>::type
+                typename segmented_iterator_traits<Iterator>::local_iterator
                 operator()(SegIter iter) const
                 {
                     return iter.remote();
-                };
+                }
             };
         };
 
@@ -477,18 +469,17 @@ namespace hpx { namespace traits
             call(util::detail::pack_c<std::size_t, Is...>,
                 util::tuple<Ts_...> const& t)
             {
-                return util::make_tuple(typename F::template apply<
-                    typename util::tuple_element<Is, tuple_type>::type>()(
-                        util::get<Is>(t))...);
+                return util::make_tuple(
+                    typename F::template apply<Ts>()(util::get<Is>(t))...);
             }
 
             template <typename ...Ts_>
             static result_type
             call(util::zip_iterator<Ts_...> const& iter)
             {
-                return call(typename util::detail::make_index_pack<
-                            util::tuple_size<tuple_type>::value
-                        >::type(), iter.get_iterator_tuple());
+                using hpx::util::detail::make_index_pack;
+                return call(typename make_index_pack<sizeof...(Ts)>::type(),
+                    iter.get_iterator_tuple());
             }
         };
     }

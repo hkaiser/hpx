@@ -5,20 +5,20 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/exception.hpp>
-#include <hpx/runtime/threads/thread_helpers.hpp>
-#include <hpx/runtime/applier/applier.hpp>
-#include <hpx/include/parcelset.hpp>
+#include <hpx/runtime/actions/continuation.hpp>
 #include <hpx/runtime/agas/interface.hpp>
-#include <hpx/runtime/threads/threadmanager.hpp>
+#include <hpx/runtime/applier/applier.hpp>
 #include <hpx/runtime/components/pinned_ptr.hpp>
 #include <hpx/runtime/components/server/runtime_support.hpp>
 #include <hpx/runtime/naming/resolver_client.hpp>
-#include <hpx/runtime/actions/continuation.hpp>
+#include <hpx/runtime/parcelset/parcelhandler.hpp>
+#include <hpx/runtime/parcelset/parcel.hpp>
+#include <hpx/runtime/threads/threadmanager.hpp>
+#include <hpx/runtime/threads/thread_helpers.hpp>
 #include <hpx/util/register_locks.hpp>
 #include <hpx/util/thread_description.hpp>
-#include <hpx/include/async.hpp>
 #if defined(HPX_HAVE_SECURITY)
 #include <hpx/components/security/capability.hpp>
 #include <hpx/components/security/certificate.hpp>
@@ -27,6 +27,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace detail
@@ -74,7 +75,7 @@ namespace hpx { namespace applier
         threads::thread_stacksize stacksize, error_code& ec)
     {
         hpx::applier::applier* app = hpx::applier::get_applier_ptr();
-        if (NULL == app)
+        if (nullptr == app)
         {
             HPX_THROWS_IF(ec, invalid_status,
                 "hpx::applier::register_thread_nullary",
@@ -82,9 +83,8 @@ namespace hpx { namespace applier
             return threads::invalid_thread_id;
         }
 
-        util::thread_description d = desc;
-        if (!desc)
-            d = util::thread_description(func);
+        util::thread_description d =
+            desc ? desc : util::thread_description(func, "register_thread_nullary");
 
         threads::thread_init_data data(
             util::bind(util::one_shot(&thread_function_nullary), std::move(func)),
@@ -102,7 +102,7 @@ namespace hpx { namespace applier
         threads::thread_stacksize stacksize, error_code& ec)
     {
         hpx::applier::applier* app = hpx::applier::get_applier_ptr();
-        if (NULL == app)
+        if (nullptr == app)
         {
             HPX_THROWS_IF(ec, invalid_status,
                 "hpx::applier::register_thread",
@@ -110,9 +110,8 @@ namespace hpx { namespace applier
             return threads::invalid_thread_id;
         }
 
-        util::thread_description d = desc;
-        if (!desc)
-            d = util::thread_description(func);
+        util::thread_description d =
+            desc ? desc : util::thread_description(func, "register_thread");
 
         threads::thread_init_data data(
             util::bind(util::one_shot(&thread_function), std::move(func)),
@@ -130,7 +129,7 @@ namespace hpx { namespace applier
         threads::thread_stacksize stacksize, error_code& ec)
     {
         hpx::applier::applier* app = hpx::applier::get_applier_ptr();
-        if (NULL == app)
+        if (nullptr == app)
         {
             HPX_THROWS_IF(ec, invalid_status,
                 "hpx::applier::register_thread_plain",
@@ -138,9 +137,8 @@ namespace hpx { namespace applier
             return threads::invalid_thread_id;
         }
 
-        util::thread_description d = desc;
-        if (!desc)
-            d = util::thread_description(func);
+        util::thread_description d =
+            desc ? desc : util::thread_description(func, "register_thread_plain");
 
         threads::thread_init_data data(std::move(func),
             d, 0, priority, os_thread, threads::get_stack_size(stacksize));
@@ -155,7 +153,7 @@ namespace hpx { namespace applier
         bool run_now, error_code& ec)
     {
         hpx::applier::applier* app = hpx::applier::get_applier_ptr();
-        if (NULL == app)
+        if (nullptr == app)
         {
             HPX_THROWS_IF(ec, invalid_status,
                 "hpx::applier::register_thread_plain",
@@ -177,7 +175,7 @@ namespace hpx { namespace applier
         error_code& ec)
     {
         hpx::applier::applier* app = hpx::applier::get_applier_ptr();
-        if (NULL == app)
+        if (nullptr == app)
         {
             HPX_THROWS_IF(ec, invalid_status,
                 "hpx::applier::register_work_nullary",
@@ -185,9 +183,8 @@ namespace hpx { namespace applier
             return;
         }
 
-        util::thread_description d = desc;
-        if (!desc)
-            d = util::thread_description(func);
+        util::thread_description d =
+            desc ? desc : util::thread_description(func, "register_thread_nullary");
 
         threads::thread_init_data data(
             util::bind(util::one_shot(&thread_function_nullary), std::move(func)),
@@ -203,7 +200,7 @@ namespace hpx { namespace applier
         threads::thread_stacksize stacksize, error_code& ec)
     {
         hpx::applier::applier* app = hpx::applier::get_applier_ptr();
-        if (NULL == app)
+        if (nullptr == app)
         {
             HPX_THROWS_IF(ec, invalid_status,
                 "hpx::applier::register_work",
@@ -211,9 +208,8 @@ namespace hpx { namespace applier
             return;
         }
 
-        util::thread_description d = desc;
-        if (!desc)
-            d = util::thread_description(func);
+        util::thread_description d =
+            desc ? desc : util::thread_description(func, "register_work");
 
         threads::thread_init_data data(
             util::bind(util::one_shot(&thread_function), std::move(func)),
@@ -230,7 +226,7 @@ namespace hpx { namespace applier
         error_code& ec)
     {
         hpx::applier::applier* app = hpx::applier::get_applier_ptr();
-        if (NULL == app)
+        if (nullptr == app)
         {
             HPX_THROWS_IF(ec, invalid_status,
                 "hpx::applier::register_work_plain",
@@ -238,9 +234,8 @@ namespace hpx { namespace applier
             return;
         }
 
-        util::thread_description d = desc;
-        if (!desc)
-            d = util::thread_description(func);
+        util::thread_description d =
+            desc ? desc : util::thread_description(func, "register_work_plain");
 
         threads::thread_init_data data(std::move(func),
             d, lva, priority, os_thread, threads::get_stack_size(stacksize));
@@ -256,7 +251,7 @@ namespace hpx { namespace applier
         error_code& ec)
     {
         hpx::applier::applier* app = hpx::applier::get_applier_ptr();
-        if (NULL == app)
+        if (nullptr == app)
         {
             HPX_THROWS_IF(ec, invalid_status,
                 "hpx::applier::register_work_plain",
@@ -264,9 +259,8 @@ namespace hpx { namespace applier
             return;
         }
 
-        util::thread_description d = desc;
-        if (!desc)
-            d = util::thread_description(func);
+        util::thread_description d =
+            desc ? desc : util::thread_description(func, "register_work_plain");
 
         threads::thread_init_data data(std::move(func),
             d, lva, priority, os_thread, threads::get_stack_size(stacksize),
@@ -280,7 +274,7 @@ namespace hpx { namespace applier
         error_code& ec)
     {
         hpx::applier::applier* app = hpx::applier::get_applier_ptr();
-        if (NULL == app)
+        if (nullptr == app)
         {
             HPX_THROWS_IF(ec, invalid_status,
                 "hpx::applier::register_work_plain",
@@ -392,7 +386,7 @@ namespace hpx { namespace applier
 
     void applier::init_tss()
     {
-        if (NULL == applier::applier_.get())
+        if (nullptr == applier::applier_.get())
             applier::applier_.reset(new applier* (this));
     }
 
@@ -581,14 +575,14 @@ namespace hpx { namespace applier
     applier& get_applier()
     {
         // should have been initialized
-        HPX_ASSERT(NULL != applier::applier_.get());
+        HPX_ASSERT(nullptr != applier::applier_.get());
         return **applier::applier_;
     }
 
     applier* get_applier_ptr()
     {
         applier** appl = applier::applier_.get();
-        return appl ? *appl : NULL;
+        return appl ? *appl : nullptr;
     }
 
     // The function \a get_locality_id returns the id of this locality

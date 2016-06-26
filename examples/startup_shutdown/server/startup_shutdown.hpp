@@ -6,6 +6,8 @@
 #if !defined(SERVER_STARTUP_SHUTDOWN_NOV_23_2011_0706PM)
 #define SERVER_STARTUP_SHUTDOWN_NOV_23_2011_0706PM
 
+#include <string>
+
 namespace startup_shutdown { namespace server
 {
     class HPX_COMPONENT_EXPORT startup_shutdown_component
@@ -14,7 +16,7 @@ namespace startup_shutdown { namespace server
     public:
         // constructor: initialize accumulator value
         startup_shutdown_component()
-          : arg_(0)
+          : arg_(nullptr)
         {}
 
         ///////////////////////////////////////////////////////////////////////

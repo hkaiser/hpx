@@ -12,33 +12,29 @@
 #define HPX_15D904C7_CD18_46E1_A54A_65059966A34F
 
 #include <hpx/config.hpp>
-#include <hpx/exception.hpp>
-#include <hpx/state.hpp>
+#include <hpx/exception_fwd.hpp>
 #include <hpx/lcos/local/mutex.hpp>
-#include <hpx/include/async.hpp>
+#include <hpx/runtime/agas/detail/agas_service_client.hpp>
 #include <hpx/runtime/applier/applier.hpp>
+#include <hpx/runtime/components/pinned_ptr.hpp>
 #include <hpx/runtime/naming/address.hpp>
 #include <hpx/runtime/naming/name.hpp>
-#include <hpx/runtime/components/pinned_ptr.hpp>
-#include <hpx/runtime/agas/detail/agas_service_client.hpp>
-#include <hpx/util/function.hpp>
-#include <hpx/util/unique_function.hpp>
+#include <hpx/state.hpp>
+#include <hpx/util/cache/lru_cache.hpp>
+#include <hpx/util/cache/statistics/local_full_statistics.hpp>
+#include <hpx/util_fwd.hpp>
 
-#include <boost/make_shared.hpp>
-#include <boost/cache/lru_cache.hpp>
-#include <boost/cache/statistics/local_full_statistics.hpp>
+#include <boost/atomic.hpp>
 #include <boost/cstdint.hpp>
-#include <boost/noncopyable.hpp>
 #include <boost/dynamic_bitset.hpp>
-#include <boost/thread/locks.hpp>
 
+#include <cstdint>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <set>
+#include <string>
 #include <vector>
-
-namespace hpx { namespace util
-{
-    class runtime_configuration;
-}}
 
 namespace hpx { namespace agas
 {
@@ -46,8 +42,12 @@ struct request;
 struct response;
 HPX_EXPORT void destroy_big_boot_barrier();
 
-struct HPX_EXPORT addressing_service : boost::noncopyable
+struct HPX_EXPORT addressing_service
 {
+private:
+    HPX_NON_COPYABLE(addressing_service);
+
+public:
     // {{{ types
     typedef components::component_type component_id_type;
 
@@ -65,10 +65,10 @@ struct HPX_EXPORT addressing_service : boost::noncopyable
     // {{{ gva cache
     struct gva_cache_key;
 
-    typedef boost::cache::lru_cache<
+    typedef hpx::util::cache::lru_cache<
         gva_cache_key
       , gva
-      , boost::cache::statistics::local_full_statistics
+      , hpx::util::cache::statistics::local_full_statistics
     > gva_cache_type;
     // }}}
 
@@ -76,7 +76,7 @@ struct HPX_EXPORT addressing_service : boost::noncopyable
     typedef std::map<naming::gid_type, boost::int64_t> refcnt_requests_type;
 
     mutable mutex_type gva_cache_mtx_;
-    boost::shared_ptr<gva_cache_type> gva_cache_;
+    std::shared_ptr<gva_cache_type> gva_cache_;
 
     mutable mutex_type migrated_objects_mtx_;
     migrated_objects_table_type migrated_objects_table_;
@@ -90,7 +90,7 @@ struct HPX_EXPORT addressing_service : boost::noncopyable
     std::size_t refcnt_requests_count_;
     bool enable_refcnt_caching_;
 
-    boost::shared_ptr<refcnt_requests_type> refcnt_requests_;
+    std::shared_ptr<refcnt_requests_type> refcnt_requests_;
 
     service_mode const service_type;
     runtime_mode const runtime_type;
@@ -102,7 +102,7 @@ struct HPX_EXPORT addressing_service : boost::noncopyable
     boost::uint64_t rts_lva_;
     boost::uint64_t mem_lva_;
 
-    boost::shared_ptr<detail::agas_service_client> client_;
+    std::shared_ptr<detail::agas_service_client> client_;
 
     boost::atomic<hpx::state> state_;
     naming::gid_type locality_;
@@ -203,7 +203,7 @@ struct HPX_EXPORT addressing_service : boost::noncopyable
     naming::address::address_type get_bootstrap_symbol_ns_ptr() const;
 
     boost::int64_t synchronize_with_async_incref(
-        hpx::future<boost::int64_t> fut
+        hpx::future<std::int64_t> fut
       , naming::id_type const& id
       , boost::int64_t compensated_credit
         );
@@ -220,7 +220,7 @@ struct HPX_EXPORT addressing_service : boost::noncopyable
 
 protected:
     void launch_bootstrap(
-        boost::shared_ptr<parcelset::parcelport> const& pp
+        std::shared_ptr<parcelset::parcelport> const& pp
       , parcelset::endpoints_type const & endpoints
       , util::runtime_configuration const& ini_
         );
@@ -245,25 +245,25 @@ protected:
 private:
     /// Assumes that \a refcnt_requests_mtx_ is locked.
     void send_refcnt_requests(
-        boost::unique_lock<mutex_type>& l
+        std::unique_lock<mutex_type>& l
       , error_code& ec = throws
         );
 
     /// Assumes that \a refcnt_requests_mtx_ is locked.
     void send_refcnt_requests_non_blocking(
-        boost::unique_lock<mutex_type>& l
+        std::unique_lock<mutex_type>& l
       , error_code& ec
         );
 
     /// Assumes that \a refcnt_requests_mtx_ is locked.
     std::vector<hpx::future<std::vector<response> > >
     send_refcnt_requests_async(
-        boost::unique_lock<mutex_type>& l
+        std::unique_lock<mutex_type>& l
         );
 
     /// Assumes that \a refcnt_requests_mtx_ is locked.
     void send_refcnt_requests_sync(
-        boost::unique_lock<mutex_type>& l
+        std::unique_lock<mutex_type>& l
       , error_code& ec
         );
 

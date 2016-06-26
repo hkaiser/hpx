@@ -20,16 +20,15 @@
 
 #include <hpx/config.hpp>
 
-#include <iostream>
 #include <boost/thread/thread.hpp>
+#include <iostream>
 
 #include <boost/atomic.hpp>
-#include <boost/noncopyable.hpp>
 
 #include <boost/lockfree/detail/tagged_ptr.hpp>
 
-#include <hpx/util/lockfree/freelist.hpp>
 #include <hpx/util/lockfree/detail/tagged_ptr_pair.hpp>
+#include <hpx/util/lockfree/freelist.hpp>
 
 namespace boost { namespace lockfree
 {
@@ -83,7 +82,7 @@ struct deque_anchor //-V690
     atomic_pair pair_;
 
   public:
-    deque_anchor(): pair_(pair(0, 0, stable, 0)) {}
+    deque_anchor(): pair_(pair(nullptr, nullptr, stable, 0)) {}
 
     deque_anchor(deque_anchor const& p): pair_(p.pair_.load()) {}
 
@@ -142,8 +141,12 @@ template <typename T,
           typename freelist_t = caching_freelist_t,
           typename Alloc = std::allocator<T>
           >
-struct deque: private boost::noncopyable
+struct deque
 {
+  private:
+    HPX_NON_COPYABLE(deque);
+
+  public:
     typedef deque_node<T> node;
     typedef typename node::pointer node_pointer;
     typedef typename node::atomic_pointer atomic_node_pointer;
@@ -166,8 +169,8 @@ struct deque: private boost::noncopyable
     anchor anchor_;
     pool pool_;
 
-    HPX_STATIC_CONSTEXPR int //-V103
-        padding_size = BOOST_LOCKFREE_CACHELINE_BYTES - sizeof(anchor);
+    HPX_STATIC_CONSTEXPR int
+        padding_size = BOOST_LOCKFREE_CACHELINE_BYTES - sizeof(anchor); //-V103
     char padding[padding_size];
 
     node* alloc_node(node* lptr, node* rptr, T const& v,
@@ -275,7 +278,7 @@ struct deque: private boost::noncopyable
     // Complexity: O(Processes)
     // FIXME: Should we check both pointers here?
     bool empty() const
-    { return anchor_.lrs().get_left_ptr() == 0; }
+    { return anchor_.lrs().get_left_ptr() == nullptr; }
 
     // Thread-safe and non-blocking.
     // Complexity: O(1)
@@ -289,9 +292,9 @@ struct deque: private boost::noncopyable
     bool push_left(T const& data)
     {
         // Allocate the new node which we will be inserting.
-        node* n = alloc_node(0, 0, data);
+        node* n = alloc_node(nullptr, nullptr, data);
 
-        if (n == 0)
+        if (n == nullptr)
             return false;
 
         // Loop until we insert successfully.
@@ -302,7 +305,7 @@ struct deque: private boost::noncopyable
 
             // Check if the deque is empty.
             // FIXME: Should we check both pointers here?
-            if (lrs.get_left_ptr() == 0)
+            if (lrs.get_left_ptr() == nullptr)
             {
                 // If the deque is empty, we simply install a new anchor which
                 // points to the new node as both its leftmost and rightmost
@@ -408,14 +411,14 @@ struct deque: private boost::noncopyable
 
             // Check if the deque is empty.
             // FIXME: Should we check both pointers here?
-            if (lrs.get_left_ptr() == 0)
+            if (lrs.get_left_ptr() == nullptr)
                 return false;
 
             // Check if the deque has 1 element.
             if (lrs.get_left_ptr() == lrs.get_right_ptr())
             {
                 // Try to set both anchor pointer
-                if (anchor_.cas(lrs, anchor_pair(0, 0,
+                if (anchor_.cas(lrs, anchor_pair(nullptr, nullptr,
                         lrs.get_left_tag(), lrs.get_right_tag() + 1)))
                 {
                     // Set the result, deallocate the popped node, and return.
@@ -469,14 +472,14 @@ struct deque: private boost::noncopyable
 
             // Check if the deque is empty.
             // FIXME: Should we check both pointers here?
-            if (lrs.get_right_ptr() == 0)
+            if (lrs.get_right_ptr() == nullptr)
                 return false;
 
             // Check if the deque has 1 element.
             if (lrs.get_right_ptr() == lrs.get_left_ptr())
             {
                 // Try to set both anchor pointer
-                if (anchor_.cas(lrs, anchor_pair(0, 0,
+                if (anchor_.cas(lrs, anchor_pair(nullptr, nullptr,
                         lrs.get_left_tag(), lrs.get_right_tag() + 1)))
                 {
                     // Set the result, deallocate the popped node, and return.

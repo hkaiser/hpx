@@ -6,17 +6,18 @@
 #if !defined(HPX_APPLY_APR_16_20012_0943AM)
 #define HPX_APPLY_APR_16_20012_0943AM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/async.hpp>
-#include <hpx/runtime/threads/thread_helpers.hpp>
-#include <hpx/runtime/threads/thread_executor.hpp>
 #include <hpx/runtime/applier/apply.hpp>
 #include <hpx/runtime/applier/apply_continue.hpp>
+#include <hpx/runtime/threads/thread_executor.hpp>
+#include <hpx/runtime/threads/thread_helpers.hpp>
+#include <hpx/traits/is_executor.hpp>
+#include <hpx/traits/is_launch_policy.hpp>
 #include <hpx/util/bind_action.hpp>
 #include <hpx/util/decay.hpp>
 #include <hpx/util/deferred_call.hpp>
-#include <hpx/traits/is_executor.hpp>
-#include <hpx/traits/is_launch_policy.hpp>
+#include <hpx/util/thread_description.hpp>
 
 #include <boost/utility/enable_if.hpp>
 
@@ -41,7 +42,7 @@ namespace hpx { namespace detail
         >::type
         call(F&& f, Ts&&... ts)
         {
-            util::thread_description desc(f);
+            util::thread_description desc(f, "apply_dispatch::call");
             threads::register_thread_nullary(
                 util::deferred_call(std::forward<F>(f), std::forward<Ts>(ts)...),
                 desc);
@@ -87,7 +88,7 @@ namespace hpx { namespace detail
         call(Executor& exec, F&& f, Ts&&... ts)
         {
             parallel::executor_traits<Executor>::apply_execute(exec,
-                util::deferred_call(std::forward<F>(f), std::forward<Ts>(ts)...));
+                std::forward<F>(f), std::forward<Ts>(ts)...);
             return false;
         }
     };

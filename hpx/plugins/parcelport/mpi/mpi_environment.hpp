@@ -6,20 +6,22 @@
 #ifndef HPX_UTIL_MPI_ENV_HPP
 #define HPX_UTIL_MPI_ENV_HPP
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
+
 #if defined(HPX_HAVE_PARCELPORT_MPI)
 
 #include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/util_fwd.hpp>
 
 #include <mpi.h>
 
-#include <hpx/hpx_fwd.hpp>
 #include <cstdlib>
+#include <string>
+
+#include <hpx/config/warnings_prefix.hpp>
 
 namespace hpx { namespace util
 {
-    struct command_line_handling;
-
     struct HPX_EXPORT mpi_environment
     {
         static void init(int *argc, char ***argv, command_line_handling& cfg);
@@ -43,7 +45,7 @@ namespace hpx { namespace util
             scoped_lock();
             ~scoped_lock();
             void unlock();
-            HPX_MOVABLE_BUT_NOT_COPYABLE(scoped_lock);
+            HPX_MOVABLE_ONLY(scoped_lock);
         };
 
         struct scoped_try_lock
@@ -52,7 +54,7 @@ namespace hpx { namespace util
             ~scoped_try_lock();
             void unlock();
             bool locked;
-            HPX_MOVABLE_BUT_NOT_COPYABLE(scoped_try_lock);
+            HPX_MOVABLE_ONLY(scoped_try_lock);
         };
 
         typedef hpx::lcos::local::spinlock mutex_type;
@@ -67,6 +69,8 @@ namespace hpx { namespace util
         static MPI_Comm communicator_;
     };
 }}
+
+#include <hpx/config/warnings_suffix.hpp>
 
 #endif
 

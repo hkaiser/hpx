@@ -9,18 +9,17 @@
 #define HPX_PARALLEL_EXECUTOR_INFORMATION_TRAITS_AUG_26_2015_1133AM
 
 #include <hpx/config.hpp>
-#include <hpx/exception.hpp>
-#include <hpx/exception_list.hpp>
 #include <hpx/async.hpp>
-#include <hpx/traits/is_executor.hpp>
-#include <hpx/runtime/threads/policies/topology.hpp>
-#include <hpx/util/decay.hpp>
-#include <hpx/util/always_void.hpp>
-#include <hpx/util/result_of.hpp>
-#include <hpx/util/deferred_call.hpp>
-#include <hpx/util/unwrapped.hpp>
 #include <hpx/parallel/config/inline_namespace.hpp>
 #include <hpx/parallel/executors/executor_traits.hpp>
+#include <hpx/runtime/threads/policies/topology.hpp>
+#include <hpx/traits/detail/wrap_int.hpp>
+#include <hpx/traits/is_executor.hpp>
+#include <hpx/util/always_void.hpp>
+#include <hpx/util/decay.hpp>
+#include <hpx/util/deferred_call.hpp>
+#include <hpx/util/result_of.hpp>
+#include <hpx/util/unwrapped.hpp>
 
 #include <type_traits>
 #include <utility>

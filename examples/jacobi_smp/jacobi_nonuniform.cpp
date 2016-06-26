@@ -4,7 +4,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #if !defined(JACOBI_SMP_NO_HPX)
 #include <hpx/hpx_init.hpp>
 #endif
@@ -20,8 +20,10 @@
 #include <boost/spirit/include/support_istream_iterator.hpp>
 #include <boost/spirit/include/phoenix.hpp>
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
 
 using boost::program_options::variables_map;
 using boost::program_options::options_description;

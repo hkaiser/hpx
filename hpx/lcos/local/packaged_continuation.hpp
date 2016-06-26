@@ -8,22 +8,21 @@
 #define HPX_LCOS_LOCAL_CONTINUATION_APR_17_2012_0150PM
 
 #include <hpx/config.hpp>
-#include <hpx/traits/promise_remote_result.hpp>
-#include <hpx/traits/is_future.hpp>
-#include <hpx/traits/is_executor.hpp>
-#include <hpx/traits/future_access.hpp>
-#include <hpx/runtime/launch_policy.hpp>
-#include <hpx/util/decay.hpp>
-#include <hpx/util/thread_description.hpp>
+#include <hpx/error_code.hpp>
 #include <hpx/lcos/detail/future_data.hpp>
 #include <hpx/lcos/future.hpp>
+#include <hpx/runtime/launch_policy.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/traits/future_access.hpp>
+#include <hpx/traits/future_traits.hpp>
+#include <hpx/traits/is_executor.hpp>
+#include <hpx/util/decay.hpp>
+#include <hpx/util/thread_description.hpp>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
 #include <boost/intrusive_ptr.hpp>
 #include <boost/type_traits/remove_reference.hpp>
-#include <boost/thread/locks.hpp>
 
+#include <mutex>
 #include <utility>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -124,7 +123,7 @@ namespace hpx { namespace lcos { namespace detail
             inner_shared_state_ptr inner_state =
                 traits::detail::get_shared_state(func(std::move(future)));
 
-            if (inner_state.get() == 0)
+            if (inner_state.get() == nullptr)
             {
                 HPX_THROW_EXCEPTION(no_state,
                     "invoke_continuation",
@@ -170,12 +169,12 @@ namespace hpx { namespace lcos { namespace detail
     protected:
         threads::thread_id_type get_id() const
         {
-            boost::lock_guard<mutex_type> l(this->mtx_);
+            std::lock_guard<mutex_type> l(this->mtx_);
             return id_;
         }
         void set_id(threads::thread_id_type const& id)
         {
-            boost::lock_guard<mutex_type> l(this->mtx_);
+            std::lock_guard<mutex_type> l(this->mtx_);
             id_ = id;
         }
 
@@ -184,7 +183,7 @@ namespace hpx { namespace lcos { namespace detail
             reset_id(continuation& target)
               : target_(target)
             {
-                if (threads::get_self_ptr() != 0)
+                if (threads::get_self_ptr() != nullptr)
                     target.set_id(threads::get_self_id());
             }
             ~reset_id()
@@ -216,7 +215,7 @@ namespace hpx { namespace lcos { namespace detail
             >::type const& f, error_code& ec)
         {
             {
-                boost::lock_guard<mutex_type> l(this->mtx_);
+                std::lock_guard<mutex_type> l(this->mtx_);
                 if (started_) {
                     HPX_THROWS_IF(ec, task_already_started,
                         "continuation::run",
@@ -260,7 +259,7 @@ namespace hpx { namespace lcos { namespace detail
             error_code& ec)
         {
             {
-                boost::lock_guard<mutex_type> l(this->mtx_);
+                std::lock_guard<mutex_type> l(this->mtx_);
                 if (started_) {
                     HPX_THROWS_IF(ec, task_already_started,
                         "continuation::async",
@@ -275,9 +274,9 @@ namespace hpx { namespace lcos { namespace detail
                 typename traits::detail::shared_state_ptr_for<Future>::type const&
             ) = &continuation::async_impl;
 
+            util::thread_description desc(f_, "continuation::async");
             applier::register_thread_plain(
-                util::bind(async_impl_ptr, std::move(this_), f),
-                util::thread_description(f_));
+                util::bind(async_impl_ptr, std::move(this_), f), desc);
 
             if (&ec != &throws)
                 ec = make_success_code();
@@ -290,7 +289,7 @@ namespace hpx { namespace lcos { namespace detail
             threads::executor& sched, error_code& ec)
         {
             {
-                boost::lock_guard<mutex_type> l(this->mtx_);
+                std::lock_guard<mutex_type> l(this->mtx_);
                 if (started_) {
                     HPX_THROWS_IF(ec, task_already_started,
                         "continuation::async",
@@ -305,9 +304,8 @@ namespace hpx { namespace lcos { namespace detail
                 typename traits::detail::shared_state_ptr_for<Future>::type const&
             ) = &continuation::async_impl;
 
-            sched.add(
-                util::bind(async_impl_ptr, std::move(this_), f),
-                util::thread_description(f_));
+            util::thread_description desc(f_, "continuation::async");
+            sched.add(util::bind(async_impl_ptr, std::move(this_), f), desc);
 
             if (&ec != &throws)
                 ec = make_success_code();
@@ -321,7 +319,7 @@ namespace hpx { namespace lcos { namespace detail
             Executor& exec, error_code& ec)
         {
             {
-                boost::lock_guard<mutex_type> l(this->mtx_);
+                std::lock_guard<mutex_type> l(this->mtx_);
                 if (started_) {
                     HPX_THROWS_IF(ec, task_already_started,
                         "continuation::async_exec",
@@ -337,8 +335,7 @@ namespace hpx { namespace lcos { namespace detail
             ) = &continuation::async_impl;
 
             parallel::executor_traits<Executor>::apply_execute(
-                exec, util::bind(async_impl_ptr, std::move(this_), f)
-            );
+                exec, async_impl_ptr, std::move(this_), f);
 
             if (&ec != &throws)
                 ec = make_success_code();
@@ -378,10 +375,10 @@ namespace hpx { namespace lcos { namespace detail
 
         void cancel()
         {
-            boost::unique_lock<mutex_type> l(this->mtx_);
+            std::unique_lock<mutex_type> l(this->mtx_);
             try {
                 if (!this->started_)
-                    boost::throw_exception(hpx::thread_interrupted());
+                    HPX_THROW_THREAD_INTERRUPTED_EXCEPTION();
 
                 if (this->is_ready_locked())
                     return;   // nothing we can do
@@ -403,7 +400,7 @@ namespace hpx { namespace lcos { namespace detail
                         "future can't be canceled at this time");
                 }
             }
-            catch (hpx::exception const&) {
+            catch (...) {
                 this->started_ = true;
                 this->set_exception(boost::current_exception());
                 throw;
@@ -483,8 +480,7 @@ namespace hpx { namespace lcos { namespace detail
     inline typename traits::detail::shared_state_ptr<
         typename continuation_result<ContResult>::type
     >::type
-    make_continuation(Future const& future, launch policy,
-        F && f)
+    make_continuation(Future const& future, launch policy, F && f)
     {
         typedef detail::continuation<Future, F, ContResult> shared_state;
         typedef typename continuation_result<ContResult>::type result_type;
@@ -500,8 +496,7 @@ namespace hpx { namespace lcos { namespace detail
     inline typename traits::detail::shared_state_ptr<
         typename continuation_result<ContResult>::type
     >::type
-    make_continuation(Future const& future, threads::executor& sched,
-        F && f)
+    make_continuation(Future const& future, threads::executor& sched, F && f)
     {
         typedef detail::continuation<Future, F, ContResult> shared_state;
         typedef typename continuation_result<ContResult>::type result_type;
@@ -580,7 +575,7 @@ namespace hpx { namespace lcos { namespace detail
                 inner_shared_state_ptr inner_state =
                     traits::detail::get_shared_state(outer.get());
 
-                if (inner_state.get() == 0)
+                if (inner_state.get() == nullptr)
                 {
                     HPX_THROW_EXCEPTION(no_state,
                         "unwrap_continuation<ContResult>::on_outer_ready",

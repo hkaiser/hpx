@@ -12,13 +12,16 @@
 
 #if defined(HPX_HAVE_THROTTLE_SCHEDULER)
 
+#include <hpx/runtime/threads_fwd.hpp>
+
 #include <apex_api.hpp>
 
 #include <boost/thread/shared_mutex.hpp>
 
-#include <vector>
 #include <memory>
+#include <string>
 #include <time.h>
+#include <vector>
 
 #include <hpx/config/warnings_prefix.hpp>
 

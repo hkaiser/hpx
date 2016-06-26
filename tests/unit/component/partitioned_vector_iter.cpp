@@ -4,14 +4,16 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include <hpx/hpx_main.hpp>
+#include <hpx/include/traits.hpp>
 #include <hpx/include/partitioned_vector.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include <algorithm>
-#include <memory>
-#include <vector>
-#include <iostream>
 #include <functional>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 // Define the vector types to be used.

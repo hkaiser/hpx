@@ -15,8 +15,7 @@
 #   define HPX_ASSERT_MSG(expr, msg) BOOST_ASSERT_MSG(expr, msg)
 #else
 
-#include <hpx/config/branch_hints.hpp>
-#include <hpx/config/compiler_specific.hpp>
+#include <hpx/config.hpp>
 
 //-------------------------------------------------------------------------- //
 //                                     HPX_ASSERT                            //
@@ -92,10 +91,10 @@ namespace hpx
 #ifndef HPX_ASSERT_HPP
 #define HPX_ASSERT_HPP
 
-#include <cstdlib>
-#include <iostream>
 #include <hpx/config.hpp>
 #include <boost/current_function.hpp>
+#include <cstdlib>
+#include <iostream>
 
 //  IDE's like Visual Studio perform better if output goes to std::cout or
 //  some other stream, so allow user to configure output stream:

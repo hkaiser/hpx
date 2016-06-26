@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2013 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -6,19 +6,25 @@
 #if !defined(HPX_RUNTIME_THREADS_DETAIL_SET_THREAD_STATE_JAN_13_2013_0518PM)
 #define HPX_RUNTIME_THREADS_DETAIL_SET_THREAD_STATE_JAN_13_2013_0518PM
 
+#include <hpx/config.hpp>
 #include <hpx/config/asio.hpp>
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/exception.hpp>
+#include <hpx/error_code.hpp>
+#include <hpx/runtime/threads/coroutines/coroutine.hpp>
+#include <hpx/runtime/threads/detail/create_thread.hpp>
+#include <hpx/runtime/threads/detail/create_work.hpp>
 #include <hpx/runtime/threads/thread_data.hpp>
 #include <hpx/runtime/threads/thread_helpers.hpp>
-#include <hpx/runtime/threads/coroutines/coroutine.hpp>
-#include <hpx/runtime/threads/detail/create_work.hpp>
-#include <hpx/runtime/threads/detail/create_thread.hpp>
+#include <hpx/runtime_fwd.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/date_time_chrono.hpp>
 #include <hpx/util/io_service_pool.hpp>
 #include <hpx/util/logging.hpp>
 
 #include <boost/asio/basic_deadline_timer.hpp>
+#include <boost/atomic.hpp>
+
+#include <memory>
 
 namespace hpx { namespace threads { namespace detail
 {
@@ -37,7 +43,7 @@ namespace hpx { namespace threads { namespace detail
         if (HPX_UNLIKELY(!thrd)) {
             HPX_THROW_EXCEPTION(null_thread_id,
                 "threads::detail::set_active_state",
-                "NULL thread id encountered");
+                "null thread id encountered");
             return terminated;
         }
 
@@ -45,7 +51,7 @@ namespace hpx { namespace threads { namespace detail
         // in the mean time
         thread_state current_state = thrd->get_state();
 
-        if (thread_state_enum(current_state) == thread_state_enum(previous_state) &&
+        if (current_state.state() == previous_state.state() &&
             current_state != previous_state)
         {
             LTM_(warning)
@@ -73,8 +79,8 @@ namespace hpx { namespace threads { namespace detail
     {
         if (HPX_UNLIKELY(!thrd)) {
             HPX_THROWS_IF(ec, null_thread_id, "threads::detail::set_thread_state",
-                "NULL thread id encountered");
-            return thread_state(unknown);
+                "null thread id encountered");
+            return thread_state(unknown, wait_unknown);
         }
 
         // set_state can't be used to force a thread into active state
@@ -83,14 +89,14 @@ namespace hpx { namespace threads { namespace detail
             strm << "invalid new state: " << get_thread_state_name(new_state);
             HPX_THROWS_IF(ec, bad_parameter, "threads::detail::set_thread_state",
                 strm.str());
-            return thread_state(unknown);
+            return thread_state(unknown, wait_unknown);
         }
 
         // we know that the id is actually the pointer to the thread
         if (!thrd) {
             if (&ec != &throws)
                 ec = make_success_code();
-            return thread_state(terminated);
+            return thread_state(terminated, wait_unknown);
             // this thread has already been terminated
         }
 
@@ -98,7 +104,7 @@ namespace hpx { namespace threads { namespace detail
         do {
             // action depends on the current state
             previous_state = thrd->get_state();
-            thread_state_enum previous_state_val = previous_state;
+            thread_state_enum previous_state_val = previous_state.state();
 
             // nothing to do here if the state doesn't change
             if (new_state == previous_state_val) {
@@ -112,7 +118,7 @@ namespace hpx { namespace threads { namespace detail
                 if (&ec != &throws)
                     ec = make_success_code();
 
-                return thread_state(new_state);
+                return thread_state(new_state, previous_state.state_ex());
             }
 
             // the thread to set the state for is currently running, so we
@@ -128,7 +134,7 @@ namespace hpx { namespace threads { namespace detail
                         << get_thread_state_name(new_state) << ")";
 
                     thread_init_data data(
-                        boost::bind(&set_active_state,
+                        util::bind(&set_active_state,
                             thrd, new_state, new_state_ex,
                             priority, previous_state),
                         "set state for active thread", 0, priority);
@@ -173,7 +179,7 @@ namespace hpx { namespace threads { namespace detail
                     HPX_THROWS_IF(ec, bad_parameter,
                         "threads::detail::set_thread_state",
                         strm.str());
-                    return thread_state(unknown);
+                    return thread_state(unknown, wait_unknown);
                 }
                 break;
             case suspended:
@@ -196,10 +202,8 @@ namespace hpx { namespace threads { namespace detail
                        << ")";
 
             // So all what we do here is to set the new state.
-            if (thrd->restore_state(new_state, previous_state)) {
-                thrd->set_state_ex(new_state_ex);
+            if (thrd->restore_state(new_state, new_state_ex, previous_state))
                 break;
-            }
 
             // state has changed since we fetched it from the thread, retry
             LTM_(error)
@@ -232,18 +236,18 @@ namespace hpx { namespace threads { namespace detail
         thread_id_type const& thrd, thread_state_enum newstate,
         thread_state_ex_enum newstate_ex, thread_priority priority,
         thread_id_type const& timer_id,
-        boost::shared_ptr<boost::atomic<bool> > const& triggered)
+        std::shared_ptr<boost::atomic<bool> > const& triggered)
     {
         if (HPX_UNLIKELY(!thrd)) {
             HPX_THROW_EXCEPTION(null_thread_id,
                 "threads::detail::wake_timer_thread",
-                "NULL thread id encountered (id)");
+                "null thread id encountered (id)");
             return terminated;
         }
         if (HPX_UNLIKELY(!timer_id)) {
             HPX_THROW_EXCEPTION(null_thread_id,
                 "threads::detail::wake_timer_thread",
-                "NULL thread id encountered (timer_id)");
+                "null thread id encountered (timer_id)");
             return terminated;
         }
 
@@ -272,7 +276,7 @@ namespace hpx { namespace threads { namespace detail
         if (HPX_UNLIKELY(!thrd)) {
             HPX_THROW_EXCEPTION(null_thread_id,
                 "threads::detail::at_timer",
-                "NULL thread id encountered");
+                "null thread id encountered");
             return terminated;
         }
 
@@ -281,11 +285,11 @@ namespace hpx { namespace threads { namespace detail
         // allowing the deadline_timer to go out of scope gracefully
         thread_id_type self_id = get_self_id();
 
-        boost::shared_ptr<boost::atomic<bool> > triggered(
-            boost::make_shared<boost::atomic<bool> >(false));
+        std::shared_ptr<boost::atomic<bool> > triggered(
+            std::make_shared<boost::atomic<bool> >(false));
 
         thread_init_data data(
-            boost::bind(&wake_timer_thread,
+            util::bind(&wake_timer_thread,
                 thrd, newstate, newstate_ex, priority,
                 self_id, triggered),
             "wake_timer", 0, priority);
@@ -303,7 +307,7 @@ namespace hpx { namespace threads { namespace detail
             get_thread_pool("timer-pool")->get_io_service(), abs_time);
 
         // let the timer invoke the set_state on the new (suspended) thread
-        t.async_wait(boost::bind(&detail::set_thread_state,
+        t.async_wait(util::bind(&detail::set_thread_state,
             wake_id, pending, wait_timeout, priority,
             std::size_t(-1), boost::ref(throws)));
 
@@ -339,14 +343,14 @@ namespace hpx { namespace threads { namespace detail
         if (HPX_UNLIKELY(!thrd)) {
             HPX_THROWS_IF(ec, null_thread_id,
                 "threads::detail::set_thread_state",
-                "NULL thread id encountered");
-            return 0;
+                "null thread id encountered");
+            return nullptr;
         }
 
         // this creates a new thread which creates the timer and handles the
         // requested actions
         thread_init_data data(
-            boost::bind(&at_timer<SchedulingPolicy>,
+            util::bind(&at_timer<SchedulingPolicy>,
                 boost::ref(scheduler), abs_time.value(), thrd, newstate, newstate_ex,
                 priority),
             "at_timer (expire at)", 0, priority, thread_num);

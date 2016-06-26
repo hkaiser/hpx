@@ -6,16 +6,19 @@
 #if !defined(HPX_RUNTIME_ACTIONS_INVOKE_NO_MORE_THAN_MAR_30_2014_0616PM)
 #define HPX_RUNTIME_ACTIONS_INVOKE_NO_MORE_THAN_MAR_30_2014_0616PM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/runtime/naming/name.hpp>
-#include <hpx/runtime/actions/continuation.hpp>
-#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/config.hpp>
 #include <hpx/lcos/local/counting_semaphore.hpp>
-#include <hpx/util/static.hpp>
-#include <hpx/util/bind.hpp>
-#include <hpx/traits/is_future.hpp>
-#include <hpx/traits/action_decorate_function.hpp>
+#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/runtime/actions/continuation.hpp>
+#include <hpx/runtime/naming/name.hpp>
 #include <hpx/traits/action_decorate_continuation.hpp>
+#include <hpx/traits/action_decorate_function.hpp>
+#include <hpx/traits/is_future.hpp>
+#include <hpx/util/assert.hpp>
+#include <hpx/util/bind.hpp>
+#include <hpx/util/static.hpp>
+
+#include <boost/exception_ptr.hpp>
 
 #include <memory>
 
@@ -103,8 +106,7 @@ namespace hpx { namespace actions { namespace detail
         }
 
         // If the action returns a future we wait on the semaphore as well,
-        // however it will be signaled once the future gets ready only (see
-        // the traits::action_schedule_thread<> below).
+        // however it will be signaled once the future gets ready only.
         static threads::thread_state_enum thread_function_future(
             threads::thread_state_ex_enum state,
             threads::thread_function_type f)
@@ -139,12 +141,16 @@ namespace hpx { namespace actions { namespace detail
     ///////////////////////////////////////////////////////////////////////////
     template <typename Action, int N>
     class wrapped_continuation
-      : public typed_continuation<typename Action::result_type>
+      : public typed_continuation<
+            typename Action::local_result_type,
+            typename Action::remote_result_type
+        >
     {
         typedef action_decorate_function_semaphore<Action, N>
             construct_semaphore_type;
-        typedef typename Action::result_type result_type;
-        typedef typed_continuation<result_type> base_type;
+        typedef typename Action::local_result_type local_result_type;
+        typedef typename Action::remote_result_type remote_result_type;
+        typedef typed_continuation<local_result_type, remote_result_type> base_type;
 
     public:
         wrapped_continuation(std::unique_ptr<continuation> cont)
@@ -161,29 +167,15 @@ namespace hpx { namespace actions { namespace detail
             construct_semaphore_type::get_sem().signal();
         }
 
-        void deferred_trigger(result_type&& result)
+        void trigger_value(remote_result_type && result)
         {
-            if (cont_) {
+            if(cont_)
+            {
+                HPX_ASSERT(nullptr != dynamic_cast<base_type *>(cont_.get()));
                 static_cast<base_type *>(cont_.get())->
-                    deferred_trigger(std::move(result));
+                    trigger_value(std::move(result));
             }
             construct_semaphore_type::get_sem().signal();
-        }
-
-        void trigger_value(result_type && result)
-        {
-            // if the future is ready, send the result back immediately
-            if (result.is_ready()) {
-                deferred_trigger(std::move(result));
-                return;
-            }
-
-            // attach continuation to this future which will send the result back
-            // once its ready
-            result.then(
-                util::bind(&wrapped_continuation::deferred_trigger,
-                    std::move(*this),
-                    util::placeholders::_1));
         }
 
         void trigger_error(boost::exception_ptr const& e)

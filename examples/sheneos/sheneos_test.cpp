@@ -8,12 +8,14 @@
 #include <hpx/include/components.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
+#include <hpx/util/bind.hpp>
 
 #include <boost/dynamic_bitset.hpp>
-#include <boost/bind.hpp>
 
 #include <cstdlib>
 #include <ctime>
+#include <string>
+#include <vector>
 
 #include "sheneos/interpolator.hpp"
 
@@ -322,7 +324,7 @@ int hpx_main(boost::program_options::variables_map& vm)
 
     std::size_t seed = vm["seed"].as<std::size_t>();
     if (!seed)
-        seed = std::size_t(std::time(0));
+        seed = std::size_t(std::time(nullptr));
 
     std::cout << "Seed: " << seed << std::endl;
 
@@ -361,8 +363,9 @@ int hpx_main(boost::program_options::variables_map& vm)
 //                     num_temp_points, num_rho_points, seed));
 //         }
 //
+//         using hpx::util::placeholders::_1;
 //         hpx::lcos::wait(tests,
-//             boost::bind(wait_for_task, ::_1, boost::ref(t)));
+//             hpx::util::bind(wait_for_task, _1, boost::ref(t)));
 //
 //         std::cout << "Completed tests: " << t.elapsed() << " [s]" << std::endl;
 //
@@ -379,8 +382,9 @@ int hpx_main(boost::program_options::variables_map& vm)
 //                     num_ye_points, num_temp_points, num_rho_points, seed));
 //         }
 //
+//         using hpx::util::placeholders::_1;
 //         hpx::lcos::wait(bulk_one_tests,
-//             boost::bind(wait_for_bulk_one_task, ::_1, boost::ref(t)));
+//             hpx::util::bind(wait_for_bulk_one_task, _1, boost::ref(t)));
 //
 //         std::cout << "Completed bulk-one tests: " << t.elapsed() << " [s]"
 //             << std::endl;

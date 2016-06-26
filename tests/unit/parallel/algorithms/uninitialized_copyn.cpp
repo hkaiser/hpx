@@ -8,7 +8,12 @@
 #include <hpx/include/parallel_uninitialized_copy.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
+#include <boost/atomic.hpp>
 #include <boost/range/functions.hpp>
+
+#include <numeric>
+#include <string>
+#include <vector>
 
 #include "test_utils.hpp"
 
@@ -77,12 +82,14 @@ void test_uninitialized_copy_n()
     test_uninitialized_copy_n_async(seq(task), IteratorTag());
     test_uninitialized_copy_n_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_uninitialized_copy_n(execution_policy(seq), IteratorTag());
     test_uninitialized_copy_n(execution_policy(par), IteratorTag());
     test_uninitialized_copy_n(execution_policy(par_vec), IteratorTag());
 
     test_uninitialized_copy_n(execution_policy(seq(task)), IteratorTag());
     test_uninitialized_copy_n(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void uninitialized_copy_n_test()
@@ -198,11 +205,13 @@ void test_uninitialized_copy_n_exception()
     test_uninitialized_copy_n_exception_async(seq(task), IteratorTag());
     test_uninitialized_copy_n_exception_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_uninitialized_copy_n_exception(execution_policy(seq), IteratorTag());
     test_uninitialized_copy_n_exception(execution_policy(par), IteratorTag());
 
     test_uninitialized_copy_n_exception(execution_policy(seq(task)), IteratorTag());
     test_uninitialized_copy_n_exception(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void uninitialized_copy_n_exception_test()
@@ -317,11 +326,13 @@ void test_uninitialized_copy_n_bad_alloc()
     test_uninitialized_copy_n_bad_alloc_async(seq(task), IteratorTag());
     test_uninitialized_copy_n_bad_alloc_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_uninitialized_copy_n_bad_alloc(execution_policy(seq), IteratorTag());
     test_uninitialized_copy_n_bad_alloc(execution_policy(par), IteratorTag());
 
     test_uninitialized_copy_n_bad_alloc(execution_policy(seq(task)), IteratorTag());
     test_uninitialized_copy_n_bad_alloc(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void uninitialized_copy_n_bad_alloc_test()
@@ -333,7 +344,7 @@ void uninitialized_copy_n_bad_alloc_test()
 
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if (vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 
@@ -361,7 +372,7 @@ int main(int argc, char* argv[])
     // By default this test should run on all available cores
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
 
     // Initialize and run HPX
     HPX_TEST_EQ_MSG(hpx::init(desc_commandline, argc, argv, cfg), 0,

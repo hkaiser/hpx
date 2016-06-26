@@ -8,8 +8,8 @@
 #define HPX_PARCELSET_PARCEL_BUFFER_HPP
 
 #include <hpx/config.hpp>
-#include <hpx/runtime/serialization/serialization_chunk.hpp>
 #include <hpx/performance_counters/parcels/data_point.hpp>
+#include <hpx/runtime/serialization/serialization_chunk.hpp>
 #include <hpx/util/integer/endian.hpp>
 
 #include <boost/atomic.hpp>
@@ -99,7 +99,7 @@ namespace hpx { namespace parcelset
 
         /// Counters and their data containers.
         performance_counters::parcels::data_point data_point_;
-        HPX_MOVABLE_BUT_NOT_COPYABLE(parcel_buffer)
+        HPX_MOVABLE_ONLY(parcel_buffer);
     };
 }}
 

@@ -10,16 +10,17 @@
 #include <hpx/util/assert.hpp>
 
 #include <hpx/parallel/config/inline_namespace.hpp>
-#include <hpx/parallel/executors/executor_traits.hpp>
-#include <hpx/parallel/executors/executor_information_traits.hpp>
 #include <hpx/parallel/execution_policy.hpp>
+#include <hpx/parallel/executors/executor_information_traits.hpp>
+#include <hpx/parallel/executors/executor_traits.hpp>
 #include <hpx/parallel/util/detail/algorithm_result.hpp>
-#include <hpx/parallel/util/partitioner.hpp>
 #include <hpx/parallel/util/foreach_partitioner.hpp>
+#include <hpx/parallel/util/partitioner.hpp>
 
-#include <boost/mpl/if.hpp>
-#include <boost/type_traits/is_scalar.hpp>
 #include <boost/shared_array.hpp>
+
+#include <type_traits>
+#include <vector>
 
 namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
 {
@@ -53,8 +54,9 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
         };
 
         typedef typename std::iterator_traits<OutIter>::value_type value_type;
-        typedef typename boost::mpl::if_<
-            boost::is_scalar<value_type>, value_type, rewritable_ref<value_type>
+        typedef typename std::conditional<
+            std::is_scalar<value_type>::value,
+            value_type, rewritable_ref<value_type>
         >::type type;
     };
 
@@ -178,6 +180,10 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1) { namespace detail
                             std::copy(buffer.get() + chunk->start,
                                 buffer.get() + chunk->start + chunk->len,
                                 dest + chunk->start_index);
+                        },
+                        [](set_chunk_data* last) -> set_chunk_data*
+                        {
+                            return last;
                         });
 
                 return dest;

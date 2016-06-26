@@ -9,30 +9,29 @@
 #define HPX_THREADMANAGER_IMPL_HPP
 
 #include <hpx/config.hpp>
-
-#include <hpx/exception.hpp>
-#include <hpx/state.hpp>
+#include <hpx/exception_fwd.hpp>
 #include <hpx/performance_counters/counters.hpp>
 #include <hpx/runtime/naming/name.hpp>
-#include <hpx/runtime/threads/thread_init_data.hpp>
-#include <hpx/runtime/threads/threadmanager.hpp>
 #include <hpx/runtime/threads/detail/thread_pool.hpp>
 #include <hpx/runtime/threads/policies/scheduler_mode.hpp>
+#include <hpx/runtime/threads/thread_init_data.hpp>
+#include <hpx/runtime/threads/threadmanager.hpp>
+#include <hpx/state.hpp>
 #include <hpx/util/block_profiler.hpp>
 #include <hpx/util/io_service_pool.hpp>
 #include <hpx/util/spinlock.hpp>
 
-#include <hpx/config/warnings_prefix.hpp>
-
 #include <boost/atomic.hpp>
-#include <boost/ptr_container/ptr_vector.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/locks.hpp>
+#include <boost/exception_ptr.hpp>
 #include <boost/mpl/bool.hpp>
+#include <boost/thread/mutex.hpp>
 
-#include <vector>
 #include <memory>
+#include <mutex>
 #include <numeric>
+#include <vector>
+
+#include <hpx/config/warnings_prefix.hpp>
 
 namespace hpx { namespace threads
 {
@@ -172,13 +171,13 @@ namespace hpx { namespace threads
         /// is running.
         std::size_t get_os_thread_count() const
         {
-            boost::lock_guard<mutex_type> lk(mtx_);
+            std::lock_guard<mutex_type> lk(mtx_);
             return pool_.get_os_thread_count();
         }
 
         boost::thread& get_os_thread_handle(std::size_t num_thread)
         {
-            boost::lock_guard<mutex_type> lk(mtx_);
+            std::lock_guard<mutex_type> lk(mtx_);
             return pool_.get_os_thread_handle(num_thread);
         }
 
@@ -206,9 +205,9 @@ namespace hpx { namespace threads
             pool_.report_error(num_thread, e);
         }
 
-        std::size_t get_worker_thread_num(bool* numa_sensitive = 0)
+        std::size_t get_worker_thread_num(bool* numa_sensitive = nullptr)
         {
-            if (get_self_ptr() == 0)
+            if (get_self_ptr() == nullptr)
                 return std::size_t(-1);
             return pool_.get_worker_thread_num();
         }

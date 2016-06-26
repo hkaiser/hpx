@@ -8,12 +8,15 @@
 
 #include <hpx/hpx.hpp>
 #include <hpx/hpx_init.hpp>
+#include <hpx/util/atomic_count.hpp>
 #include <hpx/util/lightweight_test.hpp>
+
+#include <vector>
 
 #define NUM_INSTANCES 100
 
 ///////////////////////////////////////////////////////////////////////////////
-boost::detail::atomic_count count_(0);
+hpx::util::atomic_count count_(0);
 
 long get_count() { return count_; }
 

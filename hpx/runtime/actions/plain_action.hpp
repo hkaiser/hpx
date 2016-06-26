@@ -9,22 +9,25 @@
 #if !defined(HPX_RUNTIME_ACTIONS_PLAIN_ACTION_NOV_14_2008_0706PM)
 #define HPX_RUNTIME_ACTIONS_PLAIN_ACTION_NOV_14_2008_0706PM
 
-#include <hpx/hpx_fwd.hpp>
 #include <hpx/config.hpp>
-#include <hpx/exception.hpp>
-#include <hpx/runtime/naming/address.hpp>
-#include <hpx/runtime/actions/continuation.hpp>
 #include <hpx/runtime/actions/basic_action.hpp>
+#include <hpx/runtime/actions/continuation.hpp>
 #include <hpx/runtime/components/console_error_sink.hpp>
-#include <hpx/util/unused.hpp>
+#include <hpx/runtime/naming/address.hpp>
+#include <hpx/traits/component_type_database.hpp>
 #include <hpx/util/detail/count_num_args.hpp>
-#include <hpx/util/detail/pp_strip_parens.hpp>
 #include <hpx/util/detail/pack.hpp>
+#include <hpx/util/detail/pp_strip_parens.hpp>
+#include <hpx/util/unused.hpp>
 
 #include <boost/preprocessor/cat.hpp>
 
 #include <cstdlib>
 #include <stdexcept>
+#include <string>
+#if defined(__NVCC__)
+#include <type_traits>
+#endif
 
 #include <hpx/config/warnings_prefix.hpp>
 
@@ -154,10 +157,19 @@ namespace hpx { namespace traits
     HPX_DEFINE_PLAIN_ACTION_2(func, BOOST_PP_CAT(func, _action))              \
     /**/
 
+#if defined(__NVCC__)
+#define HPX_DEFINE_PLAIN_ACTION_2(func, name)                                 \
+    struct name : hpx::actions::make_action<                                  \
+        typename std::add_pointer<                                            \
+            typename std::remove_pointer<decltype(&func)>::type               \
+        >::type, &func, name>::type {}                                        \
+    /**/
+#else
 #define HPX_DEFINE_PLAIN_ACTION_2(func, name)                                 \
     struct name : hpx::actions::make_action<                                  \
         decltype(&func), &func, name>::type {}                                \
     /**/
+#endif
 
 #define HPX_DEFINE_PLAIN_DIRECT_ACTION_1(func)                                \
     HPX_DEFINE_PLAIN_DIRECT_ACTION_2(func, BOOST_PP_CAT(func, _action))       \
@@ -166,6 +178,35 @@ namespace hpx { namespace traits
 #define HPX_DEFINE_PLAIN_DIRECT_ACTION_2(func, name)                          \
     struct name : hpx::actions::make_direct_action<                           \
         decltype(&func), &func, name>::type {}                                \
+    /**/
+
+/// \endcond
+
+///////////////////////////////////////////////////////////////////////////////
+/// \def HPX_DECLARE_PLAIN_ACTION(func, name)
+/// \brief Declares a plain action type
+///
+#define HPX_DECLARE_PLAIN_ACTION(...)                                         \
+    HPX_DECLARE_PLAIN_ACTION_(__VA_ARGS__)                                    \
+    /**/
+
+/// \cond NOINTERNAL
+
+#define HPX_DECLARE_PLAIN_DIRECT_ACTION(...)                                  \
+    HPX_DECLARE_PLAIN_ACTION(__VA_ARGS__)                                     \
+    /**/
+
+#define HPX_DECLARE_PLAIN_ACTION_(...)                                        \
+    HPX_UTIL_EXPAND_(BOOST_PP_CAT(                                            \
+        HPX_DECLARE_PLAIN_ACTION_, HPX_UTIL_PP_NARG(__VA_ARGS__)              \
+    )(__VA_ARGS__))                                                           \
+    /**/
+
+#define HPX_DECLARE_PLAIN_ACTION_1(func)                                      \
+    HPX_DECLARE_PLAIN_ACTION_2(func, BOOST_PP_CAT(func, _action))             \
+    /**/
+
+#define HPX_DECLARE_PLAIN_ACTION_2(func, name) struct name;                   \
     /**/
 
 /// \endcond

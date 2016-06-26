@@ -6,12 +6,12 @@
 #if !defined(HPX_COMPONENTS_DISTRIBUTED_METADATA_BASE_NOV_12_2014_0958AM)
 #define HPX_COMPONENTS_DISTRIBUTED_METADATA_BASE_NOV_12_2014_0958AM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/lcos/future.hpp>
+#include <hpx/config.hpp>
 #include <hpx/lcos/base_lco_with_value.hpp>
-#include <hpx/runtime/naming/id_type.hpp>
+#include <hpx/lcos/future.hpp>
 #include <hpx/runtime/actions/component_action.hpp>
 #include <hpx/runtime/components/server/simple_component_base.hpp>
+#include <hpx/runtime/naming/id_type.hpp>
 #include <hpx/util/detail/count_num_args.hpp>
 
 #include <boost/cstdint.hpp>

@@ -10,12 +10,15 @@
 #include <hpx/runtime/threads/policies/topology.hpp>
 #include <hpx/util/asio_util.hpp>
 #include <hpx/util/batch_environment.hpp>
+#include <hpx/util/runtime_configuration.hpp>
 
 #include <hpx/util/batch_environments/alps_environment.hpp>
 #include <hpx/util/batch_environments/slurm_environment.hpp>
 #include <hpx/util/batch_environments/pbs_environment.hpp>
 
 #include <iostream>
+#include <string>
+#include <vector>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/host_name.hpp>

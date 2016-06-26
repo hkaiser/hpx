@@ -5,10 +5,11 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/include/iostreams.hpp>
 
 #include <sstream>
+#include <string>
 
 #include <tests/unit/agas/components/server/managed_refcnt_checker.hpp>
 

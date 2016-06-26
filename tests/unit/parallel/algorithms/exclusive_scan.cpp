@@ -11,6 +11,9 @@
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/range/functions.hpp>
 
+#include <string>
+#include <vector>
+
 #include "test_utils.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -19,7 +22,7 @@ void exclusive_scan_benchmark()
     try {
       std::vector<double> c(100000000);
       std::vector<double> d(c.size());
-      std::fill(boost::begin(c), boost::end(c), std::size_t(1));
+      std::fill(boost::begin(c), boost::end(c), 1.0);
 
       double const val(0);
       auto op =
@@ -45,7 +48,9 @@ void exclusive_scan_benchmark()
               << "type=\"numeric/double\">" << elapsed << "</DartMeasurement> \n";
       }
     }
-    catch (...) {}
+    catch (...) {
+      HPX_TEST(false);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -123,12 +128,14 @@ void test_exclusive_scan1()
     test_exclusive_scan1_async(seq(task), IteratorTag());
     test_exclusive_scan1_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_exclusive_scan1(execution_policy(seq), IteratorTag());
     test_exclusive_scan1(execution_policy(par), IteratorTag());
     test_exclusive_scan1(execution_policy(par_vec), IteratorTag());
 
     test_exclusive_scan1(execution_policy(seq(task)), IteratorTag());
     test_exclusive_scan1(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void exclusive_scan_test1()
@@ -141,7 +148,7 @@ void exclusive_scan_test1()
 ///////////////////////////////////////////////////////////////////////////////
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if (vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 
@@ -176,7 +183,7 @@ int main(int argc, char* argv[])
     // By default this test should run on all available cores
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
 
     // Initialize and run HPX
     HPX_TEST_EQ_MSG(hpx::init(desc_commandline, argc, argv, cfg), 0,

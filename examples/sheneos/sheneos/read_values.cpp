@@ -3,9 +3,11 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/exception.hpp>
 #include <hpx/util/assert.hpp>
+
+#include <string>
 
 #include "read_values.hpp"
 
@@ -92,7 +94,7 @@ namespace sheneos { namespace detail
 
             // Get the size of each dimension in the dataspace.
             hsize_t dims[1];
-            dataspace.getSimpleExtentDims(dims, NULL);
+            dataspace.getSimpleExtentDims(dims, nullptr);
             if (end == std::size_t(-1))
                 end = dims[0];
 

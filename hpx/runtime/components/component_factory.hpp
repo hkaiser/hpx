@@ -6,8 +6,8 @@
 
 /// \file hpx/runtime/components/component_factory.hpp
 
-#if !defined(HPX_COMPONENT_FACTORY_SEP_26_2008_0647PM)
-#define HPX_COMPONENT_FACTORY_SEP_26_2008_0647PM
+#ifndef HPX_RUNTIME_COMPONENTS_COMPONENT_FACTORY_HPP
+#define HPX_RUNTIME_COMPONENTS_COMPONENT_FACTORY_HPP
 
 #ifdef DOXYGEN
 /// \def HPX_REGISTER_COMPONENT(type, name, mode)
@@ -39,21 +39,25 @@
 #else
 
 #include <hpx/config.hpp>
-#include <hpx/hpx_fwd.hpp>
-
-#include <hpx/runtime/components/unique_component_name.hpp>
 #include <hpx/runtime/components/component_factory_base.hpp>
 #include <hpx/runtime/components/component_registry.hpp>
+#include <hpx/runtime/components/component_type.hpp>
 #include <hpx/runtime/components/server/create_component.hpp>
 #include <hpx/runtime/components/server/destroy_component.hpp>
+#include <hpx/runtime/components/unique_component_name.hpp>
+#include <hpx/runtime/naming/address.hpp>
+#include <hpx/runtime/naming/name.hpp>
 #include <hpx/runtime/naming/resolver_client.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/util/atomic_count.hpp>
+#include <hpx/util/detail/count_num_args.hpp>
 #include <hpx/util/ini.hpp>
 #include <hpx/util/unique_function.hpp>
-#include <hpx/util/detail/count_num_args.hpp>
 
 #include <boost/preprocessor/cat.hpp>
-#include <boost/preprocessor/stringize.hpp>
-#include <boost/detail/atomic_count.hpp>
+
+#include <cstddef>
+#include <string>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace components
@@ -74,7 +78,7 @@ namespace hpx { namespace components
         /// \param global   [in] The pointer to a \a hpx#util#section instance
         ///                 referencing the settings read from the [settings]
         ///                 section of the global configuration file (hpx.ini)
-        ///                 This pointer may be NULL if no such section has
+        ///                 This pointer may be nullptr if no such section has
         ///                 been found.
         /// \param local    [in] The pointer to a \a hpx#util#section instance
         ///                 referencing the settings read from the section
@@ -90,9 +94,9 @@ namespace hpx { namespace components
           : isenabled_(isenabled), refcnt_(0)
         {
             // store the configuration settings
-            if (NULL != global)
+            if (nullptr != global)
                 global_settings_ = *global;
-            if (NULL != local)
+            if (nullptr != local)
                 local_settings_ = *local;
         }
 
@@ -277,7 +281,7 @@ namespace hpx { namespace components
         bool isenabled_;
 
         // count outstanding instances to avoid premature unloading
-        boost::detail::atomic_count refcnt_;
+        util::atomic_count refcnt_;
     };
 }}
 
@@ -391,4 +395,4 @@ namespace hpx { namespace components
 
 #endif
 
-#endif
+#endif /*HPX_RUNTIME_COMPONENTS_COMPONENT_FACTORY_HPP*/

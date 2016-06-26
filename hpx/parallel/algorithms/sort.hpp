@@ -9,27 +9,29 @@
 #define HPX_PARALLEL_ALGORITHM_SORT_OCT_2015
 
 #include <hpx/config.hpp>
+#include <hpx/dataflow.hpp>
 #include <hpx/traits/concepts.hpp>
 #include <hpx/traits/is_iterator.hpp>
-#include <hpx/util/invoke.hpp>
 #include <hpx/util/assert.hpp>
-#include <hpx/util/bind.hpp>
 #include <hpx/util/decay.hpp>
-#include <hpx/dataflow.hpp>
+#include <hpx/util/invoke.hpp>
 
-#include <hpx/parallel/executors/executor_traits.hpp>
-#include <hpx/parallel/execution_policy.hpp>
+#include <hpx/parallel/algorithms/detail/dispatch.hpp>
 #include <hpx/parallel/config/inline_namespace.hpp>
 #include <hpx/parallel/execution_policy.hpp>
-#include <hpx/parallel/algorithms/detail/dispatch.hpp>
+#include <hpx/parallel/execution_policy.hpp>
+#include <hpx/parallel/executors/executor_traits.hpp>
+#include <hpx/parallel/traits/projected.hpp>
+#include <hpx/parallel/util/compare_projected.hpp>
 #include <hpx/parallel/util/detail/algorithm_result.hpp>
 #include <hpx/parallel/util/detail/handle_local_exceptions.hpp>
-#include <hpx/parallel/util/compare_projected.hpp>
 #include <hpx/parallel/util/projection_identity.hpp>
-#include <hpx/parallel/traits/projected.hpp>
+
+#include <boost/exception_ptr.hpp>
 
 #include <algorithm>
 #include <iterator>
+#include <list>
 #include <type_traits>
 #include <utility>
 
@@ -189,18 +191,14 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
             hpx::future<RandomIt> left =
                 executor_traits::async_execute(
                     policy.executor(),
-                    hpx::util::bind(
                         &sort_thread<ExPolicy, RandomIt, Compare>,
-                        std::ref(policy), first, c_last, comp
-                    ));
+                        std::ref(policy), first, c_last, comp);
 
             hpx::future<RandomIt> right =
                 executor_traits::async_execute(
                     policy.executor(),
-                    hpx::util::bind(
                         &sort_thread<ExPolicy, RandomIt, Compare>,
-                        std::ref(policy), c_first, last, comp
-                    ));
+                        std::ref(policy), c_first, last, comp);
 
             return hpx::dataflow(
                 [last](hpx::future<RandomIt> && left,
@@ -258,10 +256,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
 
                 result = executor_traits::async_execute(
                     policy.executor(),
-                    hpx::util::bind(
                         &sort_thread<ExPolicy, RandomIt, Compare>,
-                        std::ref(policy), first, last, comp
-                    ));
+                        std::ref(policy), first, last, comp);
             }
             catch (...) {
                 return detail::handle_sort_exception<ExPolicy, RandomIt>::call(
@@ -407,13 +403,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
     sort(ExPolicy && policy, RandomIt first, RandomIt last,
         Compare && comp = Compare(), Proj && proj = Proj())
     {
-        typedef typename std::iterator_traits<RandomIt>::iterator_category
-            iterator_category;
-
         static_assert(
-            (boost::is_base_of<
-                std::random_access_iterator_tag, iterator_category
-            >::value),
+            (hpx::traits::is_random_access_iterator<RandomIt>::value),
             "Requires a random access iterator.");
 
         typedef is_sequential_execution_policy<ExPolicy> is_seq;

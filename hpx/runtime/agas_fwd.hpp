@@ -9,20 +9,18 @@
 #ifndef HPX_RUNTIME_AGAS_FWD_HPP
 #define HPX_RUNTIME_AGAS_FWD_HPP
 
-#include <hpx/config/export_definitions.hpp>
+#include <hpx/config.hpp>
 
-namespace hpx {
-    namespace agas
+namespace hpx { namespace agas
+{
+    struct HPX_API_EXPORT addressing_service;
+
+    enum service_mode
     {
-        struct HPX_API_EXPORT addressing_service;
+        service_mode_invalid = -1,
+        service_mode_bootstrap = 0,
+        service_mode_hosted = 1
+    };
+}}
 
-        enum service_mode
-        {
-            service_mode_invalid = -1,
-            service_mode_bootstrap = 0,
-            service_mode_hosted = 1
-        };
-    }
-}
-
-#endif
+#endif /*HPX_RUNTIME_AGAS_FWD_HPP*/

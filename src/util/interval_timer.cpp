@@ -3,29 +3,31 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/exception.hpp>
 #include <hpx/runtime/applier/applier.hpp>
+#include <hpx/runtime/shutdown_function.hpp>
 #include <hpx/runtime/threads/thread_helpers.hpp>
 #include <hpx/util/interval_timer.hpp>
 #include <hpx/util/unlock_guard.hpp>
 #include <hpx/util/bind.hpp>
 
-#include <boost/thread/locks.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
+#include <mutex>
+#include <string>
 
 namespace hpx { namespace util { namespace detail
 {
     ///////////////////////////////////////////////////////////////////////////
     interval_timer::interval_timer()
-      : microsecs_(0), id_(0)
+      : microsecs_(0), id_(nullptr)
     {}
 
     interval_timer::interval_timer(util::function_nonser<bool()> const& f,
             boost::int64_t microsecs, std::string const& description,
             bool pre_shutdown)
       : f_(f), on_term_(),
-        microsecs_(microsecs), id_(0), description_(description),
+        microsecs_(microsecs), id_(nullptr), description_(description),
         pre_shutdown_(pre_shutdown), is_started_(false), first_start_(true),
         is_terminated_(false), is_stopped_(false)
     {}
@@ -35,14 +37,14 @@ namespace hpx { namespace util { namespace detail
             boost::int64_t microsecs, std::string const& description,
             bool pre_shutdown)
       : f_(f), on_term_(on_term),
-        microsecs_(microsecs), id_(0), description_(description),
+        microsecs_(microsecs), id_(nullptr), description_(description),
         pre_shutdown_(pre_shutdown), is_started_(false), first_start_(true),
         is_terminated_(false), is_stopped_(false)
     {}
 
     bool interval_timer::start(bool evaluate_)
     {
-        boost::unique_lock<mutex_type> l(mtx_);
+        std::unique_lock<mutex_type> l(mtx_);
         if (is_terminated_)
             return false;
 
@@ -50,7 +52,7 @@ namespace hpx { namespace util { namespace detail
             if (first_start_) {
                 first_start_ = false;
 
-                util::unlock_guard<boost::unique_lock<mutex_type> > ul(l);
+                util::unlock_guard<std::unique_lock<mutex_type> > ul(l);
                 if (pre_shutdown_)
                 {
                     register_pre_shutdown_function(
@@ -85,7 +87,7 @@ namespace hpx { namespace util { namespace detail
         if (!is_started_)
             return start(evaluate_);
 
-        boost::unique_lock<mutex_type> l(mtx_);
+        std::unique_lock<mutex_type> l(mtx_);
 
         if (is_terminated_)
             return false;
@@ -106,7 +108,7 @@ namespace hpx { namespace util { namespace detail
 
     bool interval_timer::stop()
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
         is_stopped_ = true;
         return stop_locked();
     }
@@ -120,18 +122,18 @@ namespace hpx { namespace util { namespace detail
                 error_code ec(lightweight);       // avoid throwing on error
                 threads::set_thread_state(id_, threads::pending,
                     threads::wait_abort, threads::thread_priority_boost, ec);
-                id_ = 0;
+                id_ = nullptr;
             }
             return true;
         }
 
-        HPX_ASSERT(id_ == 0);
+        HPX_ASSERT(id_ == nullptr);
         return false;
     }
 
     void interval_timer::terminate()
     {
-        boost::unique_lock<mutex_type> l(mtx_);
+        std::unique_lock<mutex_type> l(mtx_);
         if (!is_terminated_) {
             is_terminated_ = true;
             stop_locked();
@@ -155,18 +157,18 @@ namespace hpx { namespace util { namespace detail
 
     boost::int64_t interval_timer::get_interval() const
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
         return microsecs_;
     }
 
     void interval_timer::slow_down(boost::int64_t max_interval)
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
         microsecs_ = (std::min)((110 * microsecs_) / 100, max_interval);
     }
     void interval_timer::speed_up(boost::int64_t min_interval)
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
         microsecs_ = (std::max)((90 * microsecs_) / 100, min_interval);
     }
 
@@ -174,7 +176,7 @@ namespace hpx { namespace util { namespace detail
         threads::thread_state_ex_enum statex)
     {
         try {
-            boost::unique_lock<mutex_type> l(mtx_);
+            std::unique_lock<mutex_type> l(mtx_);
 
             if (is_stopped_ || is_terminated_ ||
                 statex == threads::wait_abort || 0 == microsecs_)
@@ -182,21 +184,21 @@ namespace hpx { namespace util { namespace detail
                 return threads::terminated;        // object has been finalized, exit
             }
 
-            if (id_ != 0 && id_ != threads::get_self_id())
+            if (id_ != nullptr && id_ != threads::get_self_id())
                 return threads::terminated;        // obsolete timer thread
 
-            id_ = 0;
+            id_ = nullptr;
             is_started_ = false;
 
             bool result = false;
 
             {
-                util::unlock_guard<boost::unique_lock<mutex_type> > ul(l);
+                util::unlock_guard<std::unique_lock<mutex_type> > ul(l);
                 result = f_();            // invoke the supplied function
             }
 
             // some other thread might already have started the timer
-            if (0 == id_ && result) {
+            if (nullptr == id_ && result) {
                 HPX_ASSERT(!is_started_);
                 schedule_thread(l);        // wait and repeat
             }
@@ -213,7 +215,7 @@ namespace hpx { namespace util { namespace detail
     }
 
     // schedule a high priority task after a given time interval
-    void interval_timer::schedule_thread(boost::unique_lock<mutex_type> & l)
+    void interval_timer::schedule_thread(std::unique_lock<mutex_type> & l)
     {
         HPX_ASSERT(l.owns_lock());
 
@@ -228,7 +230,7 @@ namespace hpx { namespace util { namespace detail
             // the allocators use hpx::lcos::local::spinlock. Unlocking the
             // lock here would be the right thing but leads to crashes and hangs
             // at shutdown.
-            //util::unlock_guard<boost::unique_lock<mutex_type> > ul(l);
+            //util::unlock_guard<std::unique_lock<mutex_type> > ul(l);
             id = hpx::applier::register_thread_plain(
                 util::bind(&interval_timer::evaluate,
                     this->shared_from_this(), util::placeholders::_1),
@@ -272,7 +274,7 @@ namespace hpx { namespace util
     interval_timer::interval_timer(util::function_nonser<bool()> const& f,
             boost::int64_t microsecs, std::string const& description,
             bool pre_shutdown)
-      : timer_(boost::make_shared<detail::interval_timer>(
+      : timer_(std::make_shared<detail::interval_timer>(
             f, microsecs, description, pre_shutdown))
     {}
 
@@ -280,14 +282,14 @@ namespace hpx { namespace util
             util::function_nonser<void()> const& on_term,
             boost::int64_t microsecs, std::string const& description,
             bool pre_shutdown)
-      : timer_(boost::make_shared<detail::interval_timer>(
+      : timer_(std::make_shared<detail::interval_timer>(
             f, on_term, microsecs, description, pre_shutdown))
     {}
 
     interval_timer::interval_timer(util::function_nonser<bool()> const& f,
             util::steady_duration const& rel_time,
             char const*  description, bool pre_shutdown)
-      : timer_(boost::make_shared<detail::interval_timer>(
+      : timer_(std::make_shared<detail::interval_timer>(
             f, rel_time.value().count() / 1000, description, pre_shutdown))
     {}
 
@@ -295,7 +297,7 @@ namespace hpx { namespace util
             util::function_nonser<void()> const& on_term,
             util::steady_duration const& rel_time,
             char const*  description, bool pre_shutdown)
-      : timer_(boost::make_shared<detail::interval_timer>(
+      : timer_(std::make_shared<detail::interval_timer>(
             f, on_term, rel_time.value().count() / 1000, description,
             pre_shutdown))
     {}

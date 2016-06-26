@@ -15,6 +15,9 @@
 #include <boost/range/irange.hpp>
 
 #include <algorithm>
+#include <cstring>
+#include <numeric>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 #define LOOP_SMALL  10000

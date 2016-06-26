@@ -10,11 +10,13 @@
 
 #include <hpx/config.hpp>
 #include <hpx/exception_fwd.hpp>
-#include <hpx/runtime/threads/thread_enums.hpp>
 #include <hpx/runtime/threads/coroutines/coroutine_fwd.hpp>
-#include <hpx/util/unique_function.hpp>
+#include <hpx/runtime/threads/thread_enums.hpp>
+#include <hpx/util_fwd.hpp>
 
 #include <boost/intrusive_ptr.hpp>
+
+#include <cstdint>
 
 namespace hpx { namespace threads
 {
@@ -43,7 +45,7 @@ namespace hpx { namespace threads
     HPX_API_EXPORT void intrusive_ptr_add_ref(thread_data* p);
     HPX_API_EXPORT void intrusive_ptr_release(thread_data* p);
 
-    HPX_CONSTEXPR_OR_CONST thread_id_repr_type invalid_thread_id_repr = 0;
+    HPX_CONSTEXPR_OR_CONST thread_id_repr_type invalid_thread_id_repr = nullptr;
     thread_id_type const invalid_thread_id = thread_id_type();
     /// \endcond
 
@@ -93,7 +95,7 @@ namespace hpx { namespace threads
     /// \note This function will return a meaningful value only if the
     ///       code was compiled with HPX_HAVE_THREAD_PARENT_REFERENCE
     ///       being defined.
-    HPX_API_EXPORT boost::uint32_t get_parent_locality_id();
+    HPX_API_EXPORT std::uint32_t get_parent_locality_id();
 
     /// The function \a get_self_component_id returns the lva of the
     /// component the current thread is acting on
@@ -101,7 +103,7 @@ namespace hpx { namespace threads
     /// \note This function will return a meaningful value only if the
     ///       code was compiled with HPX_HAVE_THREAD_TARGET_ADDRESS
     ///       being defined.
-    HPX_API_EXPORT boost::uint64_t get_self_component_id();
+    HPX_API_EXPORT std::uint64_t get_self_component_id();
 
     /// The function \a get_thread_manager returns a reference to the
     /// current thread manager.
@@ -114,11 +116,11 @@ namespace hpx { namespace threads
     ///       number of currently existing threads, but will add the number
     ///       of registered task descriptions (which have not been
     ///       converted into threads yet).
-    HPX_API_EXPORT boost::int64_t get_thread_count(
+    HPX_API_EXPORT std::int64_t get_thread_count(
         thread_state_enum state = unknown);
 
     /// \copydoc get_thread_count(thread_state_enum state)
-    HPX_API_EXPORT boost::int64_t get_thread_count(
+    HPX_API_EXPORT std::int64_t get_thread_count(
         thread_priority priority, thread_state_enum state = unknown);
 }}
 

@@ -3,7 +3,8 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
+#include <hpx/traits/plugin_config_data.hpp>
 
 #include <hpx/plugins/parcelport/ibverbs/connection_handler.hpp>
 

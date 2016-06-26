@@ -10,15 +10,15 @@
 #ifndef HPX_PARCELSET_POLICIES_IBVERBS_LOCALITY_HPP
 #define HPX_PARCELSET_POLICIES_IBVERBS_LOCALITY_HPP
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
+
 #if defined(HPX_HAVE_PARCELPORT_IBVERBS)
 
-#include <hpx/hpx_fwd.hpp>
 #include <hpx/runtime/parcelset/locality.hpp>
-#include <hpx/util/safe_bool.hpp>
 
-#include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/host_name.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/io/ios_state.hpp>
 
 #include <string>
 
@@ -52,11 +52,10 @@ namespace hpx { namespace parcelset
                 return "ibverbs";
             }
 
-            operator util::safe_bool<locality>::result_type() const
+            explicit operator bool() const HPX_NOEXCEPT
             {
-                return util::safe_bool<locality>()(port_ != boost::uint16_t(-1));
+                return port_ != boost::uint16_t(-1);
             }
-
 
             void save(serialization::output_archive & ar) const
             {

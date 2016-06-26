@@ -15,12 +15,12 @@
 #include <boost/asio/ip/address_v4.hpp>
 #include <boost/asio/ip/address_v6.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <boost/system/error_code.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/system/error_code.hpp>
 
 #include <ctime>
-#include <string>
 #include <sstream>
+#include <string>
 
 #if defined(HPX_WINDOWS)
 // Prevent asio from initialising Winsock, the object must be constructed
@@ -89,7 +89,7 @@ namespace hpx { namespace util
             // resolve the given address
             tcp::resolver resolver(io_service);
             tcp::resolver::query query(hostname,
-                boost::lexical_cast<std::string>(port));
+                std::to_string(port));
 
             boost::asio::ip::tcp::resolver::iterator it =
                 resolver.resolve(query);
@@ -182,7 +182,7 @@ namespace hpx { namespace util
         // collect errors here
         exception_list errors;
 
-        std::string port_str(boost::lexical_cast<std::string>(port));
+        std::string port_str(std::to_string(port));
 
         // try to directly create an endpoint from the address
         try {
@@ -233,7 +233,7 @@ namespace hpx { namespace util
         // collect errors here
         exception_list errors;
 
-        std::string port_str(boost::lexical_cast<std::string>(port));
+        std::string port_str(std::to_string(port));
 
         // try to directly create an endpoint from the address
         try {

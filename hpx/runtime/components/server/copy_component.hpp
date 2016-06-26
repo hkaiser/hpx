@@ -6,11 +6,14 @@
 #if !defined(HPX_RUNTIME_COMPONENTS_SERVER_COPY_COMPONENT_SEP_20_2013_0825PM)
 #define HPX_RUNTIME_COMPONENTS_SERVER_COPY_COMPONENT_SEP_20_2013_0825PM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/actions/plain_action.hpp>
-#include <hpx/runtime/naming/name.hpp>
-#include <hpx/runtime/get_ptr.hpp>
 #include <hpx/runtime/components/stubs/runtime_support.hpp>
+#include <hpx/runtime/get_ptr.hpp>
+#include <hpx/runtime/naming/name.hpp>
+#include <hpx/traits/get_remote_result.hpp>
+
+#include <memory>
 
 namespace hpx { namespace components { namespace server
 {
@@ -22,7 +25,7 @@ namespace hpx { namespace components { namespace server
         // one, we can avoid doing serialization.
         template <typename Component>
         naming::id_type copy_component_here_postproc(
-            future<boost::shared_ptr<Component> > f)
+            future<std::shared_ptr<Component> > f)
         {
             // This is executed on the locality where the component lives.
             hpx::components::server::runtime_support* rts =
@@ -35,12 +38,12 @@ namespace hpx { namespace components { namespace server
 
         template <typename Component>
         naming::id_type copy_component_postproc(
-            future<boost::shared_ptr<Component> > f,
+            future<std::shared_ptr<Component> > f,
             naming::id_type const& target_locality)
         {
             using stubs::runtime_support;
 
-            boost::shared_ptr<Component> ptr = f.get();
+            std::shared_ptr<Component> ptr = f.get();
             if (!target_locality || target_locality == find_here())
             {
                 // This is executed on the locality where the component lives,
@@ -63,7 +66,7 @@ namespace hpx { namespace components { namespace server
     template <typename Component>
     future<naming::id_type> copy_component_here(naming::id_type const& to_copy)
     {
-        future<boost::shared_ptr<Component> > f =
+        future<std::shared_ptr<Component> > f =
             get_ptr<Component>(to_copy);
         return f.then(&detail::copy_component_here_postproc<Component>);
     }
@@ -72,7 +75,7 @@ namespace hpx { namespace components { namespace server
     future<naming::id_type> copy_component(naming::id_type const& to_copy,
         naming::id_type const& target_locality)
     {
-        future<boost::shared_ptr<Component> > f =
+        future<std::shared_ptr<Component> > f =
             get_ptr<Component>(to_copy);
         return f.then(util::bind(&detail::copy_component_postproc<Component>,
             util::placeholders::_1, target_locality));

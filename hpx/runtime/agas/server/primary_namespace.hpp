@@ -9,32 +9,36 @@
 #if !defined(HPX_BDD56092_8F07_4D37_9987_37D20A1FEA21)
 #define HPX_BDD56092_8F07_4D37_9987_37D20A1FEA21
 
-#include <hpx/hpx_fwd.hpp>
 #include <hpx/config.hpp>
-#include <hpx/exception.hpp>
+#include <hpx/exception_fwd.hpp>
+#include <hpx/lcos/local/condition_variable.hpp>
+#include <hpx/runtime/agas/namespace_action_code.hpp>
 #include <hpx/runtime/agas/request.hpp>
 #include <hpx/runtime/agas/response.hpp>
-#include <hpx/runtime/agas/namespace_action_code.hpp>
 #include <hpx/runtime/components/component_type.hpp>
 #include <hpx/runtime/components/server/fixed_component_base.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
+#include <hpx/traits/action_message_handler.hpp>
+#include <hpx/traits/action_serialization_filter.hpp>
+#include <hpx/util/high_resolution_clock.hpp>
 #include <hpx/util/insert_checked.hpp>
 #include <hpx/util/logging.hpp>
-#include <hpx/util/high_resolution_clock.hpp>
 #include <hpx/util/tuple.hpp>
-#include <hpx/lcos/local/condition_variable.hpp>
 
 #include <boost/atomic.hpp>
 #include <boost/format.hpp>
-#include <boost/fusion/include/at_c.hpp>
-#include <boost/fusion/include/vector.hpp>
-#include <boost/thread/locks.hpp>
 
 #if defined(HPX_GCC_VERSION) && HPX_GCC_VERSION < 408000
-#include <boost/shared_ptr.hpp>
+#  include <memory>
 #endif
 
+#include <cstdint>
+#include <list>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
 
 namespace hpx { namespace agas
 {
@@ -127,7 +131,7 @@ struct HPX_EXPORT primary_namespace
     typedef std::map<naming::gid_type, gva_table_data_type> gva_table_type;
     typedef std::map<naming::gid_type, boost::int64_t> refcnt_table_type;
 
-    typedef boost::fusion::vector3<naming::gid_type, gva, naming::gid_type>
+    typedef hpx::util::tuple<naming::gid_type, gva, naming::gid_type>
         resolved_type;
     // }}}
 
@@ -141,14 +145,14 @@ struct HPX_EXPORT primary_namespace
 #if !defined(HPX_GCC_VERSION) || HPX_GCC_VERSION >= 408000
     typedef std::map<
             naming::gid_type,
-            hpx::util::tuple<bool, std::size_t, lcos::local::condition_variable>
+            hpx::util::tuple<bool, std::size_t, lcos::local::condition_variable_any>
         > migration_table_type;
 #else
     typedef std::map<
             naming::gid_type,
             hpx::util::tuple<
                 bool, std::size_t,
-                boost::shared_ptr<lcos::local::condition_variable>
+                std::shared_ptr<lcos::local::condition_variable_any>
             >
         > migration_table_type;
 #endif
@@ -161,8 +165,12 @@ struct HPX_EXPORT primary_namespace
     struct update_time_on_exit;
 
     // data structure holding all counters for the omponent_namespace component
-    struct counter_data :  boost::noncopyable
+    struct counter_data
     {
+    private:
+        HPX_NON_COPYABLE(counter_data);
+
+    public:
         struct api_counter_data
         {
             api_counter_data()
@@ -252,7 +260,7 @@ struct HPX_EXPORT primary_namespace
       , refcnt_table_type::iterator upper_it
       , naming::gid_type const& lower
       , naming::gid_type const& upper
-      , boost::unique_lock<mutex_type>& l
+      , std::unique_lock<mutex_type>& l
       , const char* func_name
         );
 #endif
@@ -267,13 +275,16 @@ struct HPX_EXPORT primary_namespace
 
     // helper function
     void wait_for_migration_locked(
-        boost::unique_lock<mutex_type>& l
+        std::unique_lock<mutex_type>& l
       , naming::gid_type id
       , error_code& ec);
 
   public:
     primary_namespace()
       : base_type(HPX_AGAS_PRIMARY_NS_MSB, HPX_AGAS_PRIMARY_NS_LSB)
+      , mutex_()
+      , instance_name_()
+      , next_id_(naming::invalid_gid)
       , locality_(naming::invalid_gid)
     {}
 
@@ -370,7 +381,7 @@ struct HPX_EXPORT primary_namespace
 
   private:
     resolved_type resolve_gid_locked(
-        boost::unique_lock<mutex_type>& l
+        std::unique_lock<mutex_type>& l
       , naming::gid_type const& gid
       , error_code& ec
         );
@@ -378,7 +389,7 @@ struct HPX_EXPORT primary_namespace
     void increment(
         naming::gid_type const& lower
       , naming::gid_type const& upper
-      , boost::int64_t& credits
+      , std::int64_t& credits
       , error_code& ec
         );
 
@@ -396,7 +407,7 @@ struct HPX_EXPORT primary_namespace
     };
 
     void resolve_free_list(
-        boost::unique_lock<mutex_type>& l
+        std::unique_lock<mutex_type>& l
       , std::list<refcnt_table_type::iterator> const& free_list
       , std::list<free_entry>& free_entry_list
       , naming::gid_type const& lower
@@ -408,7 +419,7 @@ struct HPX_EXPORT primary_namespace
         std::list<free_entry>& free_list
       , naming::gid_type const& lower
       , naming::gid_type const& upper
-      , boost::int64_t credits
+      , std::int64_t credits
       , error_code& ec
         );
 
@@ -457,6 +468,15 @@ struct HPX_EXPORT primary_namespace
 };
 
 }}}
+
+HPX_ACTION_USES_MEDIUM_STACK(
+    hpx::agas::server::primary_namespace::service_action)
+
+HPX_ACTION_USES_MEDIUM_STACK(
+    hpx::agas::server::primary_namespace::bulk_service_action)
+
+HPX_ACTION_USES_MEDIUM_STACK(
+    hpx::agas::server::primary_namespace::route_action)
 
 HPX_REGISTER_ACTION_DECLARATION(
     hpx::agas::server::primary_namespace::service_action,

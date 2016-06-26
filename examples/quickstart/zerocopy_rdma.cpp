@@ -8,6 +8,8 @@
 
 #include <hpx/runtime/serialization/serialize.hpp>
 
+#include <vector>
+
 ///////////////////////////////////////////////////////////////////////////////
 #define ZEROCOPY_DATASIZE   1024*1024
 
@@ -29,7 +31,7 @@ public:
     typedef std::ptrdiff_t difference_type;
 
     pointer_allocator() HPX_NOEXCEPT
-      : pointer_(0), size_(0)
+      : pointer_(nullptr), size_(0)
     {
     }
 
@@ -41,7 +43,7 @@ public:
     pointer address(reference value) const { return &value; }
     const_pointer address(const_reference value) const { return &value; }
 
-    pointer allocate(size_type n, void const* hint = 0)
+    pointer allocate(size_type n, void const* hint = nullptr)
     {
         HPX_ASSERT(n == size_);
         return static_cast<T*>(pointer_);

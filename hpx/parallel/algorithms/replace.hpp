@@ -1,4 +1,4 @@
-//  Copyright (c) 2014-2015 Hartmut Kaiser
+//  Copyright (c) 2014-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -11,25 +11,23 @@
 #include <hpx/config.hpp>
 #include <hpx/traits/concepts.hpp>
 #include <hpx/traits/is_iterator.hpp>
-#include <hpx/util/unused.hpp>
 #include <hpx/util/invoke.hpp>
 #include <hpx/util/tagged_pair.hpp>
+#include <hpx/util/unused.hpp>
 
-#include <hpx/parallel/config/inline_namespace.hpp>
-#include <hpx/parallel/traits/projected.hpp>
-#include <hpx/parallel/execution_policy.hpp>
-#include <hpx/parallel/tagspec.hpp>
 #include <hpx/parallel/algorithms/detail/dispatch.hpp>
 #include <hpx/parallel/algorithms/for_each.hpp>
+#include <hpx/parallel/config/inline_namespace.hpp>
+#include <hpx/parallel/execution_policy.hpp>
+#include <hpx/parallel/tagspec.hpp>
+#include <hpx/parallel/traits/projected.hpp>
 #include <hpx/parallel/util/detail/algorithm_result.hpp>
 #include <hpx/parallel/util/projection_identity.hpp>
 #include <hpx/parallel/util/zip_iterator.hpp>
 
 #include <algorithm>
 #include <iterator>
-
-#include <boost/utility/enable_if.hpp>
-#include <boost/type_traits/is_base_of.hpp>
+#include <type_traits>
 
 namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
 {
@@ -83,7 +81,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                 typedef typename std::iterator_traits<FwdIter>::value_type type;
 
                 return for_each_n<FwdIter>().call(
-                    std::forward<ExPolicy>(policy), boost::mpl::false_(),
+                    std::forward<ExPolicy>(policy), std::false_type(),
                     first, std::distance(first, last),
                     [old_value, new_value, proj](type& t)
                     {
@@ -91,7 +89,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                         {
                             t = new_value;
                         }
-                    });
+                    },
+                    util::projection_identity());
             }
         };
         /// \endcond
@@ -163,15 +162,11 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
     replace(ExPolicy && policy, FwdIter first, FwdIter last,
         T1 const& old_value, T2 const& new_value, Proj && proj = Proj())
     {
-        typedef typename std::iterator_traits<FwdIter>::iterator_category
-            iterator_category;
-
         static_assert(
-            (boost::is_base_of<
-                std::forward_iterator_tag, iterator_category>::value),
+            (hpx::traits::is_forward_iterator<FwdIter>::value),
             "Required at least forward iterator.");
 
-        typedef typename is_sequential_execution_policy<ExPolicy>::type is_seq;
+        typedef is_sequential_execution_policy<ExPolicy> is_seq;
 
         return detail::replace<FwdIter>().call(
             std::forward<ExPolicy>(policy), is_seq(),
@@ -229,14 +224,15 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                 typedef typename std::iterator_traits<FwdIter>::value_type type;
 
                 return for_each_n<FwdIter>().call(
-                    std::forward<ExPolicy>(policy), boost::mpl::false_(),
+                    std::forward<ExPolicy>(policy), std::false_type(),
                     first, std::distance(first, last),
                     [f, new_value, proj](type& t)
                     {
                         using hpx::util::invoke;
                         if (invoke(f, invoke(proj, t)))
                             t = new_value;
-                    });
+                    },
+                    util::projection_identity());
             }
         };
         /// \endcond
@@ -325,15 +321,11 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
     replace_if(ExPolicy && policy, FwdIter first, FwdIter last,
         F && f, T const& new_value, Proj && proj = Proj())
     {
-        typedef typename std::iterator_traits<FwdIter>::iterator_category
-            iterator_category;
-
         static_assert(
-            (boost::is_base_of<
-                std::forward_iterator_tag, iterator_category>::value),
+            (hpx::traits::is_forward_iterator<FwdIter>::value),
             "Required at least forward iterator.");
 
-        typedef typename is_sequential_execution_policy<ExPolicy>::type is_seq;
+        typedef is_sequential_execution_policy<ExPolicy> is_seq;
 
         return detail::replace_if<FwdIter>().call(
             std::forward<ExPolicy>(policy), is_seq(),
@@ -395,7 +387,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
 
                 return get_iter_pair(
                     for_each_n<zip_iterator>().call(
-                        std::forward<ExPolicy>(policy), boost::mpl::false_(),
+                        std::forward<ExPolicy>(policy), std::false_type(),
                         hpx::util::make_zip_iterator(first, dest),
                         std::distance(first, last),
                         [old_value, new_value, proj](reference t)
@@ -405,7 +397,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                                 get<1>(t) = new_value;
                             else
                                 get<1>(t) = get<0>(t); //-V573
-                        }));
+                        },
+                        util::projection_identity()));
             }
         };
         /// \endcond
@@ -493,30 +486,19 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
     replace_copy(ExPolicy && policy, InIter first, InIter last, OutIter dest,
         T1 const& old_value, T2 const& new_value, Proj && proj = Proj())
     {
-        typedef typename std::iterator_traits<InIter>::iterator_category
-            input_iterator_category;
-        typedef typename std::iterator_traits<OutIter>::iterator_category
-            output_iterator_category;
-
         static_assert(
-            (boost::is_base_of<
-                std::input_iterator_tag, input_iterator_category>::value),
-            "Required at least forward iterator.");
-
+            (hpx::traits::is_input_iterator<InIter>::value),
+            "Requires at least input iterator.");
         static_assert(
-            (boost::mpl::or_<
-                boost::is_base_of<
-                    std::forward_iterator_tag, output_iterator_category>,
-                boost::is_same<
-                    std::output_iterator_tag, output_iterator_category>
-            >::value),
+            (hpx::traits::is_output_iterator<OutIter>::value||
+                hpx::traits::is_forward_iterator<OutIter>::value),
             "Requires at least output iterator.");
 
-        typedef typename boost::mpl::or_<
-            is_sequential_execution_policy<ExPolicy>,
-            boost::is_same<std::input_iterator_tag, input_iterator_category>,
-            boost::is_same<std::output_iterator_tag, output_iterator_category>
-        >::type is_seq;
+        typedef std::integral_constant<bool,
+                is_sequential_execution_policy<ExPolicy>::value ||
+               !hpx::traits::is_forward_iterator<InIter>::value ||
+               !hpx::traits::is_forward_iterator<OutIter>::value
+            > is_seq;
 
         return hpx::util::make_tagged_pair<tag::in, tag::out>(
             detail::replace_copy<std::pair<InIter, OutIter> >().call(
@@ -580,7 +562,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
 
                 return get_iter_pair(
                     for_each_n<zip_iterator>().call(
-                        std::forward<ExPolicy>(policy), boost::mpl::false_(),
+                        std::forward<ExPolicy>(policy), std::false_type(),
                         hpx::util::make_zip_iterator(first, dest),
                         std::distance(first, last),
                         [f, new_value, proj](reference t)
@@ -591,7 +573,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                                 get<1>(t) = new_value;
                             else
                                 get<1>(t) = get<0>(t); //-V573
-                        }));
+                        },
+                        util::projection_identity()));
             }
         };
         /// \endcond
@@ -695,30 +678,19 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
     replace_copy_if(ExPolicy && policy, InIter first, InIter last, OutIter dest,
         F && f, T const& new_value, Proj && proj = Proj())
     {
-        typedef typename std::iterator_traits<InIter>::iterator_category
-            input_iterator_category;
-        typedef typename std::iterator_traits<OutIter>::iterator_category
-            output_iterator_category;
-
         static_assert(
-            (boost::is_base_of<
-                std::input_iterator_tag, input_iterator_category>::value),
-            "Required at least forward iterator.");
-
+            (hpx::traits::is_input_iterator<InIter>::value),
+            "Requires at least input iterator.");
         static_assert(
-            (boost::mpl::or_<
-                boost::is_base_of<
-                    std::forward_iterator_tag, output_iterator_category>,
-                boost::is_same<
-                    std::output_iterator_tag, output_iterator_category>
-            >::value),
+            (hpx::traits::is_output_iterator<OutIter>::value||
+                hpx::traits::is_forward_iterator<OutIter>::value),
             "Requires at least output iterator.");
 
-        typedef typename boost::mpl::or_<
-            is_sequential_execution_policy<ExPolicy>,
-            boost::is_same<std::input_iterator_tag, input_iterator_category>,
-            boost::is_same<std::output_iterator_tag, output_iterator_category>
-        >::type is_seq;
+        typedef std::integral_constant<bool,
+                is_sequential_execution_policy<ExPolicy>::value ||
+               !hpx::traits::is_forward_iterator<InIter>::value ||
+               !hpx::traits::is_forward_iterator<OutIter>::value
+            > is_seq;
 
         return hpx::util::make_tagged_pair<tag::in, tag::out>(
             detail::replace_copy_if<std::pair<InIter, OutIter> >().call(

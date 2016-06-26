@@ -6,7 +6,7 @@
 // This test illustrates #1114: Default constructed executor is not usable
 
 #include <hpx/hpx_main.hpp>
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/hpx_start.hpp>
 #include <hpx/runtime/threads/topology.hpp>
 #include <hpx/lcos/local/barrier.hpp>
@@ -15,6 +15,7 @@
 #include <hpx/include/thread_executors.hpp>
 
 #include <iostream>
+#include <vector>
 
 using hpx::async;
 using std::vector;

@@ -8,16 +8,16 @@
 #define HPX_F5D19D10_9D74_4DB9_9ABB_ECCF2FA54497
 
 #include <hpx/config.hpp>
-#include <hpx/exception.hpp>
-#include <hpx/traits/is_component.hpp>
-#include <hpx/runtime_fwd.hpp>
-#include <hpx/runtime/components_fwd.hpp>
-#include <hpx/runtime/components/component_type.hpp>
-#include <hpx/runtime/components/server/create_component_fwd.hpp>
-#include <hpx/runtime/naming/name.hpp>
-#include <hpx/runtime/naming/address.hpp>
 #include <hpx/runtime/applier/applier.hpp>
 #include <hpx/runtime/applier/bind_naming_wrappers.hpp>
+#include <hpx/runtime/components/component_type.hpp>
+#include <hpx/runtime/components/server/create_component_fwd.hpp>
+#include <hpx/runtime/components_fwd.hpp>
+#include <hpx/runtime/naming/address.hpp>
+#include <hpx/runtime/naming/name.hpp>
+#include <hpx/runtime_fwd.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/traits/is_component.hpp>
 #include <hpx/util/unique_function.hpp>
 
 #include <boost/mpl/bool.hpp>
@@ -208,7 +208,7 @@ namespace detail
         static Component* alloc(std::size_t count)
         {
             HPX_ASSERT(false);        // this shouldn't ever be called
-            return 0;
+            return nullptr;
         }
         static void free(void* p, std::size_t count)
         {
@@ -232,7 +232,7 @@ class fixed_component : public Component
     static Component* create(std::size_t count)
     {
         HPX_ASSERT(false);        // this shouldn't ever be called
-        return 0;
+        return nullptr;
     }
 
     /// \brief  The function \a destroy is used for destruction and

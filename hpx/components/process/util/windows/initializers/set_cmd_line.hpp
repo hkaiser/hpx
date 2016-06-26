@@ -14,12 +14,13 @@
 #include <hpx/config.hpp>
 
 #if defined(HPX_WINDOWS)
-#include <hpx/runtime/serialization/string.hpp>
 #include <hpx/components/process/util/windows/initializers/initializer_base.hpp>
+#include <hpx/runtime/serialization/string.hpp>
 
 #include <boost/shared_array.hpp>
 
 #include <memory>
+#include <string>
 
 namespace hpx { namespace components { namespace process { namespace windows {
 

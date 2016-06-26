@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/async.hpp>
 #include <hpx/apply.hpp>
 #include <hpx/exception.hpp>
@@ -13,14 +13,12 @@
 
 #include <string>
 
-#include <boost/lexical_cast.hpp>
-
 namespace hpx { namespace detail
 {
     std::string get_locality_base_name()
     {
         runtime* rt = get_runtime_ptr();
-        if (rt == 0)
+        if (rt == nullptr)
         {
             HPX_THROW_EXCEPTION(invalid_status,
                 "hpx::detail::get_locality_name",
@@ -33,7 +31,7 @@ namespace hpx { namespace detail
     std::string get_locality_name()
     {
         std::string basename = get_locality_base_name();
-        return basename + '#' + boost::lexical_cast<std::string>(get_locality_id());
+        return basename + '#' + std::to_string(get_locality_id());
     }
 }}
 

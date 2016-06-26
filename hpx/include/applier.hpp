@@ -7,12 +7,12 @@
 #if !defined(HPX_APPLIER_JUNE_05_0115PM)
 #define HPX_APPLIER_JUNE_05_0115PM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/applier/applier.hpp>
 #include <hpx/runtime/applier/apply.hpp>
+#include <hpx/runtime/applier/bind_naming_wrappers.hpp>
 #include <hpx/runtime/applier/detail/apply_colocated.hpp>
 #include <hpx/runtime/applier/detail/apply_colocated_callback.hpp>
-#include <hpx/runtime/applier/bind_naming_wrappers.hpp>
 #include <hpx/runtime/applier/trigger.hpp>
 
 #endif

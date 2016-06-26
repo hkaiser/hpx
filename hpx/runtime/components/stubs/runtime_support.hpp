@@ -7,18 +7,22 @@
 #if !defined(HPX_COMPONENTS_STUBS_RUNTIME_SUPPORT_JUN_09_2008_0503PM)
 #define HPX_COMPONENTS_STUBS_RUNTIME_SUPPORT_JUN_09_2008_0503PM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/runtime/naming/name.hpp>
-#include <hpx/runtime/components/component_type.hpp>
+#include <hpx/config.hpp>
+#include <hpx/async.hpp>
+#include <hpx/lcos/detail/async_colocated_fwd.hpp>
+#include <hpx/lcos/future.hpp>
 #include <hpx/runtime/actions/manage_object_action.hpp>
 #include <hpx/runtime/applier/register_apply_colocated.hpp>
+#include <hpx/runtime/components/component_type.hpp>
 #include <hpx/runtime/components/server/runtime_support.hpp>
+#include <hpx/runtime/naming/name.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
-#include <hpx/lcos/detail/async_colocated_fwd.hpp>
-#include <hpx/util/ini.hpp>
+#include <hpx/throw_exception.hpp>
 #include <hpx/util/decay.hpp>
-#include <hpx/lcos/future.hpp>
-#include <hpx/async.hpp>
+#include <hpx/util/ini.hpp>
+
+#include <memory>
+#include <vector>
 
 namespace hpx { namespace components { namespace stubs
 {
@@ -152,7 +156,7 @@ namespace hpx { namespace components { namespace stubs
         template <typename Component>
         static lcos::future<naming::id_type>
         copy_create_component_async(naming::id_type const& gid,
-            boost::shared_ptr<Component> const& p, bool local_op)
+            std::shared_ptr<Component> const& p, bool local_op)
         {
             if (!naming::is_locality(gid))
             {
@@ -170,7 +174,7 @@ namespace hpx { namespace components { namespace stubs
 
         template <typename Component>
         static naming::id_type copy_create_component(naming::id_type const& gid,
-            boost::shared_ptr<Component> const& p, bool local_op)
+            std::shared_ptr<Component> const& p, bool local_op)
         {
             // The following get yields control while the action above
             // is executed and the result is returned to the future
@@ -182,7 +186,7 @@ namespace hpx { namespace components { namespace stubs
         template <typename Component>
         static lcos::future<naming::id_type>
         migrate_component_async(naming::id_type const& target_locality,
-            boost::shared_ptr<Component> const& p,
+            std::shared_ptr<Component> const& p,
             naming::id_type const& to_migrate)
         {
             if (!naming::is_locality(target_locality))
@@ -202,7 +206,7 @@ namespace hpx { namespace components { namespace stubs
         template <typename Component, typename DistPolicy>
         static lcos::future<naming::id_type>
         migrate_component_async(DistPolicy const& policy,
-            boost::shared_ptr<Component> const& p,
+            std::shared_ptr<Component> const& p,
             naming::id_type const& to_migrate)
         {
             typedef typename server::migrate_component_here_action<Component>
@@ -213,7 +217,7 @@ namespace hpx { namespace components { namespace stubs
         template <typename Component, typename Target>
         static naming::id_type migrate_component(
             Target const& target, naming::id_type const& to_migrate,
-            boost::shared_ptr<Component> const& p)
+            std::shared_ptr<Component> const& p)
         {
             // The following get yields control while the action above
             // is executed and the result is returned to the future

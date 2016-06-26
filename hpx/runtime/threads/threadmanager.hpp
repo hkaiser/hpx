@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2015 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //  Copyright (c) 2007-2009 Chirag Dekate, Anshul Tandon
 //  Copyright (c)      2011 Bryce Lelbach, Katelyn Kufahl
 //
@@ -9,21 +9,20 @@
 #define HPX_THREADMANAGER_MAY_20_2008_845AM
 
 #include <hpx/config.hpp>
-
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/runtime/threads/executors/current_executor.hpp>
+#include <hpx/runtime/threads/policies/affinity_data.hpp>
+#include <hpx/runtime/threads/thread_enums.hpp>
+#include <hpx/runtime/threads/thread_executor.hpp>
+#include <hpx/runtime/threads/topology.hpp>
 #include <hpx/state.hpp>
 #include <hpx/util/backtrace.hpp>
 #include <hpx/util/date_time_chrono.hpp>
 #include <hpx/util/thread_specific_ptr.hpp>
-#include <hpx/runtime/threads/topology.hpp>
-#include <hpx/runtime/threads/thread_executor.hpp>
-#include <hpx/runtime/threads/executors/current_executor.hpp>
-#include <hpx/runtime/threads/policies/affinity_data.hpp>
-
-#include <hpx/config/warnings_prefix.hpp>
 
 #include <boost/cstdint.hpp>
 #include <boost/exception_ptr.hpp>
+
+#include <hpx/config/warnings_prefix.hpp>
 
 // TODO: add branch prediction and function heat
 
@@ -37,9 +36,14 @@ namespace hpx { namespace threads
     class thread_init_data;
 
     ///////////////////////////////////////////////////////////////////////////
-    struct threadmanager_base : private boost::noncopyable
+    struct threadmanager_base
     {
+    private:
+        HPX_NON_COPYABLE(threadmanager_base);
+
     public:
+        threadmanager_base() {}
+
         virtual ~threadmanager_base() {}
 
         virtual std::size_t init(policies::init_affinity_data const& data) = 0;
@@ -51,7 +55,8 @@ namespace hpx { namespace threads
         virtual boost::int64_t get_thread_count(
             thread_state_enum state = unknown,
             thread_priority priority = thread_priority_default,
-            std::size_t num_thread = std::size_t(-1), bool reset = false) const = 0;
+            std::size_t num_thread = std::size_t(-1),
+            bool reset = false) const = 0;
 
         // \brief Abort all threads which are in suspended state. This will set
         //        the state of all suspended threads to \a pending while
@@ -195,7 +200,8 @@ namespace hpx { namespace threads
         virtual mask_cref_type get_used_processing_units() const = 0;
 
         ///////////////////////////////////////////////////////////////////////
-        virtual std::size_t get_worker_thread_num(bool* numa_sensitive = 0) = 0;
+        virtual std::size_t get_worker_thread_num(
+            bool* numa_sensitive = nullptr) = 0;
 
         virtual void reset_thread_distribution() = 0;
 

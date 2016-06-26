@@ -9,15 +9,16 @@
 #ifndef HPX_SERIALIZATION_VARIANT_HPP
 #define HPX_SERIALIZATION_VARIANT_HPP
 
+#include <hpx/config.hpp>
 #include <hpx/runtime/serialization/serialization_fwd.hpp>
-#include <hpx/exception.hpp>
+#include <hpx/throw_exception.hpp>
 
-#include <boost/mpl/front.hpp>
-#include <boost/mpl/pop_front.hpp>
-#include <boost/mpl/eval_if.hpp>
-#include <boost/mpl/identity.hpp>
-#include <boost/mpl/size.hpp>
 #include <boost/mpl/empty.hpp>
+#include <boost/mpl/eval_if.hpp>
+#include <boost/mpl/front.hpp>
+#include <boost/mpl/identity.hpp>
+#include <boost/mpl/pop_front.hpp>
+#include <boost/mpl/size.hpp>
 
 #include <boost/variant.hpp>
 

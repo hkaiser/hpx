@@ -14,7 +14,6 @@
 #include <boost/foreach.hpp>
 #include <boost/tokenizer.hpp>
 #include "boost/regex.hpp"
-#include "boost/lexical_cast.hpp"
 #include "boost/filesystem/operations.hpp"
 
 using namespace std;
@@ -139,7 +138,7 @@ namespace boost
             }
             if (errors > 0)
             {
-                string errored = "Line length limit*: " + total;
+                string errored = "*Line length limit*: " + total;
                 error(library_name, full_path, errored);
                 ++m_files_with_errors;
             }

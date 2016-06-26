@@ -7,30 +7,32 @@
 #define HPX_THREADMANAGER_SCHEDULING_SCHEDULER_BASE_JUL_14_2013_1132AM
 
 #include <hpx/config.hpp>
-#include <hpx/state.hpp>
-#include <hpx/runtime/threads/thread_init_data.hpp>
-#include <hpx/runtime/threads/topology.hpp>
+#include <hpx/runtime/agas/interface.hpp>
+#include <hpx/runtime/parcelset_fwd.hpp>
 #include <hpx/runtime/threads/policies/affinity_data.hpp>
 #include <hpx/runtime/threads/policies/scheduler_mode.hpp>
-#include <hpx/runtime/agas/interface.hpp>
+#include <hpx/runtime/threads/thread_init_data.hpp>
+#include <hpx/runtime/threads/topology.hpp>
+#include <hpx/state.hpp>
 #include <hpx/util/assert.hpp>
 #if defined(HPX_HAVE_SCHEDULER_LOCAL_STORAGE)
 #include <hpx/runtime/threads/coroutines/detail/tss.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
 #endif
 
-#include <boost/noncopyable.hpp>
-#include <boost/thread/mutex.hpp>
+#include <boost/exception_ptr.hpp>
 #include <boost/thread/condition_variable.hpp>
-#include <boost/ptr_container/ptr_vector.hpp>
-
-#include <hpx/config/warnings_prefix.hpp>
+#include <boost/thread/locks.hpp>
+#include <boost/thread/mutex.hpp>
 
 #include <boost/atomic.hpp>
 
 #include <algorithm>
+#include <memory>
+#include <mutex>
 #include <utility>
+#include <vector>
+
+#include <hpx/config/warnings_prefix.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace threads { namespace policies
@@ -59,8 +61,12 @@ namespace hpx { namespace threads { namespace policies
     ///////////////////////////////////////////////////////////////////////////
     /// The scheduler_base defines the interface to be implemented by all
     /// scheduler policies
-    struct scheduler_base : boost::noncopyable
+    struct scheduler_base
     {
+    private:
+        HPX_NON_COPYABLE(scheduler_base);
+
+    public:
         scheduler_base(std::size_t num_threads,
                 char const* description = "",
                 scheduler_mode mode = nothing_special)
@@ -70,9 +76,9 @@ namespace hpx { namespace threads { namespace policies
 #if defined(HPX_HAVE_THREAD_MANAGER_IDLE_BACKOFF)
           , wait_count_(0)
 #endif
+          , states_(num_threads)
           , description_(description)
         {
-            states_.resize(num_threads);
             for (std::size_t i = 0; i != num_threads; ++i)
                 states_[i].store(state_initialized);
         }
@@ -109,17 +115,10 @@ namespace hpx { namespace threads { namespace policies
 #if defined(HPX_HAVE_THREAD_MANAGER_IDLE_BACKOFF)
             // Put this thread to sleep for some time, additionally it gets
             // woken up on new work.
-#if BOOST_VERSION < 105000
-            boost::posix_time::millisec period(++wait_count_);
-
-            boost::unique_lock<boost::mutex> l(mtx_);
-            cond_.timed_wait(l, period);
-#else
             boost::chrono::milliseconds period(++wait_count_);
 
             boost::unique_lock<boost::mutex> l(mtx_);
             cond_.wait_for(l, period);
-#endif
 #endif
         }
 
@@ -305,7 +304,7 @@ namespace hpx { namespace threads { namespace policies
         boost::atomic<boost::uint32_t> wait_count_;
 #endif
 
-        boost::ptr_vector<boost::atomic<hpx::state> > states_;
+        std::vector<boost::atomic<hpx::state> > states_;
         char const* description_;
 
 #if defined(HPX_HAVE_SCHEDULER_LOCAL_STORAGE)
@@ -318,13 +317,13 @@ namespace hpx { namespace threads { namespace policies
         }
 
         void add_new_tss_node(void const* key,
-            boost::shared_ptr<coroutines::detail::tss_cleanup_function>
+            std::shared_ptr<coroutines::detail::tss_cleanup_function>
                 const& func, void* tss_data)
         {
             if (!thread_data_)
             {
                 thread_data_ =
-                    boost::make_shared<coroutines::detail::tss_storage>();
+                    std::make_shared<coroutines::detail::tss_storage>();
             }
             thread_data_->insert(key, func, tss_data);
         }
@@ -346,7 +345,7 @@ namespace hpx { namespace threads { namespace policies
         }
 
         void set_tss_data(void const* key,
-            boost::shared_ptr<coroutines::detail::tss_cleanup_function>
+            std::shared_ptr<coroutines::detail::tss_cleanup_function>
                 const& func, void* tss_data, bool cleanup_existing)
         {
             if (coroutines::detail::tss_data_node* const current_node =
@@ -364,7 +363,7 @@ namespace hpx { namespace threads { namespace policies
         }
 
     protected:
-        boost::shared_ptr<coroutines::detail::tss_storage> thread_data_;
+        std::shared_ptr<coroutines::detail::tss_storage> thread_data_;
 #endif
     };
 }}}

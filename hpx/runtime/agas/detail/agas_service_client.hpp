@@ -8,14 +8,14 @@
 #define HPX_AGAS_CLIENT_BASE_FEB_05_2016_1144AM
 
 #include <hpx/exception_fwd.hpp>
-#include <hpx/runtime/naming_fwd.hpp>
-#include <hpx/runtime/threads_fwd.hpp>
+#include <hpx/lcos/future.hpp>
 #include <hpx/runtime/agas/request.hpp>
 #include <hpx/runtime/agas/response.hpp>
-#include <hpx/lcos/future.hpp>
+#include <hpx/runtime/naming_fwd.hpp>
+#include <hpx/runtime/threads_fwd.hpp>
 
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace hpx { namespace agas { namespace detail
 {

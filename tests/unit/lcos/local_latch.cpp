@@ -8,6 +8,10 @@
 #include <hpx/include/local_lcos.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
+#include <boost/atomic.hpp>
+
+#include <vector>
+
 #define NUM_THREADS std::size_t(100)
 
 ///////////////////////////////////////////////////////////////////////////////

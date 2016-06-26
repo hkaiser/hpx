@@ -10,6 +10,10 @@
 
 #include <boost/range/functions.hpp>
 
+#include <numeric>
+#include <string>
+#include <vector>
+
 #include "test_utils.hpp"
 
 ////////////////////////////////////////////////////////////////////////////
@@ -73,11 +77,13 @@ void test_lexicographical_compare1()
     test_lexicographical_compare1_async(seq(task), IteratorTag());
     test_lexicographical_compare1_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_lexicographical_compare1(execution_policy(seq), IteratorTag());
     test_lexicographical_compare1(execution_policy(par), IteratorTag());
     test_lexicographical_compare1(execution_policy(par_vec), IteratorTag());
     test_lexicographical_compare1(execution_policy(seq(task)), IteratorTag());
     test_lexicographical_compare1(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void lexicographical_compare_test1()
@@ -146,11 +152,13 @@ void test_lexicographical_compare2()
     test_lexicographical_compare2_async(seq(task), IteratorTag());
     test_lexicographical_compare2_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_lexicographical_compare2(execution_policy(seq), IteratorTag());
     test_lexicographical_compare2(execution_policy(par), IteratorTag());
     test_lexicographical_compare2(execution_policy(par_vec), IteratorTag());
     test_lexicographical_compare2(execution_policy(seq(task)), IteratorTag());
     test_lexicographical_compare2(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void lexicographical_compare_test2()
@@ -175,7 +183,7 @@ void test_lexicographical_compare3(ExPolicy policy, IteratorTag)
     // element being less than D
     std::vector<std::size_t> c(10007);
     std::iota(boost::begin(c), boost::end(c), 0);
-    c[(std::rand() % 5000) + 1] = 0;
+    c[(std::rand() % 5000) + 1] = 0; //-V108
 
     std::vector<std::size_t> d(10007);
     std::iota(boost::begin(d), boost::end(d), 0);
@@ -195,7 +203,7 @@ void test_lexicographical_compare3_async(ExPolicy p, IteratorTag)
 
     std::vector<std::size_t> c(10007);
     std::iota(boost::begin(c), boost::end(c), 0);
-    c[(std::rand() % 10006) + 1] = 0;
+    c[(std::rand() % 10006) + 1] = 0; //-V108
 
     std::vector<std::size_t> d(10007);
     std::iota(boost::begin(d), boost::end(d), 0);
@@ -221,11 +229,13 @@ void test_lexicographical_compare3()
     test_lexicographical_compare3_async(seq(task), IteratorTag());
     test_lexicographical_compare3_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_lexicographical_compare3(execution_policy(seq), IteratorTag());
     test_lexicographical_compare3(execution_policy(par), IteratorTag());
     test_lexicographical_compare3(execution_policy(par_vec), IteratorTag());
     test_lexicographical_compare3(execution_policy(seq(task)), IteratorTag());
     test_lexicographical_compare3(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void lexicographical_compare_test3()
@@ -333,9 +343,11 @@ void test_lexicographical_compare_exception()
     test_lexicographical_compare_async_exception(seq(task), IteratorTag());
     test_lexicographical_compare_async_exception(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_lexicographical_compare_exception(execution_policy(par), IteratorTag());
     test_lexicographical_compare_exception(execution_policy(seq(task)), IteratorTag());
     test_lexicographical_compare_exception(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void lexicographical_compare_exception_test()
@@ -440,10 +452,12 @@ void test_lexicographical_compare_bad_alloc()
     test_lexicographical_compare_async_bad_alloc(seq(task), IteratorTag());
     test_lexicographical_compare_async_bad_alloc(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_lexicographical_compare_bad_alloc(execution_policy(par), IteratorTag());
     test_lexicographical_compare_bad_alloc(execution_policy(seq), IteratorTag());
     test_lexicographical_compare_bad_alloc(execution_policy(seq(task)), IteratorTag());
     test_lexicographical_compare_bad_alloc(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void lexicographical_compare_bad_alloc_test()
@@ -455,7 +469,7 @@ void lexicographical_compare_bad_alloc_test()
 int hpx_main(boost::program_options::variables_map& vm)
 {
 
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if(vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 
@@ -483,7 +497,7 @@ int main(int argc, char* argv[])
 
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
 
     HPX_TEST_EQ_MSG(hpx::init(desc_commandline, argc, argv, cfg), 0,
         "HPX main exited with non-zero status");

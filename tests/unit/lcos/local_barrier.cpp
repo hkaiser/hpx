@@ -8,9 +8,13 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/include/threads.hpp>
 #include <hpx/include/local_lcos.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include <boost/atomic.hpp>
+
+#include <string>
+#include <vector>
 
 using boost::program_options::variables_map;
 using boost::program_options::options_description;
@@ -55,7 +59,7 @@ int hpx_main(variables_map& vm)
 
         // create the threads which will wait on the barrier
         for (std::size_t i = 0; i < pxthreads; ++i)
-            register_work(boost::bind
+            register_work(hpx::util::bind
                 (&local_barrier_test, boost::ref(b), boost::ref(c)));
 
         b.wait(); // wait for all threads to enter the barrier
@@ -85,7 +89,7 @@ int main(int argc, char* argv[])
     using namespace boost::assign;
     std::vector<std::string> cfg;
     cfg += "hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency());
+        std::to_string(hpx::threads::hardware_concurrency());
 
     // Initialize and run HPX
     HPX_TEST_EQ_MSG(init(desc_commandline, argc, argv, cfg), 0,

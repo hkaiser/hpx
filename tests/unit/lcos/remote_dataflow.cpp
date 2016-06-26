@@ -11,6 +11,9 @@
 
 #include <boost/atomic.hpp>
 
+#include <string>
+#include <vector>
+
 ///////////////////////////////////////////////////////////////////////////////
 boost::atomic<boost::uint32_t> void_f_count;
 
@@ -99,7 +102,7 @@ int main(int argc, char* argv[])
     using namespace boost::assign;
     std::vector<std::string> cfg;
     cfg += "hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency());
+        std::to_string(hpx::threads::hardware_concurrency());
 
     // Initialize and run HPX
     HPX_TEST_EQ_MSG(hpx::init(argc, argv, cfg), 0,

@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/hpx_init.hpp>
 #include <hpx/components/security/certificate_store.hpp>
 #include <hpx/components/security/hash.hpp>
@@ -15,9 +15,9 @@
 #include <hpx/util/lightweight_test.hpp>
 #include <hpx/util/security/root_certificate_authority.hpp>
 #include <hpx/util/security/subordinate_certificate_authority.hpp>
-#include <boost/make_shared.hpp>
 
 #include <iostream>
+#include <memory>
 #include <vector>
 
 int hpx_main(boost::program_options::variables_map &)

@@ -15,12 +15,15 @@
 #include <hpx/plugins/parcelport/tcp/sender.hpp>
 #include <hpx/plugins/parcelport/tcp/receiver.hpp>
 #include <hpx/util/asio_util.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/runtime_configuration.hpp>
 
 #include <boost/io/ios_state.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/locks.hpp>
+
+#include <memory>
+#include <mutex>
+#include <string>
 
 namespace hpx { namespace parcelset { namespace policies { namespace tcp
 {
@@ -29,7 +32,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
         // load all components as described in the configuration information
         if (ini.has_section("hpx.parcel")) {
             util::section const* sec = ini.get_section("hpx.parcel");
-            if (NULL != sec) {
+            if (nullptr != sec) {
                 return parcelset::locality(
                     locality(
                         sec->get_entry("address", HPX_INITIAL_IP_ADDRESS)
@@ -52,7 +55,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
             util::function_nonser<void(std::size_t, char const*)> const& on_start_thread,
             util::function_nonser<void()> const& on_stop_thread)
       : base_type(ini, parcelport_address(ini), on_start_thread, on_stop_thread)
-      , acceptor_(NULL)
+      , acceptor_(nullptr)
     {
         if (here_.type() != std::string("tcp")) {
             HPX_THROW_EXCEPTION(network_error, "tcp::parcelport::parcelport",
@@ -63,14 +66,14 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
 
     connection_handler::~connection_handler()
     {
-        HPX_ASSERT(acceptor_ == NULL);
+        HPX_ASSERT(acceptor_ == nullptr);
     }
 
     bool connection_handler::do_run()
     {
         using boost::asio::ip::tcp;
         boost::asio::io_service& io_service = io_service_pool_.get_io_service();
-        if (NULL == acceptor_)
+        if (nullptr == acceptor_)
             acceptor_ = new tcp::acceptor(io_service);
 
         // initialize network
@@ -82,7 +85,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
              it != end; ++it, ++tried)
         {
             try {
-                boost::shared_ptr<receiver> receiver_conn(
+                std::shared_ptr<receiver> receiver_conn(
                     new receiver(io_service, get_max_inbound_message_size(), *this));
 
                 tcp::endpoint ep = *it;
@@ -91,7 +94,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
                 acceptor_->bind(ep);
                 acceptor_->listen();
                 acceptor_->async_accept(receiver_conn->socket(),
-                    boost::bind(&connection_handler::handle_accept,
+                    util::bind(&connection_handler::handle_accept,
                         this,
                         boost::asio::placeholders::error, receiver_conn));
             }
@@ -114,8 +117,8 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
     {
         {
             // cancel all pending read operations, close those sockets
-            boost::lock_guard<lcos::local::spinlock> l(connections_mtx_);
-            for (boost::shared_ptr<receiver> const& c : accepted_connections_)
+            std::lock_guard<lcos::local::spinlock> l(connections_mtx_);
+            for (std::shared_ptr<receiver> const& c : accepted_connections_)
             {
                 c->shutdown();
             }
@@ -125,34 +128,34 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
             write_connections_.clear();
 #endif
         }
-        if(acceptor_ != NULL)
+        if(acceptor_ != nullptr)
         {
             boost::system::error_code ec;
             acceptor_->close(ec);
             delete acceptor_;
-            acceptor_ = NULL;
+            acceptor_ = nullptr;
         }
     }
 
-    boost::shared_ptr<sender> connection_handler::create_connection(
+    std::shared_ptr<sender> connection_handler::create_connection(
         parcelset::locality const& l, error_code& ec)
     {
         boost::asio::io_service& io_service = io_service_pool_.get_io_service();
 
         // The parcel gets serialized inside the connection constructor, no
         // need to keep the original parcel alive after this call returned.
-        boost::shared_ptr<sender> sender_connection(new sender(
+        std::shared_ptr<sender> sender_connection(new sender(
             io_service, l, this->parcels_sent_));
 
         // Connect to the target locality, retry if needed
         boost::system::error_code error = boost::asio::error::try_again;
         for (std::size_t i = 0; i < HPX_MAX_NETWORK_RETRIES; ++i)
         {
-            // The acceptor is only NULL when the parcelport has been stopped.
+            // The acceptor is only nullptr when the parcelport has been stopped.
             // An exit here, avoids hangs when late parcels are in flight (those are
             // mainly decref requests).
-            if(acceptor_ == NULL)
-                return boost::shared_ptr<sender>();
+            if(acceptor_ == nullptr)
+                return std::shared_ptr<sender>();
             try {
                 util::endpoint_iterator_type end = util::connect_end();
                 for (util::endpoint_iterator_type it =
@@ -212,7 +215,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
 
 #if defined(HPX_HOLDON_TO_OUTGOING_CONNECTIONS)
         {
-            boost::lock_guard<lcos::local::spinlock> lock(connections_mtx_);
+            std::lock_guard<lcos::local::spinlock> lock(connections_mtx_);
             write_connections_.insert(sender_connection);
         }
 #endif
@@ -237,7 +240,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
         // load all components as described in the configuration information
         if (ini.has_section("hpx.agas")) {
             util::section const* sec = ini.get_section("hpx.agas");
-            if (NULL != sec) {
+            if (nullptr != sec) {
                 return
                     parcelset::locality(
                         locality(
@@ -264,24 +267,24 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
 
     // accepted new incoming connection
     void connection_handler::handle_accept(boost::system::error_code const & e,
-        boost::shared_ptr<receiver> receiver_conn)
+        std::shared_ptr<receiver> receiver_conn)
     {
         if(!e)
         {
             // handle this incoming connection
-            boost::shared_ptr<receiver> c(receiver_conn);
+            std::shared_ptr<receiver> c(receiver_conn);
 
             boost::asio::io_service& io_service = io_service_pool_.get_io_service();
             receiver_conn.reset(new receiver(io_service, get_max_inbound_message_size(),
                 *this));
             acceptor_->async_accept(receiver_conn->socket(),
-                boost::bind(&connection_handler::handle_accept,
+                util::bind(&connection_handler::handle_accept,
                     this,
                     boost::asio::placeholders::error, receiver_conn));
 
             {
                 // keep track of all accepted connections
-                boost::lock_guard<lcos::local::spinlock> l(connections_mtx_);
+                std::lock_guard<lcos::local::spinlock> l(connections_mtx_);
                 accepted_connections_.insert(c);
             }
 
@@ -293,14 +296,14 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
             // now accept the incoming connection by starting to read from the
             // socket
             c->async_read(
-                boost::bind(&connection_handler::handle_read_completion,
+                util::bind(&connection_handler::handle_read_completion,
                     this,
                     boost::asio::placeholders::error, c));
         }
         else
         {
             // remove this connection from the list of known connections
-            boost::lock_guard<lcos::local::spinlock> l(mtx_);
+            std::lock_guard<lcos::local::spinlock> l(mtx_);
             accepted_connections_.erase(receiver_conn);
         }
     }
@@ -308,7 +311,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
     // Handle completion of a read operation.
     void connection_handler::handle_read_completion(
         boost::system::error_code const& e,
-        boost::shared_ptr<receiver> receiver_conn)
+        std::shared_ptr<receiver> receiver_conn)
     {
         if (!e) return;
 
@@ -323,7 +326,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
 //         if (e != boost::asio::error::eof)
         {
             // remove this connection from the list of known connections
-            boost::lock_guard<lcos::local::spinlock> l(connections_mtx_);
+            std::lock_guard<lcos::local::spinlock> l(connections_mtx_);
             accepted_connections_.erase(receiver_conn);
         }
     }

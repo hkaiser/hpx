@@ -3,18 +3,24 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#if !defined(HPX_RUNTIME_COALESCING_MESSAGE_HANDLER_REGISTRATION_MAR_17_2016_0150PM)
-#define HPX_RUNTIME_COALESCING_MESSAGE_HANDLER_REGISTRATION_MAR_17_2016_0150PM
+#ifndef HPX_PLUGINS_PARCEL_COALESCING_MESSAGE_HANDLER_REGISTRATION_HPP
+#define HPX_PLUGINS_PARCEL_COALESCING_MESSAGE_HANDLER_REGISTRATION_HPP
 
 #include <hpx/config.hpp>
 
 // the module itself should not register any actions which coalesce parcels
 #if defined(HPX_HAVE_PARCEL_COALESCING) && !defined(HPX_PARCEL_COALESCING_MODULE_EXPORTS)
 
-#include <hpx/exception.hpp>
-#include <hpx/traits/action_message_handler.hpp>
+#include <hpx/error_code.hpp>
 #include <hpx/runtime/message_handler_fwd.hpp>
 #include <hpx/runtime/parcelset/policies/message_handler.hpp>
+#include <hpx/runtime/parcelset_fwd.hpp>
+#include <hpx/traits/action_message_handler.hpp>
+
+#include <boost/preprocessor/cat.hpp>
+#include <boost/preprocessor/stringize.hpp>
+
+#include <cstddef>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace parcelset
@@ -47,8 +53,8 @@ namespace hpx { namespace parcelset
 #define HPX_REGISTER_COALESCING_COUNTERS(Action, coalescing_name)             \
     namespace hpx { namespace parcelset                                       \
     {                                                                         \
-        template<>                                                            \
-        inline char const* get_action_coalescing_name<Action>()               \
+        template<> HPX_ALWAYS_EXPORT                                          \
+        char const* get_action_coalescing_name<Action>()                      \
         {                                                                     \
             return coalescing_name;                                           \
         }                                                                     \
@@ -58,32 +64,34 @@ namespace hpx { namespace parcelset
 /**/
 
 ///////////////////////////////////////////////////////////////////////////////
-#define HPX_ACTION_USES_MESSAGE_COALESCING(...)                               \
-    HPX_ACTION_USES_MESSAGE_COALESCING_(__VA_ARGS__)                          \
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION(...)                   \
+    HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION_(__VA_ARGS__)              \
 /**/
 
-#define HPX_ACTION_USES_MESSAGE_COALESCING_(...)                              \
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION_(...)                  \
     HPX_UTIL_EXPAND_(BOOST_PP_CAT(                                            \
-        HPX_ACTION_USES_MESSAGE_COALESCING_, HPX_UTIL_PP_NARG(__VA_ARGS__)    \
+        HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION_,                      \
+            HPX_UTIL_PP_NARG(__VA_ARGS__)                                     \
     )(__VA_ARGS__))                                                           \
 /**/
 
-#define HPX_ACTION_USES_MESSAGE_COALESCING_1(action_type)                     \
-    HPX_ACTION_USES_MESSAGE_COALESCING_4(action_type,                         \
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION_1(action_type)         \
+    HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION_4(action_type,             \
         BOOST_PP_STRINGIZE(action_type), std::size_t(-1), std::size_t(-1))    \
 /**/
 
-#define HPX_ACTION_USES_MESSAGE_COALESCING_2(action_type, num)                \
-    HPX_ACTION_USES_MESSAGE_COALESCING_3(action_type,                         \
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION_2(action_type, num)    \
+    HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION_3(action_type,             \
         BOOST_PP_STRINGIZE(action_type), num, std::size_t(-1))                \
 /**/
 
-#define HPX_ACTION_USES_MESSAGE_COALESCING_3(action_type, num, interval)      \
-    HPX_ACTION_USES_MESSAGE_COALESCING_3(action_type,                         \
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION_3(                     \
+        action_type, num, interval)                                           \
+    HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION_3(action_type,             \
         BOOST_PP_STRINGIZE(action_type), num, interval)                       \
 /**/
 
-#define HPX_ACTION_USES_MESSAGE_COALESCING_4(                                 \
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION_4(                     \
         action_type, action_name, num, interval)                              \
     namespace hpx { namespace traits                                          \
     {                                                                         \
@@ -99,10 +107,49 @@ namespace hpx { namespace parcelset
             }                                                                 \
         };                                                                    \
     }}                                                                        \
+/**/
+
+///////////////////////////////////////////////////////////////////////////////
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION(...)                    \
+    HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION_(__VA_ARGS__)               \
+/**/
+
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION_(...)                   \
+    HPX_UTIL_EXPAND_(BOOST_PP_CAT(                                            \
+        HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION_,                       \
+            HPX_UTIL_PP_NARG(__VA_ARGS__)                                     \
+    )(__VA_ARGS__))                                                           \
+/**/
+
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION_1(action_type)          \
+    HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION_4(action_type,              \
+        BOOST_PP_STRINGIZE(action_type), std::size_t(-1), std::size_t(-1))    \
+/**/
+
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION_2(action_type, num)     \
+    HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION_3(action_type,              \
+        BOOST_PP_STRINGIZE(action_type), num, std::size_t(-1))                \
+/**/
+
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION_3(                      \
+        action_type, num, interval)                                           \
+    HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION_3(action_type,              \
+        BOOST_PP_STRINGIZE(action_type), num, interval)                       \
+/**/
+
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION_4(                      \
+        action_type, action_name, num, interval)                              \
     HPX_REGISTER_COALESCING_COUNTERS(action_type, action_name);               \
 /**/
 
-#define HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW(                           \
+///////////////////////////////////////////////////////////////////////////////
+#define HPX_ACTION_USES_MESSAGE_COALESCING(...)                               \
+    HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION(__VA_ARGS__)               \
+    HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION(__VA_ARGS__)                \
+/**/
+
+///////////////////////////////////////////////////////////////////////////////
+#define HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW_DECLARATION(               \
         action_type, action_name, num, interval)                              \
     namespace hpx { namespace traits                                          \
     {                                                                         \
@@ -119,14 +166,27 @@ namespace hpx { namespace parcelset
             }                                                                 \
         };                                                                    \
     }}                                                                        \
+/**/
+
+#define HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW_DEFINITION(                \
+        action_type, action_name, num, interval)                              \
     HPX_REGISTER_COALESCING_COUNTERS(action_type, action_name);               \
+
+#define HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW(...)                       \
+    HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW_DECLARATION(__VA_ARGS__)       \
+    HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW_DEFINITION(__VA_ARGS__)        \
 /**/
 
 #else
 
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DECLARATION(...)
+#define HPX_ACTION_USES_MESSAGE_COALESCING_DEFINITION(...)
 #define HPX_ACTION_USES_MESSAGE_COALESCING(...)
+
+#define HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW_DECLARATION(...)
+#define HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW_DEFINITION(...)
 #define HPX_ACTION_USES_MESSAGE_COALESCING_NOTHROW(...)
 
 #endif
 
-#endif
+#endif /*HPX_PLUGINS_PARCEL_COALESCING_MESSAGE_HANDLER_REGISTRATION_HPP*/

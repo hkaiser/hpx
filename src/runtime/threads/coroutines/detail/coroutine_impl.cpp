@@ -37,6 +37,7 @@
 #include <hpx/util/assert.hpp>
 #include <hpx/util/reinitializable_static.hpp>
 
+#include <boost/exception_ptr.hpp>
 #include <boost/lockfree/stack.hpp>
 
 #include <cstddef>
@@ -48,7 +49,8 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
     {
         struct reset_self_on_exit
         {
-            reset_self_on_exit(coroutine_self* val, coroutine_self* old_val = 0)
+            reset_self_on_exit(coroutine_self* val,
+                    coroutine_self* old_val = nullptr)
               : old_self(old_val)
             {
                 coroutine_self::set_self(val);
@@ -93,8 +95,8 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
 
                     this->m_result_last = m_fun(*this->args());
 
-                    // if this thread returned 'terminated' we need to reset the functor
-                    // and the bound arguments
+                    // if this thread returned 'terminated' we need to reset
+                    // the functor and the bound arguments
                     if (this->m_result_last == terminated)
                         this->reset();
                 }
@@ -154,7 +156,7 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
     private:
         coroutine_impl* get_locked()
         {
-            coroutine_impl* result = 0;
+            coroutine_impl* result = nullptr;
             heap_.pop(result);
             return result;
         }

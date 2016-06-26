@@ -28,9 +28,10 @@
 #include <hpx/util/logging/format_fwd.hpp>
 #include <hpx/util/logging/format/op_equal.hpp>
 #include <hpx/util/logging/format/array.hpp>
-#include <vector>
+#include <memory>
 #include <set>
-#include <boost/shared_ptr.hpp>
+#include <string>
+#include <vector>
 #include <boost/type_traits/is_base_of.hpp>
 
 namespace hpx { namespace util { namespace logging {

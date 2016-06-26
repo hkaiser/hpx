@@ -4,36 +4,38 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
 #include <hpx/config.hpp>
+#include <hpx/config/defaults.hpp>
 #include <hpx/runtime.hpp>
 #include <hpx/exception.hpp>
 #include <hpx/apply.hpp>
-#include <hpx/config/defaults.hpp>
 #include <hpx/util/ini.hpp>
 #include <hpx/util/logging.hpp>
 #include <hpx/util/filesystem_compatibility.hpp>
+#include <hpx/util/runtime_configuration.hpp>
 #include <hpx/util/unlock_guard.hpp>
 
+#include <hpx/runtime/actions/continuation.hpp>
+#include <hpx/runtime/actions/plain_action.hpp>
 #include <hpx/runtime/agas/interface.hpp>
-#include <hpx/runtime/threads/threadmanager.hpp>
-#include <hpx/runtime/threads/coroutines/coroutine.hpp>
-#include <hpx/runtime/naming/resolver_client.hpp>
-#include <hpx/runtime/naming/unmanaged.hpp>
 #include <hpx/runtime/components/server/runtime_support.hpp>
 #include <hpx/runtime/components/server/create_component.hpp>
 #include <hpx/runtime/components/server/memory_block.hpp>
 #include <hpx/runtime/components/server/memory.hpp>
 #include <hpx/runtime/components/stubs/runtime_support.hpp>
 #include <hpx/runtime/components/component_factory_base.hpp>
-#include <hpx/runtime/components/base_lco_factory.hpp>
 #include <hpx/runtime/components/component_registry_base.hpp>
 #include <hpx/runtime/components/component_startup_shutdown_base.hpp>
 #include <hpx/runtime/components/component_commandline_base.hpp>
-#include <hpx/runtime/actions/continuation.hpp>
-#include <hpx/runtime/actions/plain_action.hpp>
+#include <hpx/runtime/find_localities.hpp>
+#include <hpx/runtime/naming/resolver_client.hpp>
+#include <hpx/runtime/naming/unmanaged.hpp>
+#include <hpx/runtime/threads/coroutines/coroutine.hpp>
+#include <hpx/runtime/threads/threadmanager.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
+#include <hpx/runtime/shutdown_function.hpp>
+#include <hpx/runtime/startup_function.hpp>
 #include <hpx/lcos/wait_all.hpp>
 
 #include <hpx/lcos/broadcast.hpp>
@@ -49,17 +51,23 @@
 #include <hpx/plugins/message_handler_factory_base.hpp>
 #include <hpx/plugins/binary_filter_factory_base.hpp>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/lexical_cast.hpp>
+#include <hpx/plugins/parcelport/mpi/mpi_environment.hpp>
+
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/convenience.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
-#include <boost/thread/locks.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/tokenizer.hpp>
 
 #include <algorithm>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <set>
 #include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 // Serialization support for the runtime_support actions
@@ -279,7 +287,7 @@ namespace hpx { namespace components { namespace server
         components::component_type type, std::size_t count)
     {
         // locate the factory for the requested component type
-        boost::unique_lock<component_map_mutex_type> l(cm_mtx_);
+        std::unique_lock<component_map_mutex_type> l(cm_mtx_);
 
         std::vector<naming::gid_type> ids;
 
@@ -300,7 +308,7 @@ namespace hpx { namespace components { namespace server
         l.unlock();
 
     // create new component instance
-        boost::shared_ptr<component_factory_base> factory((*it).second.first);
+        std::shared_ptr<component_factory_base> factory((*it).second.first);
 
         ids.reserve(count);
         for (std::size_t i = 0; i < count; ++i)
@@ -311,39 +319,6 @@ namespace hpx { namespace components { namespace server
                     << " of type: "
                     << components::get_component_type_name(type);
         return ids;
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    boost::shared_ptr<util::one_size_heap_list_base>
-        runtime_support::get_promise_heap(components::component_type type)
-    {
-        // locate the factory for the requested component type
-        boost::unique_lock<component_map_mutex_type> l(cm_mtx_);
-
-        component_map_type::iterator it = components_.find(type);
-        if (it == components_.end())
-        {
-            // we don't know anything about this promise type yet
-            boost::shared_ptr<components::base_lco_factory> factory(
-                new components::base_lco_factory(type));
-
-            component_factory_type data(factory);
-            std::pair<component_map_type::iterator, bool> p =
-                components_.insert(component_map_type::value_type(type, data));
-            if (!p.second)
-            {
-                l.unlock();
-                HPX_THROW_EXCEPTION(out_of_memory,
-                    "runtime_support::get_promise_heap",
-                    "could not create base_lco_factor for type " +
-                        components::get_component_type_name(type));
-            }
-
-            it = p.first;
-        }
-
-        return boost::static_pointer_cast<components::base_lco_factory>(
-            (*it).second.first)->get_heap();
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -417,10 +392,10 @@ namespace hpx { namespace components { namespace server
         }
 
         // locate the factory for the requested component type
-        boost::shared_ptr<component_factory_base> factory;
+        std::shared_ptr<component_factory_base> factory;
 
         {
-            boost::unique_lock<component_map_mutex_type> l(cm_mtx_);
+            std::unique_lock<component_map_mutex_type> l(cm_mtx_);
             component_map_type::const_iterator it = components_.find(g.type);
             if (it == components_.end()) {
                 // we don't know anything about this component
@@ -538,9 +513,14 @@ namespace hpx { namespace components { namespace server
 ///////////////////////////////////////////////////////////////////////////////
 typedef hpx::components::server::runtime_support::call_shutdown_functions_action
     call_shutdown_functions_action;
+typedef
+    hpx::lcos::detail::make_broadcast_action<call_shutdown_functions_action>::type
+    call_shutdown_functions_broadcast_action;
 
 HPX_REGISTER_BROADCAST_ACTION_DECLARATION(call_shutdown_functions_action,
         call_shutdown_functions_action)
+HPX_ACTION_USES_MEDIUM_STACK(
+    call_shutdown_functions_broadcast_action)
 HPX_REGISTER_BROADCAST_ACTION_ID(call_shutdown_functions_action,
         call_shutdown_functions_action,
         hpx::actions::broadcast_call_shutdown_functions_action_id)
@@ -573,7 +553,7 @@ namespace hpx { namespace components { namespace server
     void runtime_support::dijkstra_make_black()
     {
         // Rule 1: A machine sending a message makes itself black.
-        boost::lock_guard<dijkstra_mtx_type> l(dijkstra_mtx_);
+        std::lock_guard<dijkstra_mtx_type> l(dijkstra_mtx_);
         dijkstra_color_ = true;
     }
 
@@ -612,7 +592,7 @@ namespace hpx { namespace components { namespace server
         // Rule 2: When machine nr.i + 1 propagates the probe, it hands over a
         // black token to machine nr.i if it is black itself, whereas while
         // being white it leaves the color of the token unchanged.
-        boost::lock_guard<dijkstra_mtx_type> l(dijkstra_mtx_);
+        std::lock_guard<dijkstra_mtx_type> l(dijkstra_mtx_);
         bool dijkstra_token = dijkstra_color_;
 
         // Rule 5: Upon transmission of the token to machine nr.i, machine
@@ -639,7 +619,8 @@ namespace hpx { namespace components { namespace server
             // Note: we protect the entire loop here since the stopping condition
             // depends on the shared variable "dijkstra_color_"
             // Proper unlocking for possible remote actions needs to be taken care of
-            dijkstra_mtx_type::scoped_lock l(dijkstra_mtx_);
+            typedef std::unique_lock<dijkstra_mtx_type> dijkstra_scoped_lock;
+            dijkstra_scoped_lock l(dijkstra_mtx_);
             do {
                 // Rule 4: Machine nr.0 initiates a probe by making itself white
                 // and sending a white token to machine nr.N - 1.
@@ -648,7 +629,7 @@ namespace hpx { namespace components { namespace server
                 dijkstra_termination_action act;
                 bool termination_aborted = false;
                 {
-                    util::unlock_guard<dijkstra_mtx_type::scoped_lock> ul(l);
+                    util::unlock_guard<dijkstra_scoped_lock> ul(l);
                     termination_aborted = lcos::reduce(act,
                         locality_ids, std_logical_or_type()).get()
                 }
@@ -697,7 +678,7 @@ namespace hpx { namespace components { namespace server
         // black token to machine nr.i if it is black itself, whereas while
         // being white it leaves the color of the token unchanged.
         {
-            boost::lock_guard<dijkstra_mtx_type> l(dijkstra_mtx_);
+            std::lock_guard<dijkstra_mtx_type> l(dijkstra_mtx_);
             if (dijkstra_color_)
                 dijkstra_token = dijkstra_color_;
 
@@ -728,7 +709,7 @@ namespace hpx { namespace components { namespace server
             // we received the token after a full circle
             if (dijkstra_token)
             {
-                boost::lock_guard<dijkstra_mtx_type> l(dijkstra_mtx_);
+                std::lock_guard<dijkstra_mtx_type> l(dijkstra_mtx_);
                 dijkstra_color_ = true;     // unsuccessful termination
             }
 
@@ -765,14 +746,15 @@ namespace hpx { namespace components { namespace server
             // Note: we protect the entire loop here since the stopping condition
             // depends on the shared variable "dijkstra_color_"
             // Proper unlocking for possible remote actions needs to be taken care of
-            dijkstra_mtx_type::scoped_lock l(dijkstra_mtx_);
+            typedef std::unique_lock<dijkstra_mtx_type> dijkstra_scoped_lock;
+            dijkstra_scoped_lock l(dijkstra_mtx_);
             do {
                 // Rule 4: Machine nr.0 initiates a probe by making itself white
                 // and sending a white token to machine nr.N - 1.
                 dijkstra_color_ = false;        // start off with white
 
                 {
-                    util::unlock_guard<dijkstra_mtx_type::scoped_lock> ul(l);
+                    util::unlock_guard<dijkstra_scoped_lock> ul(l);
                     send_dijkstra_termination_token(target_id - 1,
                         initiating_locality_id, num_localities, false);
                 }
@@ -937,9 +919,17 @@ namespace hpx { namespace components { namespace server
     }
 
     ///////////////////////////////////////////////////////////////////////////
+    void runtime_support::delete_function_lists()
+    {
+        pre_startup_functions_.clear();
+        startup_functions_.clear();
+        pre_shutdown_functions_.clear();
+        shutdown_functions_.clear();
+    }
+
     void runtime_support::tidy()
     {
-        boost::lock_guard<component_map_mutex_type> l(cm_mtx_);
+        std::lock_guard<component_map_mutex_type> l(cm_mtx_);
 
         // Only after releasing the components we are allowed to release
         // the modules. This is done in reverse order of loading.
@@ -970,7 +960,7 @@ namespace hpx { namespace components { namespace server
     ///////////////////////////////////////////////////////////////////////////
     boost::int32_t runtime_support::get_instance_count(components::component_type type)
     {
-        boost::unique_lock<component_map_mutex_type> l(cm_mtx_);
+        std::unique_lock<component_map_mutex_type> l(cm_mtx_);
 
         component_map_type::const_iterator it = components_.find(type);
         if (it == components_.end() || !(*it).second.first) {
@@ -997,7 +987,7 @@ namespace hpx { namespace components { namespace server
         naming::gid_type const& gid, parcelset::endpoints_type const& eps)
     {
         runtime* rt = get_runtime_ptr();
-        if (rt == 0) return;
+        if (rt == nullptr) return;
 
         // instruct our connection cache to drop all connections it is holding
         rt->get_parcel_handler().remove_from_connection_cache(gid, eps);
@@ -1006,7 +996,7 @@ namespace hpx { namespace components { namespace server
     ///////////////////////////////////////////////////////////////////////////
     void runtime_support::run()
     {
-        boost::unique_lock<mutex_type> l(mtx_);
+        std::unique_lock<mutex_type> l(mtx_);
         stopped_ = false;
         terminated_ = false;
         shutdown_all_invoked_.store(false);
@@ -1030,7 +1020,7 @@ namespace hpx { namespace components { namespace server
     {
         // re-acquire pointer to self as it might have changed
         threads::thread_self* self = threads::get_self_ptr();
-        HPX_ASSERT(0 != self);    // needs to be executed by a HPX thread
+        HPX_ASSERT(nullptr != self);    // needs to be executed by a HPX thread
 
         // give the scheduler some time to work on remaining tasks
         {
@@ -1145,7 +1135,7 @@ namespace hpx { namespace components { namespace server
     // this will be called after the thread manager has exited
     void runtime_support::stopped()
     {
-        boost::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<mutex_type> l(mtx_);
         if (!terminated_) {
             terminated_ = true;
             stop_condition_.notify_all();   // finished cleanup/termination
@@ -1209,7 +1199,7 @@ namespace hpx { namespace components { namespace server
                 std::vector<std::string> still_unregistered_options;
                 util::parse_commandline(ini, options, unknown_cmd_line, vm,
                     std::size_t(-1), mode,
-                    get_runtime_mode_from_name(runtime_mode), 0,
+                    get_runtime_mode_from_name(runtime_mode), nullptr,
                     &still_unregistered_options);
 
                 std::string still_unknown_commandline;
@@ -1219,7 +1209,7 @@ namespace hpx { namespace components { namespace server
                 if (!still_unknown_commandline.empty())
                 {
                     util::section* s = ini.get_section("hpx");
-                    HPX_ASSERT(s != 0);
+                    HPX_ASSERT(s != nullptr);
                     s->add_entry("unknown_cmd_line_option",
                         still_unknown_commandline);
                 }
@@ -1278,14 +1268,14 @@ namespace hpx { namespace components { namespace server
     {
         if (pre_startup) {
             get_runtime().set_state(state_pre_startup);
-            for (util::function_nonser<void()> const& f : pre_startup_functions_)
+            for (startup_function_type& f : pre_startup_functions_)
             {
                 f();
             }
         }
         else {
             get_runtime().set_state(state_startup);
-            for (util::function_nonser<void()> const& f : startup_functions_)
+            for (startup_function_type& f : startup_functions_)
             {
                 f();
             }
@@ -1297,7 +1287,7 @@ namespace hpx { namespace components { namespace server
         runtime& rt = get_runtime();
         if (pre_shutdown) {
             rt.set_state(state_pre_shutdown);
-            for (util::function_nonser<void()> const& f : pre_shutdown_functions_)
+            for (shutdown_function_type& f : pre_shutdown_functions_)
             {
                 try {
                     f();
@@ -1309,7 +1299,7 @@ namespace hpx { namespace components { namespace server
         }
         else {
             rt.set_state(state_shutdown);
-            for (util::function_nonser<void()> const& f : shutdown_functions_)
+            for (shutdown_function_type& f : shutdown_functions_)
             {
                 try {
                     f();
@@ -1324,7 +1314,7 @@ namespace hpx { namespace components { namespace server
     ///////////////////////////////////////////////////////////////////////////
     bool runtime_support::keep_factory_alive(component_type type)
     {
-        boost::lock_guard<component_map_mutex_type> l(cm_mtx_);
+        std::lock_guard<component_map_mutex_type> l(cm_mtx_);
 
         // Only after releasing the components we are allowed to release
         // the modules. This is done in reverse order of loading.
@@ -1339,13 +1329,10 @@ namespace hpx { namespace components { namespace server
     // working around non-copy-ability of packaged_task
     struct indirect_packaged_task
     {
-        typedef void write_handler_type(
-            boost::system::error_code const&, parcelset::parcel const&);
-        typedef lcos::local::packaged_task<write_handler_type> packaged_task_type;
+        typedef lcos::local::packaged_task<void()> packaged_task_type;
 
         indirect_packaged_task()
-          : pt(boost::make_shared<packaged_task_type>(
-                &parcelset::default_write_handler))
+          : pt(std::make_shared<packaged_task_type>([](){}))
         {}
 
         hpx::future<void> get_future()
@@ -1356,16 +1343,18 @@ namespace hpx { namespace components { namespace server
         template <typename ...Ts>
         void operator()(Ts&& ... vs)
         {
-            (*pt)(std::forward<Ts>(vs)...);
+            // This needs to be run on a HPX thread
+            hpx::apply(std::move(*pt));
+            pt.reset();
         }
 
-        boost::shared_ptr<packaged_task_type> pt;
+        std::shared_ptr<packaged_task_type> pt;
     };
 
     void runtime_support::remove_here_from_connection_cache()
     {
         runtime* rt = get_runtime_ptr();
-        if (rt == 0)
+        if (rt == nullptr)
             return;
 
         std::vector<naming::id_type> locality_ids = find_remote_localities();
@@ -1392,7 +1381,8 @@ namespace hpx { namespace components { namespace server
         char const* message_handler_type, char const* action, error_code& ec)
     {
         // locate the factory for the requested plugin type
-        plugin_map_mutex_type::scoped_lock l(p_mtx_);
+        typedef std::unique_lock<plugin_map_mutex_type> plugin_map_scoped_lock;
+        plugin_map_scoped_lock l(p_mtx_);
 
         plugin_map_type::const_iterator it = plugins_.find(message_handler_type);
         if (it == plugins_.end() || !(*it).second.first) {
@@ -1421,8 +1411,8 @@ namespace hpx { namespace components { namespace server
         l.unlock();
 
         // create new component instance
-        boost::shared_ptr<plugins::message_handler_factory_base> factory(
-            boost::static_pointer_cast<plugins::message_handler_factory_base>(
+        std::shared_ptr<plugins::message_handler_factory_base> factory(
+            std::static_pointer_cast<plugins::message_handler_factory_base>(
                 (*it).second.first));
 
         factory->register_action(action, ec);
@@ -1454,7 +1444,8 @@ namespace hpx { namespace components { namespace server
         std::size_t interval, error_code& ec)
     {
         // locate the factory for the requested plugin type
-        plugin_map_mutex_type::scoped_lock l(p_mtx_);
+        typedef std::unique_lock<plugin_map_mutex_type> plugin_map_scoped_lock;
+        plugin_map_scoped_lock l(p_mtx_);
 
         plugin_map_type::const_iterator it = plugins_.find(message_handler_type);
         if (it == plugins_.end() || !(*it).second.first) {
@@ -1477,26 +1468,26 @@ namespace hpx { namespace components { namespace server
                     "attempt to create message handler plugin instance of "
                     "invalid/unknown type");
             }
-            return 0;
+            return nullptr;
         }
 
         l.unlock();
 
         // create new component instance
-        boost::shared_ptr<plugins::message_handler_factory_base> factory(
-            boost::static_pointer_cast<plugins::message_handler_factory_base>(
+        std::shared_ptr<plugins::message_handler_factory_base> factory(
+            std::static_pointer_cast<plugins::message_handler_factory_base>(
                 (*it).second.first));
 
         parcelset::policies::message_handler* mh = factory->create(action,
             pp, num_messages, interval);
-        if (0 == mh) {
+        if (nullptr == mh) {
             std::ostringstream strm;
             strm << "couldn't create message handler plugin of type: "
                  << message_handler_type;
             HPX_THROWS_IF(ec, hpx::bad_plugin_type,
                 "runtime_support::create_message_handler",
                 strm.str());
-            return 0;
+            return nullptr;
         }
 
         if (&ec != &throws)
@@ -1513,7 +1504,8 @@ namespace hpx { namespace components { namespace server
         serialization::binary_filter* next_filter, error_code& ec)
     {
         // locate the factory for the requested plugin type
-        plugin_map_mutex_type::scoped_lock l(p_mtx_);
+        typedef std::unique_lock<plugin_map_mutex_type> plugin_map_scoped_lock;
+        plugin_map_scoped_lock l(p_mtx_);
 
         plugin_map_type::const_iterator it = plugins_.find(binary_filter_type);
         if (it == plugins_.end() || !(*it).second.first) {
@@ -1524,25 +1516,25 @@ namespace hpx { namespace components { namespace server
             HPX_THROWS_IF(ec, hpx::bad_plugin_type,
                 "runtime_support::create_binary_filter",
                 strm.str());
-            return 0;
+            return nullptr;
         }
 
         l.unlock();
 
         // create new component instance
-        boost::shared_ptr<plugins::binary_filter_factory_base> factory(
-            boost::static_pointer_cast<plugins::binary_filter_factory_base>(
+        std::shared_ptr<plugins::binary_filter_factory_base> factory(
+            std::static_pointer_cast<plugins::binary_filter_factory_base>(
                 (*it).second.first));
 
         serialization::binary_filter* bf = factory->create(compress, next_filter);
-        if (0 == bf) {
+        if (nullptr == bf) {
             std::ostringstream strm;
             strm << "couldn't to create binary filter plugin of type: "
                  << binary_filter_type;
             HPX_THROWS_IF(ec, hpx::bad_plugin_type,
                 "runtime_support::create_binary_filter",
                 strm.str());
-            return 0;
+            return nullptr;
         }
 
         if (&ec != &throws)
@@ -1566,17 +1558,17 @@ namespace hpx { namespace components { namespace server
         try {
             // initialize the factory instance using the preferences from the
             // ini files
-            util::section const* glob_ini = NULL;
+            util::section const* glob_ini = nullptr;
             if (ini.has_section("settings"))
                 glob_ini = ini.get_section("settings");
 
-            util::section const* component_ini = NULL;
+            util::section const* component_ini = nullptr;
             std::string component_section("hpx.components." + instance);
             if (ini.has_section(component_section))
                 component_ini = ini.get_section(component_section);
 
             error_code ec(lightweight);
-            if (0 == component_ini ||
+            if (nullptr == component_ini ||
                 "0" == component_ini->get_entry("no_factory", "0"))
             {
                 util::plugin::get_plugins_list_type f;
@@ -1592,7 +1584,7 @@ namespace hpx { namespace components { namespace server
                     component_factory_base> pf (f);
 
                 // create the component factory object, if not disabled
-                boost::shared_ptr<component_factory_base> factory (
+                std::shared_ptr<component_factory_base> factory (
                     pf.create(instance, ec, glob_ini, component_ini, isenabled));
                 if (ec) {
                     LRT_(warning) << "static loading failed: " << lib.string()
@@ -1609,7 +1601,7 @@ namespace hpx { namespace components { namespace server
                 }
 
                 // store component factory and module for later use
-                boost::lock_guard<component_map_mutex_type> l(cm_mtx_);
+                std::lock_guard<component_map_mutex_type> l(cm_mtx_);
 
                 component_factory_type data(factory, isenabled);
                 std::pair<component_map_type::iterator, bool> p =
@@ -1692,9 +1684,9 @@ namespace hpx { namespace components { namespace server
         //  key = value
         //
         util::section* sec = ini.get_section("hpx.components");
-        if (NULL == sec)
+        if (nullptr == sec)
         {
-            LRT_(error) << "NULL section found";
+            LRT_(error) << "nullptr section found";
             return 0;     // something bad happened
         }
 
@@ -1749,7 +1741,8 @@ namespace hpx { namespace components { namespace server
                 for(tokenizer::iterator it = tokens.begin(); it != tokens.end(); ++it)
                 {
                     lib = hpx::util::create_path(*it);
-                    fs::path lib_path = lib / std::string(HPX_MAKE_DLL_STRING(component));
+                    fs::path lib_path =
+                        lib / std::string(HPX_MAKE_DLL_STRING(component));
                     if(fs::exists(lib_path, fsec))
                     {
                         break;
@@ -1811,7 +1804,7 @@ namespace hpx { namespace components { namespace server
                 component_startup_shutdown_base> pf (f);
 
             // create the startup_shutdown object
-            boost::shared_ptr<component_startup_shutdown_base>
+            std::shared_ptr<component_startup_shutdown_base>
                 startup_shutdown(pf.create("startup_shutdown", ec));
             if (ec) {
                 LRT_(debug) << "static loading of startup/shutdown functions "
@@ -1824,19 +1817,19 @@ namespace hpx { namespace components { namespace server
             if (startup_shutdown->get_startup_function(startup, pre_startup))
             {
                 if (pre_startup)
-                    pre_startup_functions_.push_back(startup);
+                    pre_startup_functions_.push_back(std::move(startup));
                 else
-                    startup_functions_.push_back(startup);
+                    startup_functions_.push_back(std::move(startup));
             }
 
-            shutdown_function_type s;
+            shutdown_function_type shutdown;
             bool pre_shutdown = false;
-            if (startup_shutdown->get_shutdown_function(s, pre_shutdown))
+            if (startup_shutdown->get_shutdown_function(shutdown, pre_shutdown))
             {
                 if (pre_shutdown)
-                    pre_shutdown_functions_.push_back(s);
+                    pre_shutdown_functions_.push_back(std::move(shutdown));
                 else
-                    shutdown_functions_.push_back(s);
+                    shutdown_functions_.push_back(std::move(shutdown));
             }
         }
         catch (hpx::exception const&) {
@@ -1875,7 +1868,7 @@ namespace hpx { namespace components { namespace server
                 component_commandline_base> pf (f);
 
             // create the startup_shutdown object
-            boost::shared_ptr<component_commandline_base>
+            std::shared_ptr<component_commandline_base>
                 commandline_options(pf.create("commandline_options", ec));
             if (ec) {
                 LRT_(debug) << "static loading of command-line options failed: "
@@ -1956,7 +1949,7 @@ namespace hpx { namespace components { namespace server
                 "startup_shutdown");
 
             // create the startup_shutdown object
-            boost::shared_ptr<component_startup_shutdown_base>
+            std::shared_ptr<component_startup_shutdown_base>
                 startup_shutdown(pf.create("startup_shutdown", ec));
             if (ec) {
                 LRT_(debug) << "loading of startup/shutdown functions failed: "
@@ -1969,19 +1962,19 @@ namespace hpx { namespace components { namespace server
             if (startup_shutdown->get_startup_function(startup, pre_startup))
             {
                 if (pre_startup)
-                    pre_startup_functions_.push_back(startup);
+                    pre_startup_functions_.push_back(std::move(startup));
                 else
-                    startup_functions_.push_back(startup);
+                    startup_functions_.push_back(std::move(startup));
             }
 
-            shutdown_function_type s;
+            shutdown_function_type shutdown;
             bool pre_shutdown = false;
-            if (startup_shutdown->get_shutdown_function(s, pre_shutdown))
+            if (startup_shutdown->get_shutdown_function(shutdown, pre_shutdown))
             {
                 if (pre_shutdown)
-                    pre_shutdown_functions_.push_back(s);
+                    pre_shutdown_functions_.push_back(std::move(shutdown));
                 else
-                    shutdown_functions_.push_back(s);
+                    shutdown_functions_.push_back(std::move(shutdown));
             }
         }
         catch (hpx::exception const&) {
@@ -2009,7 +2002,7 @@ namespace hpx { namespace components { namespace server
                 "commandline_options");
 
             // create the startup_shutdown object
-            boost::shared_ptr<component_commandline_base>
+            std::shared_ptr<component_commandline_base>
                 commandline_options(pf.create("commandline_options", ec));
             if (ec) {
                 LRT_(debug) << "loading of command-line options failed: "
@@ -2047,17 +2040,17 @@ namespace hpx { namespace components { namespace server
         try {
             // initialize the factory instance using the preferences from the
             // ini files
-            util::section const* glob_ini = NULL;
+            util::section const* glob_ini = nullptr;
             if (ini.has_section("settings"))
                 glob_ini = ini.get_section("settings");
 
-            util::section const* component_ini = NULL;
+            util::section const* component_ini = nullptr;
             std::string component_section("hpx.components." + instance);
             if (ini.has_section(component_section))
                 component_ini = ini.get_section(component_section);
 
             error_code ec(lightweight);
-            if (0 == component_ini ||
+            if (nullptr == component_ini ||
                 "0" == component_ini->get_entry("no_factory", "0"))
             {
                 // get the factory
@@ -2065,7 +2058,7 @@ namespace hpx { namespace components { namespace server
                     "factory");
 
                 // create the component factory object, if not disabled
-                boost::shared_ptr<component_factory_base> factory (
+                std::shared_ptr<component_factory_base> factory (
                     pf.create(instance, ec, glob_ini, component_ini, isenabled));
                 if (ec) {
                     LRT_(warning) << "dynamic loading failed: " << lib.string()
@@ -2082,7 +2075,7 @@ namespace hpx { namespace components { namespace server
                 }
 
                 // store component factory and module for later use
-                boost::lock_guard<component_map_mutex_type> l(cm_mtx_);
+                std::lock_guard<component_map_mutex_type> l(cm_mtx_);
 
                 component_factory_type data(factory, d, isenabled);
                 std::pair<component_map_type::iterator, bool> p =
@@ -2164,9 +2157,9 @@ namespace hpx { namespace components { namespace server
         //  key = value
         //
         util::section* sec = ini.get_section("hpx.plugins");
-        if (NULL == sec)
+        if (nullptr == sec)
         {
-            LRT_(error) << "NULL section found";
+            LRT_(error) << "nullptr section found";
             return false;     // something bad happened
         }
 
@@ -2212,7 +2205,8 @@ namespace hpx { namespace components { namespace server
                 for(tokenizer::iterator it = tokens.begin(); it != tokens.end(); ++it)
                 {
                     lib = hpx::util::create_path(*it);
-                    fs::path lib_path = lib / std::string(HPX_MAKE_DLL_STRING(component));
+                    fs::path lib_path =
+                        lib / std::string(HPX_MAKE_DLL_STRING(component));
                     if(fs::exists(lib_path, fsec))
                     {
                         break;
@@ -2267,17 +2261,17 @@ namespace hpx { namespace components { namespace server
         try {
             // initialize the factory instance using the preferences from the
             // ini files
-            util::section const* glob_ini = NULL;
+            util::section const* glob_ini = nullptr;
             if (ini.has_section("settings"))
                 glob_ini = ini.get_section("settings");
 
-            util::section const* plugin_ini = NULL;
+            util::section const* plugin_ini = nullptr;
             std::string plugin_section("hpx.plugins." + instance);
             if (ini.has_section(plugin_section))
                 plugin_ini = ini.get_section(plugin_section);
 
             error_code ec(lightweight);
-            if (0 == plugin_ini ||
+            if (nullptr == plugin_ini ||
                 "0" == plugin_ini->get_entry("no_factory", "0"))
             {
                 // get the factory
@@ -2285,7 +2279,7 @@ namespace hpx { namespace components { namespace server
                     pf (d, "factory");
 
                 // create the component factory object, if not disabled
-                boost::shared_ptr<plugins::plugin_factory_base> factory (
+                std::shared_ptr<plugins::plugin_factory_base> factory (
                     pf.create(instance, ec, glob_ini, plugin_ini, isenabled));
                 if (!ec)
                 {
@@ -2383,7 +2377,7 @@ namespace hpx { namespace components { namespace server
     {
         components::security::capability caps;
 
-        boost::unique_lock<component_map_mutex_type> l(cm_mtx_);
+        std::unique_lock<component_map_mutex_type> l(cm_mtx_);
         component_map_type::const_iterator it = components_.find(type);
         if (it == components_.end()) {
             std::ostringstream strm;
@@ -2404,7 +2398,7 @@ namespace hpx { namespace components { namespace server
             strm << "attempt to extract capabilities for component instance of "
                 << "invalid/unknown type: "
                 << components::get_component_type_name(type)
-                << " (map entry is NULL)";
+                << " (map entry is nullptr)";
 
             l.unlock();
             HPX_THROW_EXCEPTION(hpx::bad_component_type,
@@ -2413,9 +2407,9 @@ namespace hpx { namespace components { namespace server
             return caps;
         }
 
-        boost::shared_ptr<component_factory_base> factory((*it).second.first);
+        std::shared_ptr<component_factory_base> factory((*it).second.first);
         {
-            util::unlock_guard<boost::unique_lock<component_map_mutex_type> > ul(l);
+            util::unlock_guard<std::unique_lock<component_map_mutex_type> > ul(l);
             caps = factory->get_required_capabilities();
         }
         return caps;

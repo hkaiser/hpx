@@ -10,6 +10,10 @@
 
 #include <boost/range/functions.hpp>
 
+#include <numeric>
+#include <string>
+#include <vector>
+
 #include "test_utils.hpp"
 
 ////////////////////////////////////////////////////////////////////////////
@@ -79,12 +83,13 @@ void test_search_n1()
     test_search_n1_async(seq(task), IteratorTag());
     test_search_n1_async(par(task), IteratorTag());
 
-
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_search_n1(execution_policy(seq), IteratorTag());
     test_search_n1(execution_policy(par), IteratorTag());
     test_search_n1(execution_policy(par_vec), IteratorTag());
     test_search_n1(execution_policy(seq(task)), IteratorTag());
     test_search_n1(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void search_n_test1()
@@ -163,12 +168,14 @@ void test_search_n2()
     test_search_n2_async(seq(task), IteratorTag());
     test_search_n2_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_search_n2(execution_policy(seq), IteratorTag());
     test_search_n2(execution_policy(par), IteratorTag());
     test_search_n2(execution_policy(par_vec), IteratorTag());
 
     test_search_n2(execution_policy(seq(task)), IteratorTag());
     test_search_n2(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void search_n_test2()
@@ -245,12 +252,14 @@ void test_search_n3()
     test_search_n3_async(seq(task), IteratorTag());
     test_search_n3_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_search_n3(execution_policy(seq), IteratorTag());
     test_search_n3(execution_policy(par), IteratorTag());
     test_search_n3(execution_policy(par_vec), IteratorTag());
 
     test_search_n3(execution_policy(seq(task)), IteratorTag());
     test_search_n3(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void search_n_test3()
@@ -331,12 +340,14 @@ void test_search_n4()
     test_search_n4_async(seq(task), IteratorTag());
     test_search_n4_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_search_n4(execution_policy(seq), IteratorTag());
     test_search_n4(execution_policy(par), IteratorTag());
     test_search_n4(execution_policy(par_vec), IteratorTag());
 
     test_search_n4(execution_policy(seq(task)), IteratorTag());
     test_search_n4(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void search_n_test4()
@@ -423,11 +434,13 @@ void test_search_n5()
     test_search_n5_async(seq(task), IteratorTag());
     test_search_n5_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_search_n5(execution_policy(seq), IteratorTag());
     test_search_n5(execution_policy(par), IteratorTag());
     test_search_n5(execution_policy(par_vec), IteratorTag());
     test_search_n5(execution_policy(seq(task)), IteratorTag());
     test_search_n5(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void search_n_test5()
@@ -530,9 +543,11 @@ void test_search_n_exception()
     test_search_n_async_exception(seq(task), IteratorTag());
     test_search_n_async_exception(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_search_n_exception(execution_policy(par), IteratorTag());
     test_search_n_exception(execution_policy(seq(task)), IteratorTag());
     test_search_n_exception(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void search_n_exception_test()
@@ -630,10 +645,12 @@ void test_search_n_bad_alloc()
     test_search_n_async_bad_alloc(seq(task), IteratorTag());
     test_search_n_async_bad_alloc(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_search_n_bad_alloc(execution_policy(par), IteratorTag());
     test_search_n_bad_alloc(execution_policy(seq), IteratorTag());
     test_search_n_bad_alloc(execution_policy(seq(task)), IteratorTag());
     test_search_n_bad_alloc(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void search_n_bad_alloc_test()
@@ -645,7 +662,7 @@ void search_n_bad_alloc_test()
 int hpx_main(boost::program_options::variables_map& vm)
 {
 
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if(vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 
@@ -675,7 +692,7 @@ int main(int argc, char* argv[])
 
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
 
     HPX_TEST_EQ_MSG(hpx::init(desc_commandline, argc, argv, cfg), 0,
         "HPX main exited with non-zero status");

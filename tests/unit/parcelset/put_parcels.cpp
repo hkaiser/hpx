@@ -9,6 +9,9 @@
 #include <hpx/include/iostreams.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
+#include <string>
+#include <vector>
+
 ///////////////////////////////////////////////////////////////////////////////
 std::size_t const vsize_default = 1024;
 std::size_t const numparcels_default = 10;
@@ -50,10 +53,11 @@ void test_plain_argument(hpx::id_type const& id)
     for (std::size_t i = 0; i != numparcels_default; ++i)
     {
         hpx::lcos::promise<hpx::id_type> p;
+        auto f = p.get_future();
         parcels.push_back(
             generate_parcel<test1_action>(id, p.get_id(), data)
         );
-        results.push_back(p.get_future());
+        results.push_back(std::move(f));
     }
 
     // send parcels
@@ -89,6 +93,7 @@ void test_future_argument(hpx::id_type const& id)
     {
         hpx::lcos::local::promise<double> p_arg;
         hpx::lcos::promise<hpx::id_type> p_cont;
+        auto f_cont = p_cont.get_future();
 
         parcels.push_back(
             generate_parcel<test2_action>(id, p_cont.get_id(),
@@ -96,7 +101,7 @@ void test_future_argument(hpx::id_type const& id)
         );
 
         args.push_back(std::move(p_arg));
-        results.push_back(p_cont.get_future());
+        results.push_back(std::move(f_cont));
     }
 
     // send parcels
@@ -133,6 +138,7 @@ void test_mixed_arguments(hpx::id_type const& id)
     for (std::size_t i = 0; i != numparcels_default; ++i)
     {
         hpx::lcos::promise<hpx::id_type> p_cont;
+        auto f_cont = p_cont.get_future();
 
         if (std::rand() % 2)
         {
@@ -152,7 +158,7 @@ void test_mixed_arguments(hpx::id_type const& id)
             args.push_back(std::move(p_arg));
         }
 
-        results.push_back(p_cont.get_future());
+        results.push_back(std::move(f_cont));
     }
 
     // send parcels
@@ -193,7 +199,7 @@ void print_counters(char const* name)
 ///////////////////////////////////////////////////////////////////////////////
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if (vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 

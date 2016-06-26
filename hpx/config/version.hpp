@@ -13,8 +13,8 @@
 #include <hpx/config.hpp>
 #include <hpx/config/export_definitions.hpp>
 
-#include <boost/version.hpp>
 #include <boost/preprocessor/cat.hpp>
+#include <boost/version.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
 //  The version of HPX
@@ -26,13 +26,13 @@
 //  HPX_VERSION_DATE   YYYYMMDD is the date of the release
 //                               (estimated release date for master branch)
 //
-#define HPX_VERSION_FULL         0x000912
+#define HPX_VERSION_FULL         0x000999
 
 #define HPX_VERSION_MAJOR        0
 #define HPX_VERSION_MINOR        9
-#define HPX_VERSION_SUBMINOR     12
+#define HPX_VERSION_SUBMINOR     99
 
-#define HPX_VERSION_DATE         20151111
+#define HPX_VERSION_DATE         20160701
 
 #if !defined(HPX_AGAS_VERSION)
     #define HPX_AGAS_VERSION 0x30
@@ -74,20 +74,10 @@ namespace hpx
     // library, forcing to resolve the variable HPX_CHECK_VERSION.
     namespace
     {
-
-#if defined(__clang__)
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Wunused-function"
-#endif
-
-#if defined(__GNUG__) && !defined(__INTEL_COMPILER)
-#  if defined(HPX_GCC_DIAGNOSTIC_PRAGMA_CONTEXTS)
-#    pragma GCC diagnostic push
-#  endif
-#  pragma GCC diagnostic ignored "-Wunused-function"
-#endif
-
         // Note: this function is never executed.
+#if defined(__GNUG__)
+        __attribute__ ((unused))
+#endif
         char const* check_hpx_version()
         {
             char const* versions[] = {
@@ -95,17 +85,6 @@ namespace hpx
             };
             return versions[0];
         }
-
-#if defined(__GNUG__) && !defined(__INTEL_COMPILER)
-#if defined(HPX_GCC_DIAGNOSTIC_PRAGMA_CONTEXTS)
-#pragma GCC diagnostic pop
-#endif
-#endif
-
-#if defined(__clang__)
-#  pragma clang diagnostic pop
-#endif
-
     }
 #endif
 

@@ -9,6 +9,8 @@
 #include <hpx/include/lcos.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
+#include <vector>
+
 ///////////////////////////////////////////////////////////////////////////////
 struct test_server
   : hpx::components::simple_component_base<test_server>
@@ -49,7 +51,7 @@ void test_component_call_future_void()
 
     // test async
     std::vector<hpx::future<void> > calls;
-    for (std::size_t i = 0; i != 100; ++i)
+    for (std::size_t i = 0; i != 1; ++i)
     {
         calls.push_back(hpx::async<call_future_void_action>(id));
     }

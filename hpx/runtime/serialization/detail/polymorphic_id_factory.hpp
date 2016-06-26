@@ -8,18 +8,21 @@
 #ifndef HPX_SERIALIZATION_POLYMORPHIC_ID_FACTORY_HPP
 #define HPX_SERIALIZATION_POLYMORPHIC_ID_FACTORY_HPP
 
-#include <hpx/runtime/serialization/serialization_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/serialization/detail/polymorphic_intrusive_factory.hpp>
+#include <hpx/runtime/serialization/serialization_fwd.hpp>
+#include <hpx/throw_exception.hpp>
 #include <hpx/traits/polymorphic_traits.hpp>
+#include <hpx/util/assert.hpp>
 #include <hpx/util/static.hpp>
-#include <hpx/util/safe_lexical_cast.hpp>
-#include <hpx/exception.hpp>
 
-#include <boost/preprocessor/stringize.hpp>
 #include <boost/atomic.hpp>
 #include <boost/mpl/bool.hpp>
+#include <boost/preprocessor/stringize.hpp>
 
 #include <map>
+#include <string>
+#include <vector>
 
 #include <hpx/config/warnings_prefix.hpp>
 
@@ -27,8 +30,10 @@ namespace hpx { namespace serialization {
 
     namespace detail
     {
-        class id_registry : boost::noncopyable
+        class id_registry
         {
+            HPX_NON_COPYABLE(id_registry);
+
         public:
             typedef void* (*ctor_t) ();
             typedef std::map<std::string, ctor_t> typename_to_ctor_t;
@@ -113,7 +118,7 @@ namespace hpx { namespace serialization {
             void cache_id(boost::uint32_t id, ctor_t ctor)
             {
                 if (id >= cache.size()) //-V104
-                    cache.resize(id + 1, NULL); //-V106
+                    cache.resize(id + 1, nullptr); //-V106
                 cache[id] = ctor; //-V108
             }
 
@@ -123,8 +128,10 @@ namespace hpx { namespace serialization {
             cache_t cache;
         };
 
-        class polymorphic_id_factory : boost::noncopyable
+        class polymorphic_id_factory
         {
+            HPX_NON_COPYABLE(polymorphic_id_factory);
+
             typedef id_registry::ctor_t ctor_t;
             typedef id_registry::typename_to_ctor_t typename_to_ctor_t;
             typedef id_registry::typename_to_id_t typename_to_id_t;
@@ -139,11 +146,10 @@ namespace hpx { namespace serialization {
                 if (id > vec.size()) //-V104
                     HPX_THROW_EXCEPTION(serialization_error
                       , "polymorphic_id_factory::create"
-                      , "Unknown type descriptor " +
-                            util::safe_lexical_cast<std::string>(id));
+                      , "Unknown type descriptor " + std::to_string(id));
 
                 ctor_t ctor = vec[id]; //-V108
-                HPX_ASSERT(ctor != NULL);
+                HPX_ASSERT(ctor != nullptr);
                 return static_cast<T*>(ctor());
             }
 
@@ -219,6 +225,8 @@ namespace hpx { namespace serialization {
     } // detail
 
 }}
+
+#include <hpx/config/warnings_suffix.hpp>
 
 #define HPX_SERIALIZATION_ADD_CONSTANT_ENTRY(String, Id)                       \
     namespace hpx { namespace serialization { namespace detail {               \

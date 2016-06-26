@@ -14,17 +14,23 @@
 #error Boost.Config was included before the hpx config header. This might lead to subtile failures and compile errors. Please include <hpx/config.hpp> before any other boost header
 #endif
 
-#include <hpx/config/defines.hpp>
-#include <hpx/config/version.hpp>
-#include <hpx/config/compiler_specific.hpp>
 #include <hpx/config/branch_hints.hpp>
-#include <hpx/config/manual_profiling.hpp>
-#include <hpx/config/forceinline.hpp>
+#include <hpx/config/compiler_specific.hpp>
 #include <hpx/config/constexpr.hpp>
-#include <hpx/config/noexcept.hpp>
+#include <hpx/config/defines.hpp>
 #include <hpx/config/emulate_deleted.hpp>
+#include <hpx/config/export_definitions.hpp>
+#include <hpx/config/forceinline.hpp>
+#include <hpx/config/manual_profiling.hpp>
+#include <hpx/config/noexcept.hpp>
+#include <hpx/config/version.hpp>
 
 #include <boost/version.hpp>
+
+#if BOOST_VERSION < 105000
+// Please update your Boost installation (see www.boost.org for details).
+#error HPX cannot be compiled with a Boost version earlier than 1.50.0
+#endif
 
 #if BOOST_VERSION == 105400
 #include <cstdint> // Boost.Atomic has trouble finding [u]intptr_t
@@ -425,12 +431,18 @@
 
 #if !defined(HPX_THREADS_STACK_OVERHEAD)
 #  if defined(HPX_DEBUG)
-#    define HPX_THREADS_STACK_OVERHEAD 0x2800
+#    if defined(HPX_GCC_VERSION)
+#      define HPX_THREADS_STACK_OVERHEAD 0x3000
+#    else
+#      define HPX_THREADS_STACK_OVERHEAD 0x2800
+#    endif
 #  else
 #    if defined(HPX_INTEL_VERSION)
-#    define HPX_THREADS_STACK_OVERHEAD 0x2800
+#      define HPX_THREADS_STACK_OVERHEAD 0x2800
+#    elif defined(HPX_GCC_VERSION) && HPX_GCC_VERSION < 40700
+#      define HPX_THREADS_STACK_OVERHEAD 0x2800
 #    else
-#    define HPX_THREADS_STACK_OVERHEAD 0x800
+#      define HPX_THREADS_STACK_OVERHEAD 0x800
 #    endif
 #  endif
 #endif

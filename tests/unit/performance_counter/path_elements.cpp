@@ -8,6 +8,8 @@
 #include <hpx/include/performance_counters.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
+#include <string>
+
 ///////////////////////////////////////////////////////////////////////////////
 namespace test
 {
@@ -400,7 +402,7 @@ namespace test
         "/objectname{parentinstancename/#1}/countername",
         "/objectname{parentinstancename/instancename#}/countername",
         "/objectname{parentinstancename/instancename#1}/",
-        NULL
+        nullptr
     };
 
     void bad()
@@ -410,7 +412,7 @@ namespace test
         // test non-throwing version
         counter_path_elements p;
         int i = 0;
-        for (char const* t = data_bad[0]; NULL != t; t = data_bad[++i])
+        for (char const* t = data_bad[0]; nullptr != t; t = data_bad[++i])
         {
             hpx::error_code ec;
             HPX_TEST_EQ(status_invalid_data, get_counter_path_elements(t, p, ec));
@@ -419,7 +421,7 @@ namespace test
 
         // test throwing version
         i = 0;
-        for (char const* t = data_bad[0]; NULL != t; t = data_bad[++i])
+        for (char const* t = data_bad[0]; nullptr != t; t = data_bad[++i])
         {
             hpx::error_code ec;
             bool caught_exception = false;

@@ -4,16 +4,21 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 #include <hpx/hpx.hpp>
 #include <hpx/lcos/local/composable_guard.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/lightweight_test.hpp>
 #include <hpx/hpx_init.hpp>
+#include <boost/atomic.hpp>
 #include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
 #include <stdlib.h>
 
 typedef boost::atomic<int> int_atomic;
 int_atomic i1(0), i2(0);
 hpx::lcos::local::guard_set guards;
-boost::shared_ptr<hpx::lcos::local::guard> l1(new hpx::lcos::local::guard());
-boost::shared_ptr<hpx::lcos::local::guard> l2(new hpx::lcos::local::guard());
+std::shared_ptr<hpx::lcos::local::guard> l1(new hpx::lcos::local::guard());
+std::shared_ptr<hpx::lcos::local::guard> l2(new hpx::lcos::local::guard());
 
 void incr1() {
     // implicitly lock l1
@@ -59,8 +64,7 @@ int hpx_main(boost::program_options::variables_map& vm) {
         run_guarded(*l2,incr2);
     }
 
-    boost::function<void()> check_func = boost::bind(check);
-    run_guarded(guards,check_func);
+    run_guarded(guards, &::check);
     return hpx::finalize();
 }
 
@@ -77,7 +81,7 @@ int main(int argc, char* argv[]) {
     using namespace boost::assign;
     std::vector<std::string> cfg;
     cfg += "hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency());
+        std::to_string(hpx::threads::hardware_concurrency());
 
     // Initialize and run HPX
     HPX_TEST_EQ_MSG(hpx::init(desc_commandline, argc, argv, cfg), 0,

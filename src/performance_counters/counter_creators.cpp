@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/exception.hpp>
 #include <hpx/runtime/naming/name.hpp>
 #include <hpx/runtime/agas/stubs/component_namespace.hpp>
@@ -13,6 +13,8 @@
 #include <hpx/performance_counters/counters.hpp>
 #include <hpx/performance_counters/counter_creators.hpp>
 #include <hpx/util/function.hpp>
+
+#include <string>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace performance_counters
@@ -350,7 +352,7 @@ namespace hpx { namespace performance_counters
                 return naming::invalid_gid;
             }
             service += "#";
-            service += boost::lexical_cast<std::string>(paths.parentinstanceindex_);
+            service += std::to_string(paths.parentinstanceindex_);
 
             service += "/";
             service += service_name;

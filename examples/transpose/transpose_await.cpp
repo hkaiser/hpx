@@ -12,6 +12,8 @@
 #include <boost/range/irange.hpp>
 
 #include <algorithm>
+#include <memory>
+#include <string>
 #include <vector>
 
 #define COL_SHIFT 1000.00           // Constant to shift column index
@@ -108,7 +110,7 @@ struct sub_block
     double * data_;
     mode mode_;
 
-    HPX_MOVABLE_BUT_NOT_COPYABLE(sub_block);
+    HPX_MOVABLE_ONLY(sub_block);
 };
 
 struct block_component
@@ -179,7 +181,7 @@ double test_results(boost::uint64_t order, boost::uint64_t block_order,
 
 ///////////////////////////////////////////////////////////////////////////////
 // The returned value type has to be the same as the return type used for
-// __await below
+// co_await below
 hpx::future<sub_block> transpose_phase(
     std::vector<block> const& A, std::vector<block>& B,
     boost::uint64_t block_order, boost::uint64_t b,
@@ -201,7 +203,7 @@ hpx::future<sub_block> transpose_phase(
         hpx::future<sub_block> to =
             B[b].get_sub_block(B_offset, block_size);
 
-        transpose(__await from, __await to, block_order, tile_size);
+        transpose(co_await from, co_await to, block_order, tile_size);
     }
 
     return sub_block();
@@ -282,9 +284,9 @@ int hpx_main(boost::program_options::variables_map& vm)
         for_each(par, boost::begin(range), boost::end(range),
             [&](boost::uint64_t b)
             {
-                boost::shared_ptr<block_component> A_ptr =
+                std::shared_ptr<block_component> A_ptr =
                     hpx::get_ptr<block_component>(A[b].get_gid()).get();
-                boost::shared_ptr<block_component> B_ptr =
+                std::shared_ptr<block_component> B_ptr =
                     hpx::get_ptr<block_component>(B[b].get_gid()).get();
 
                 for(boost::uint64_t i = 0; i != order; ++i)

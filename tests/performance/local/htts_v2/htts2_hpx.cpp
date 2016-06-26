@@ -6,15 +6,18 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/hpx_init.hpp>
 #include <hpx/lcos/local/barrier.hpp>
 #include <hpx/runtime/threads/thread_helpers.hpp>
+#include <hpx/util/bind.hpp>
 
 #include "htts2.hpp"
 
 #include <boost/assign/std/vector.hpp>
-#include <boost/lexical_cast.hpp>
+
+#include <string>
+#include <vector>
 
 template <typename BaseClock = boost::chrono::steady_clock>
 struct hpx_driver : htts2::driver
@@ -28,14 +31,15 @@ struct hpx_driver : htts2::driver
     {
         using namespace boost::assign;
         std::vector<std::string> cfg;
-        cfg += "hpx.os_threads=" + boost::lexical_cast<std::string>(osthreads_);
+        cfg += "hpx.os_threads=" + std::to_string(osthreads_);
         cfg += "hpx.run_hpx_main!=0";
         cfg += "hpx.commandline.allow_unknown!=1";
 
         hpx::util::function_nonser<int(boost::program_options::variables_map& vm)> f;
         boost::program_options::options_description desc;
 
-        hpx::init(boost::bind(&hpx_driver::run_impl, boost::ref(*this), _1),
+        using hpx::util::placeholders::_1;
+        hpx::init(hpx::util::bind(&hpx_driver::run_impl, boost::ref(*this), _1),
             desc, argc_, argv_, cfg);
     }
 
@@ -71,9 +75,9 @@ struct hpx_driver : htts2::driver
         {
             // Reschedule in an attempt to correct.
             hpx::threads::register_work(
-                boost::bind(&hpx_driver::stage_tasks,
+                hpx::util::bind(&hpx_driver::stage_tasks,
                     boost::ref(*this), target_osthread)
-              , NULL // No HPX-thread name.
+              , nullptr // No HPX-thread name.
               , hpx::threads::pending
               , hpx::threads::thread_priority_normal
               , target_osthread // Place in the target OS-thread's queue.
@@ -82,10 +86,11 @@ struct hpx_driver : htts2::driver
 
         for (boost::uint64_t i = 0; i < this->tasks_; ++i)
         {
+            using hpx::util::placeholders::_1;
             hpx::threads::register_thread_plain(
-                boost::bind(&hpx_driver::payload_thread_function,
+                hpx::util::bind(&hpx_driver::payload_thread_function,
                     boost::ref(*this), _1)
-              , NULL // No HPX-thread name.
+              , nullptr // No HPX-thread name.
               , hpx::threads::pending
               , false // Do not run immediately.
               , hpx::threads::thread_priority_normal
@@ -108,11 +113,11 @@ struct hpx_driver : htts2::driver
             if (all_count != 1)
             {
                 register_work(
-                        boost::bind(&hpx_driver::wait_for_tasks
+                        hpx::util::bind(&hpx_driver::wait_for_tasks
                                   , boost::ref(*this)
                                   , boost::ref(finished)
                                    )
-                      , NULL, hpx::threads::pending
+                      , nullptr, hpx::threads::pending
                       , hpx::threads::thread_priority_low);
                 return;
             }
@@ -142,8 +147,8 @@ struct hpx_driver : htts2::driver
             if (this_osthread == i) continue;
 
             hpx::threads::register_work(
-                boost::bind(&hpx_driver::stage_tasks, boost::ref(*this), i)
-              , NULL // No HPX-thread name.
+                hpx::util::bind(&hpx_driver::stage_tasks, boost::ref(*this), i)
+              , nullptr // No HPX-thread name.
               , hpx::threads::pending
               , hpx::threads::thread_priority_normal
               , i // Place in the target OS-thread's queue.
@@ -169,11 +174,11 @@ struct hpx_driver : htts2::driver
         // executed, and then it
         hpx::lcos::local::barrier finished(2);
 
-        register_work(boost::bind(&hpx_driver::wait_for_tasks
+        register_work(hpx::util::bind(&hpx_driver::wait_for_tasks
                                 , boost::ref(*this)
                                 , boost::ref(finished)
                                  )
-            , NULL, hpx::threads::pending
+            , nullptr, hpx::threads::pending
             , hpx::threads::thread_priority_low);
 
         finished.wait();

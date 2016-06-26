@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2014 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -6,11 +6,13 @@
 #if !defined(HPX_PARALLEL_UTIL_LOOP_MAY_27_2014_1040PM)
 #define HPX_PARALLEL_UTIL_LOOP_MAY_27_2014_1040PM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/parallel/util/cancellation_token.hpp>
+#include <hpx/util/tuple.hpp>
 
-#include <iterator>
 #include <algorithm>
+#include <iterator>
+#include <vector>
 
 namespace hpx { namespace parallel { namespace util
 {
@@ -20,11 +22,14 @@ namespace hpx { namespace parallel { namespace util
         ///////////////////////////////////////////////////////////////////////
         // Helper class to repeatedly call a function starting from a given
         // iterator position.
-        template <typename IterCat>
+        template <typename Iterator>
         struct loop
         {
+            typedef Iterator type;
+
             ///////////////////////////////////////////////////////////////////
             template <typename Begin, typename End, typename F>
+            HPX_HOST_DEVICE
             static Begin call(Begin it, End end, F && f)
             {
                 for (/**/; it != end; ++it)
@@ -35,6 +40,7 @@ namespace hpx { namespace parallel { namespace util
 
             template <typename Begin, typename End, typename CancelToken,
                 typename F>
+            HPX_HOST_DEVICE
             static Begin call(Begin it, End end, CancelToken& tok, F && func)
             {
                 for (/**/; it != end; ++it)
@@ -50,32 +56,33 @@ namespace hpx { namespace parallel { namespace util
 
     ///////////////////////////////////////////////////////////////////////////
     template <typename Begin, typename End, typename F>
-    HPX_FORCEINLINE Begin
+    HPX_HOST_DEVICE HPX_FORCEINLINE Begin
     loop(Begin begin, End end, F && f)
     {
-        typedef typename std::iterator_traits<Begin>::iterator_category cat;
-        return detail::loop<cat>::call(begin, end, std::forward<F>(f));
+        return detail::loop<Begin>::call(begin, end, std::forward<F>(f));
     }
 
     template <typename Begin, typename End, typename CancelToken, typename F>
-    HPX_FORCEINLINE Begin
+    HPX_HOST_DEVICE HPX_FORCEINLINE Begin
     loop(Begin begin, End end, CancelToken& tok, F && f)
     {
-        typedef typename std::iterator_traits<Begin>::iterator_category cat;
-        return detail::loop<cat>::call(begin, end, tok, std::forward<F>(f));
-    };
+        return detail::loop<Begin>::call(begin, end, tok, std::forward<F>(f));
+    }
 
-    ///////////////////////////////////////////////////////////////////////////
     namespace detail
     {
         // Helper class to repeatedly call a function a given number of times
         // starting from a given iterator position.
-        template <typename IterCat>
+
+        template <typename Iterator>
         struct loop_n
         {
+            typedef Iterator type;
+
             ///////////////////////////////////////////////////////////////////
             // handle sequences of non-futures
             template <typename Iter, typename F>
+            HPX_HOST_DEVICE
             static Iter call(Iter it, std::size_t count, F && f)
             {
                 for (/**/; count != 0; (void) --count, ++it)
@@ -84,6 +91,7 @@ namespace hpx { namespace parallel { namespace util
             }
 
             template <typename Iter, typename CancelToken, typename F>
+            HPX_HOST_DEVICE
             static Iter call(Iter it, std::size_t count, CancelToken& tok,
                 F && f)
             {
@@ -100,20 +108,18 @@ namespace hpx { namespace parallel { namespace util
 
     ///////////////////////////////////////////////////////////////////////////
     template <typename Iter, typename F>
-    HPX_FORCEINLINE Iter
+    HPX_HOST_DEVICE HPX_FORCEINLINE Iter
     loop_n(Iter it, std::size_t count, F && f)
     {
-        typedef typename std::iterator_traits<Iter>::iterator_category cat;
-        return detail::loop_n<cat>::call(it, count, std::forward<F>(f));
+        return detail::loop_n<Iter>::call(it, count, std::forward<F>(f));
     }
 
     template <typename Iter, typename CancelToken, typename F>
-    HPX_FORCEINLINE Iter
+    HPX_HOST_DEVICE HPX_FORCEINLINE Iter
     loop_n(Iter it, std::size_t count, CancelToken& tok, F && f)
     {
-        typedef typename std::iterator_traits<Iter>::iterator_category cat;
-        return detail::loop_n<cat>::call(it, count, tok, std::forward<F>(f));
-    };
+        return detail::loop_n<Iter>::call(it, count, tok, std::forward<F>(f));
+    }
 
     ///////////////////////////////////////////////////////////////////////////
     namespace detail

@@ -6,11 +6,15 @@
 #if !defined(HPX_RUNTIME_ACTIONS_CONTINUATION_HPP)
 #define HPX_RUNTIME_ACTIONS_CONTINUATION_HPP
 
-#include <hpx/config/export_definitions.hpp>
+#include <hpx/config.hpp>
+#include <memory>
 
 namespace hpx { namespace actions
 {
     class HPX_EXPORT continuation;
+
+    template <typename Result, typename F, typename ...Ts>
+    void trigger(std::unique_ptr<continuation> cont, F&& f, Ts&&... vs);
 }}
 
 #endif

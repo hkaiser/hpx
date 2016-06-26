@@ -6,10 +6,9 @@
 #ifndef HPX_PARCELSET_POLICIES_IBVERBS_ALLOCATOR_HPP
 #define HPX_PARCELSET_POLICIES_IBVERBS_ALLOCATOR_HPP
 
-#include <hpx/config/defines.hpp>
-#if defined(HPX_HAVE_PARCELPORT_IBVERBS)
-
 #include <hpx/config.hpp>
+
+#if defined(HPX_HAVE_PARCELPORT_IBVERBS)
 
 #include <hpx/util/memory_chunk_pool.hpp>
 
@@ -46,7 +45,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs
             return &x;
         }
 
-        pointer allocate(size_type n, void* /*hint*/ = 0)
+        pointer allocate(size_type n, void* /*hint*/ = nullptr)
         {
             if(n <= SmallSize) return new char[n];
             return memory_pool_->allocate(n);

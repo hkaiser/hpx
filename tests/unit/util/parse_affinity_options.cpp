@@ -6,12 +6,15 @@
 #include <hpx/hpx_init.hpp>
 
 #include <hpx/include/threads.hpp>
+#include <hpx/runtime/threads/policies/parse_affinity_options.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
 #include <boost/assign/std/vector.hpp>
 
-#include <iostream>
 #include <algorithm>
+#include <iostream>
+#include <string>
+#include <vector>
 
 // The affinity masks this test is verifying the results against are specific
 // to a particular machine. If you enable this option you might see a lot of
@@ -1039,14 +1042,14 @@ namespace test
         "numanode:0",
         "core:0",
         "pu:0",
-        NULL
+        nullptr
     };
 
     void bad()
     {
         int i = 0;
         hpx::error_code ec;
-        for (char const* t = data_bad[0]; NULL != t; t = data_bad[++i])
+        for (char const* t = data_bad[0]; nullptr != t; t = data_bad[++i])
         {
             std::vector<hpx::threads::mask_type> affinities;
             hpx::threads::parse_affinity_options(t, affinities, ec);

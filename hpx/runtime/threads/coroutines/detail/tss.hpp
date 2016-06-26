@@ -14,10 +14,9 @@
 #include <hpx/config.hpp>
 #include <hpx/util/assert.hpp>
 
-#include <boost/shared_ptr.hpp>
-
 #include <cstddef>
 #include <map>
+#include <memory>
 #include <utility>
 
 namespace hpx { namespace threads { namespace coroutines { namespace detail
@@ -34,12 +33,12 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
     struct tss_data_node
     {
     private:
-        boost::shared_ptr<tss_cleanup_function> func_;
+        std::shared_ptr<tss_cleanup_function> func_;
         void* value_;
 
     public:
         tss_data_node()
-          : value_(0)
+          : value_(nullptr)
         {}
 
         tss_data_node(void* val)
@@ -47,7 +46,7 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
             value_(val)
         {}
 
-        tss_data_node(boost::shared_ptr<tss_cleanup_function> f, void* val)
+        tss_data_node(std::shared_ptr<tss_cleanup_function> f, void* val)
           : func_(f),
             value_(val)
         {}
@@ -58,7 +57,7 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
             value_(rhs.value_)
         {
             rhs.func_.reset();
-            rhs.value_ = 0;
+            rhs.value_ = nullptr;
         }
 #endif
 
@@ -74,7 +73,7 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
             value_ = rhs.value_;
 
             rhs.func_.reset();
-            rhs.value_ = 0;
+            rhs.value_ = nullptr;
             return *this;
         }
 #endif
@@ -82,14 +81,14 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
         template <typename T>
         T get_data() const
         {
-            HPX_ASSERT(value_ != 0);
+            HPX_ASSERT(value_ != nullptr);
             return *reinterpret_cast<T*>(value_);
         }
 
         template <typename T>
         void set_data(T const& val)
         {
-            if (value_ == 0)
+            if (value_ == nullptr)
                 value_ = new T(val);
             else
                 *reinterpret_cast<T*>(value_) = val;
@@ -97,7 +96,7 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
 
         void cleanup(bool cleanup_existing = true);
 
-        void reinit(boost::shared_ptr<tss_cleanup_function> const& f,
+        void reinit(std::shared_ptr<tss_cleanup_function> const& f,
             void* data, bool cleanup_existing)
         {
             cleanup(cleanup_existing);
@@ -111,7 +110,7 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
         }
 
 #if !(defined(HPX_INTEL_VERSION) && __GNUC__ == 4 && __GNUC_MINOR__ == 6)
-        HPX_MOVABLE_BUT_NOT_COPYABLE(tss_data_node)
+        HPX_MOVABLE_ONLY(tss_data_node);
 #endif
     };
 
@@ -125,14 +124,14 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
         {
             tss_node_data_map::const_iterator it = data_.find(key);
             if (it == data_.end())
-                return 0;
+                return nullptr;
             return &(it->second);
         }
         tss_data_node* find_entry(void const* key)
         {
             tss_node_data_map::iterator it = data_.find(key);
             if (it == data_.end())
-                return 0;
+                return nullptr;
             return &(it->second);
         }
 
@@ -159,19 +158,19 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
             tss_node_data_map::iterator current_node = data_.find(key);
             if (current_node != data_.end())
                 return &current_node->second;
-            return NULL;
+            return nullptr;
         }
 
         void insert(void const* key,
-            boost::shared_ptr<tss_cleanup_function> const& func, void* tss_data)
+            std::shared_ptr<tss_cleanup_function> const& func, void* tss_data)
         {
             data_.insert(std::make_pair(key, tss_data_node(func, tss_data)));
         }
 
         void insert(void const* key, void* tss_data)
         {
-            boost::shared_ptr<tss_cleanup_function> func;
-            insert(key, func, tss_data);
+            std::shared_ptr<tss_cleanup_function> func;
+            insert(key, func, tss_data); //-V614
         }
 
         void erase(void const* key, bool cleanup_existing)
@@ -195,14 +194,14 @@ namespace hpx { namespace threads { namespace coroutines { namespace detail
     HPX_EXPORT void* get_tss_data(void const* key);
 
     HPX_EXPORT void add_new_tss_node(void const* key,
-        boost::shared_ptr<tss_cleanup_function> const& func, void* tss_data);
+        std::shared_ptr<tss_cleanup_function> const& func, void* tss_data);
 
     HPX_EXPORT void erase_tss_node(void const* key,
         bool cleanup_existing = false);
 
     HPX_EXPORT void set_tss_data(void const* key,
-        boost::shared_ptr<tss_cleanup_function> const& func, void* tss_data = 0,
-        bool cleanup_existing = false);
+        std::shared_ptr<tss_cleanup_function> const& func,
+        void* tss_data = nullptr, bool cleanup_existing = false);
 
     //////////////////////////////////////////////////////////////////////////
     class tss_storage;

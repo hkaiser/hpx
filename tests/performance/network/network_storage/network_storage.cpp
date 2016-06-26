@@ -6,18 +6,18 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
 
-#include <boost/assert.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/atomic.hpp>
 #include <boost/array.hpp>
+#include <boost/assert.hpp>
+#include <boost/atomic.hpp>
 #include <boost/random.hpp>
-#include <boost/thread/locks.hpp>
 
 #include <algorithm>
-#include <iostream>
-#include <vector>
-#include <memory>
 #include <cstdio>
+#include <iostream>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
 
 #include <hpx/runtime/serialization/serialize.hpp>
 
@@ -89,7 +89,7 @@ hpx::lcos::barrier unique_barrier;
 //
 // Each locality allocates a buffer of memory which is used to host transfers
 //
-char                      *local_storage = NULL;
+char                      *local_storage = nullptr;
 hpx::lcos::local::spinlock storage_mutex;
 
 //
@@ -179,7 +179,7 @@ public:
   typedef std::ptrdiff_t difference_type;
 
   pointer_allocator() HPX_NOEXCEPT
-    : pointer_(0), size_(0)
+    : pointer_(nullptr), size_(0)
   {
   }
 
@@ -191,7 +191,7 @@ public:
   pointer address(reference value) const { return &value; }
   const_pointer address(const_reference value) const { return &value; }
 
-  pointer allocate(size_type n, void const* hint = 0)
+  pointer allocate(size_type n, void const* hint = nullptr)
   {
     HPX_ASSERT(n == size_);
     return static_cast<T*>(pointer_);
@@ -276,7 +276,7 @@ namespace Storage {
         // we must allocate a temporary buffer to copy from storage into
         // we can't use the remote buffer supplied because it is a handle to memory on
         // the (possibly) remote node. We allocate here using
-        // a NULL deleter so the array will
+        // a nullptr deleter so the array will
         // not be released by the shared_pointer
         std::allocator<char> local_allocator;
         boost::shared_array<char> local_buffer(local_allocator.allocate(length),
@@ -334,7 +334,7 @@ int RemoveCompletions()
     while(FuturesActive)
     {
         {
-            boost::lock_guard<hpx::lcos::local::spinlock> lk(FuturesMutex);
+            std::lock_guard<hpx::lcos::local::spinlock> lk(FuturesMutex);
             for(std::vector<hpx::future<int> > &futvec : ActiveFutures) {
                 for(std::vector<hpx::future<int> >::iterator fut = futvec.begin();
                     fut != futvec.end(); /**/)
@@ -462,7 +462,7 @@ void test_write(
                 );
 #ifdef USE_CLEANING_THREAD
                 ++FuturesWaiting[send_rank];
-                boost::lock_guard<hpx::lcos::local::spinlock> lk(FuturesMutex);
+                std::lock_guard<hpx::lcos::local::spinlock> lk(FuturesMutex);
 #endif
                 ActiveFutures[send_rank].push_back(
                     hpx::async(actWrite, locality,
@@ -634,7 +634,7 @@ void test_read(
             {
 #ifdef USE_CLEANING_THREAD
                 ++FuturesWaiting[send_rank];
-                boost::lock_guard<hpx::lcos::local::spinlock> lk(FuturesMutex);
+                std::lock_guard<hpx::lcos::local::spinlock> lk(FuturesMutex);
 #endif
                 using hpx::util::placeholders::_1;
                 std::size_t buffer_address =

@@ -134,18 +134,21 @@ namespace hpx { namespace lcos
 #ifndef HPX_LCOS_BROADCAST_HPP
 #define HPX_LCOS_BROADCAST_HPP
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
+#include <hpx/lcos/detail/async_colocated.hpp>
 #include <hpx/lcos/future.hpp>
 #include <hpx/lcos/when_all.hpp>
-#include <hpx/lcos/detail/async_colocated.hpp>
-#include <hpx/runtime/applier/detail/apply_colocated.hpp>
 #include <hpx/runtime/actions/plain_action.hpp>
+#include <hpx/runtime/applier/detail/apply_colocated.hpp>
 #include <hpx/runtime/naming/name.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/traits/extract_action.hpp>
+#include <hpx/traits/promise_local_result.hpp>
 #include <hpx/util/calculate_fanout.hpp>
-#include <hpx/util/tuple.hpp>
 #include <hpx/util/detail/count_num_args.hpp>
 #include <hpx/util/detail/pack.hpp>
+#include <hpx/util/tuple.hpp>
 
 #include <boost/preprocessor/cat.hpp>
 
@@ -172,7 +175,7 @@ namespace hpx { namespace lcos
         {
             typedef
                 typename traits::promise_local_result<
-                    typename hpx::actions::extract_action<
+                    typename hpx::traits::extract_action<
                         Action
                     >::remote_result_type
                 >::type

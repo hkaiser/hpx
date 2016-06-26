@@ -47,7 +47,7 @@ project(HPX CXX C)
 
 set(HPX_MAJOR_VERSION 0)
 set(HPX_MINOR_VERSION 9)
-set(HPX_PATCH_LEVEL   12)
+set(HPX_PATCH_LEVEL   99)
 set(HPX_VERSION "${HPX_MAJOR_VERSION}.${HPX_MINOR_VERSION}.${HPX_PATCH_LEVEL}")
 set(HPX_LIBRARY_VERSION "${HPX_VERSION}")
 set(HPX_SOVERSION ${HPX_MAJOR_VERSION})
@@ -221,6 +221,24 @@ endif()
 hpx_option(HPX_WITH_FULL_RPATH BOOL
   "Build and link HPX libraries and executables with full RPATHs (default: ON)"
   OFF ADVANCED)
+
+################################################################################
+# HPX Compute configuration
+################################################################################
+hpx_option(HPX_WITH_CUDA BOOL
+  "Enable CUDA support (default: OFF)" OFF ADVANCED)
+hpx_option(HPX_WITH_CUDA_CLANG BOOL
+  "Use clang to compile CUDA code (default: OFF)" OFF ADVANCED)
+if(HPX_WITH_CUDA)
+  find_package(CUDA REQUIRED)
+  set(HPX_WITH_COMPUTE On)
+  hpx_add_config_define(HPX_HAVE_CUDA)
+  hpx_add_config_define(HPX_HAVE_COMPUTE)
+endif()
+hpx_option(HPX_WITH_HCC BOOL
+  "Enable hcc support (default: OFF)" ADVANCED)
+hpx_option(HPX_WITH_SYCL BOOL
+  "Enable sycl support (default: OFF)" ADVANCED)
 
 ################################################################################
 # Native TLS configuration
@@ -496,26 +514,92 @@ hpx_option(HPX_WITH_PARCELPORT_MPI_MULTITHREADED BOOL
   ON CATEGORY "Parcelport" ADVANCED)
 
 ## Profiling related build options
-hpx_option(HPX_WITH_APEX BOOL "Enable APEX instrumentation support." OFF CATEGORY "Profiling")
+hpx_option(HPX_WITH_APEX BOOL
+  "Enable APEX instrumentation support." OFF CATEGORY "Profiling")
 if(HPX_WITH_APEX)
   hpx_add_config_define(HPX_HAVE_APEX)
 endif()
-hpx_option(HPX_WITH_PAPI BOOL "Enable the PAPI based performance counter." OFF CATEGORY "Profiling")
+hpx_option(HPX_WITH_PAPI BOOL
+  "Enable the PAPI based performance counter." OFF CATEGORY "Profiling")
 if(HPX_WITH_PAPI)
   hpx_add_config_define(HPX_HAVE_PAPI)
 endif()
-hpx_option(HPX_WITH_TAU BOOL "Enable TAU profiling support." OFF CATEGORY "Profiling")
+hpx_option(HPX_WITH_TAU BOOL
+  "Enable TAU profiling support." OFF CATEGORY "Profiling")
 if(HPX_WITH_TAU)
   hpx_add_config_define(HPX_HAVE_TAU)
 endif()
-hpx_option(HPX_WITH_GOOGLE_PERFTOOLS BOOL "Enable Google Perftools instrumentation support." OFF CATEGORY "Profiling")
+hpx_option(HPX_WITH_GOOGLE_PERFTOOLS BOOL
+  "Enable Google Perftools instrumentation support." OFF CATEGORY "Profiling")
 if(HPX_WITH_GOOGLE_PERFTOOLS)
   hpx_add_config_define(HPX_HAVE_GOOGLE_PERFTOOLS)
 endif()
-hpx_option(HPX_WITH_ITTNOTIFY BOOL "Enable Amplifier (ITT) instrumentation support." OFF CATEGORY "Profiling")
+hpx_option(HPX_WITH_ITTNOTIFY BOOL
+  "Enable Amplifier (ITT) instrumentation support." OFF CATEGORY "Profiling")
 #if(HPX_WITH_ITTNOTIFY)
   #hpx_add_config_define(HPX_HAVE_ITTNOTIFY)
 #endif()
+
+## External libraries/frameworks used by sme of the examples and benchmarks
+hpx_option(HPX_WITH_EXAMPLES_OPENMP BOOL
+  "Enable examples requiring OpenMP support (default: OFF)." OFF
+  CATEGORY "Tools" ADVANCED)
+if(HPX_WITH_EXAMPLES_OPENMP)
+  find_package(OpenMP)
+  if(OPENMP_FOUND)
+    hpx_add_config_define(HPX_HAVE_EXAMPLES_OPENMP)
+  else()
+    set(HPX_WITH_EXAMPLES_OPENMP OFF)
+  endif()
+endif()
+hpx_option(HPX_WITH_EXAMPLES_TBB BOOL
+  "Enable examples requiring TBB support (default: OFF)." OFF
+  CATEGORY "Tools" ADVANCED)
+if(HPX_WITH_EXAMPLES_TBB)
+  find_package(TBB)
+  if(TBB_FOUND)
+    hpx_add_config_define(HPX_HAVE_EXAMPLES_TBB)
+  else()
+    set(HPX_WITH_EXAMPLES_TBB OFF)
+  endif()
+endif()
+hpx_option(HPX_WITH_EXAMPLES_QTHREADS BOOL
+  "Enable examples requiring QThreads support (default: OFF)." OFF
+  CATEGORY "Tools" ADVANCED)
+if(HPX_WITH_EXAMPLES_QTHREADS)
+  find_package(QThreads)
+  if(QTHREADS_FOUND)
+    hpx_add_config_define(HPX_HAVE_EXAMPLES_QTHREADS)
+  else()
+    set(HPX_WITH_EXAMPLES_QTHREADS OFF)
+  endif()
+endif()
+hpx_option(HPX_WITH_EXAMPLES_HDF5 BOOL
+  "Enable examples requiring HDF5 support (default: OFF)." OFF
+  CATEGORY "Tools" ADVANCED)
+if(HPX_WITH_EXAMPLES_HDF5)
+  find_package(HDF5 COMPONENTS CXX)
+  if(HDF5_FOUND)
+    hpx_add_config_define(HPX_HAVE_EXAMPLES_HDF5)
+  else()
+    set(HPX_WITH_EXAMPLES_HDF5 OFF)
+  endif()
+endif()
+
+# Disabling the Qt example on BG/Q as GUIs don't make sense there anyways
+if(NOT "${HPX_PLATFORM_UC}" STREQUAL "BLUEGENEQ")
+  hpx_option(HPX_WITH_EXAMPLES_QT4 BOOL
+    "Enable examples requiring Qt4 support (default: OFF)." OFF
+    CATEGORY "Tools" ADVANCED)
+  if(HPX_WITH_EXAMPLES_QT4)
+    find_package(Qt4)
+    if(QT4_FOUND)
+      hpx_add_config_define(HPX_HAVE_EXAMPLES_QT4)
+    else()
+      set(HPX_WITH_EXAMPLES_QT4 OFF)
+    endif()
+  endif()
+endif()
 
 ## Debugging related build options
 hpx_option(HPX_WITH_VALGRIND BOOL "Enable Valgrind instrumentation support." OFF CATEGORY "Debugging")
@@ -529,7 +613,7 @@ hpx_option(HPX_WITH_VERIFY_LOCKS_GLOBALLY BOOL
   OFF
   CATEGORY "Debugging" ADVANCED)
 hpx_option(HPX_WITH_VERIFY_LOCKS_BACKTRACE BOOL
-  "Enable thred stack back trace being captured on lock registration (to be used in combination with HPX_WITH_VERIFY_LOCKS=ON, default: OFF)"
+  "Enable thread stack back trace being captured on lock registration (to be used in combination with HPX_WITH_VERIFY_LOCKS=ON, default: OFF)"
   OFF
   CATEGORY "Debugging" ADVANCED)
 hpx_option(HPX_WITH_THREAD_DEBUG_INFO BOOL
@@ -564,10 +648,17 @@ if(HPX_WITH_THREAD_MANAGER_IDLE_BACKOFF)
   hpx_add_config_define(HPX_HAVE_THREAD_MANAGER_IDLE_BACKOFF)
 endif()
 
+hpx_option(HPX_WITH_THREAD_DESCRIPTION_FULL BOOL
+  "Use function address for thread description (default: OFF)"
+  OFF
+  CATEGORY "Debugging" ADVANCED)
+
 # If APEX is defined, the action timers need thread debug info.
 if(HPX_WITH_APEX)
     hpx_add_config_define(HPX_HAVE_THREAD_DESCRIPTION)
-    set(HPX_HAVE_THREAD_DESCRIPTION ON CACHE INTERNAL "")
+    if(HPX_WITH_THREAD_DESCRIPTION_FULL)
+      hpx_add_config_define(HPX_HAVE_THREAD_DESCRIPTION_FULL)
+    endif()
 endif()
 
 if(HPX_WITH_THREAD_DEBUG_INFO)
@@ -575,6 +666,9 @@ if(HPX_WITH_THREAD_DEBUG_INFO)
   hpx_add_config_define(HPX_HAVE_THREAD_PHASE_INFORMATION)
   hpx_add_config_define(HPX_HAVE_THREAD_DESCRIPTION)
   hpx_add_config_define(HPX_HAVE_THREAD_DEADLOCK_DETECTION)
+  if(HPX_WITH_THREAD_DESCRIPTION_FULL)
+    hpx_add_config_define(HPX_HAVE_THREAD_DESCRIPTION_FULL)
+  endif()
 endif()
 
 # run hpx_main on all localities by default
@@ -617,12 +711,20 @@ if(HPX_WITH_COMPONENT_GET_GID_COMPATIBILITY)
   hpx_add_config_define(HPX_HAVE_COMPONENT_GET_GID_COMPATIBILITY)
 endif()
 
-# HPX_WITH_LOCAL_DATAFLOW_COMPATIBILITY: introduced in V0.9.12
+# HPX_WITH_LOCAL_DATAFLOW_COMPATIBILITY: introduced in V0.9.99
 hpx_option(HPX_WITH_LOCAL_DATAFLOW_COMPATIBILITY BOOL
     "Enable backwards compatibility for hpx::lcos::local::dataflow() functions"
     ON ADVANCED)
 if(HPX_WITH_LOCAL_DATAFLOW_COMPATIBILITY)
   hpx_add_config_define(HPX_HAVE_LOCAL_DATAFLOW_COMPATIBILITY)
+endif()
+
+# HPX_WITH_GENERIC_EXECUTION_POLICY: introduced in V0.9.99
+hpx_option(HPX_WITH_GENERIC_EXECUTION_POLICY BOOL
+    "Enable the generic execution policy (default: OFF)"
+    OFF ADVANCED)
+if(HPX_WITH_GENERIC_EXECUTION_POLICY)
+  hpx_add_config_define(HPX_HAVE_GENERIC_EXECUTION_POLICY)
 endif()
 
 # BADBAD: This enables an overload of swap is necessary to work around the
@@ -684,7 +786,7 @@ endif()
 
 if(MSVC14 AND CMAKE_CL_64)
   hpx_option(HPX_WITH_AWAIT BOOL
-      "Enable the use of experimental __await functionality"
+      "Enable the use of experimental co_await functionality"
       OFF ADVANCED CATEGORY "LCOs")
   if(HPX_WITH_AWAIT)
     hpx_add_config_define(HPX_HAVE_AWAIT)
@@ -709,31 +811,35 @@ hpx_add_target_compile_definition(BOOST_DISABLE_ASSERTS
 
 # Make sure we compile in C++11 mode (MSVC uses it automatically)
 if(NOT MSVC)
-  # Try -std=c++14 first
-  check_cxx_compiler_flag(-std=c++14 HPX_WITH_CXX14)
-  if(HPX_WITH_CXX14)
-    set(CXX_FLAG -std=c++14)
+  if(HPX_WITH_CUDA AND NOT HPX_WITH_CUDA_CLANG)
+    hpx_add_target_compile_option(-std=c++11)
   else()
-    # ... otherwise try -std=c++0y
-    check_cxx_compiler_flag(-std=c++0y HPX_WITH_CXX0Y)
-    if(HPX_WITH_CXX0Y)
-      set(CXX_FLAG -std=c++0y)
+    # Try -std=c++14 first
+    check_cxx_compiler_flag(-std=c++14 HPX_WITH_CXX14)
+    if(HPX_WITH_CXX14)
+      set(CXX_FLAG -std=c++14)
     else()
-      # ... otherwise try -std=c++11
-      check_cxx_compiler_flag(-std=c++11 HPX_WITH_CXX11)
-      if(HPX_WITH_CXX11)
-        set(CXX_FLAG -std=c++11)
+      # ... otherwise try -std=c++0y
+      check_cxx_compiler_flag(-std=c++0y HPX_WITH_CXX0Y)
+      if(HPX_WITH_CXX0Y)
+        set(CXX_FLAG -std=c++0y)
       else()
-        # ... otherwise try -std=c++0x
-        check_cxx_compiler_flag(-std=c++0x HPX_WITH_CXX0X)
-        if(HPX_WITH_CXX0X)
-          set(CXX_FLAG -std=c++0x)
+        # ... otherwise try -std=c++11
+        check_cxx_compiler_flag(-std=c++11 HPX_WITH_CXX11)
+        if(HPX_WITH_CXX11)
+          set(CXX_FLAG -std=c++11)
+        else()
+          # ... otherwise try -std=c++0x
+          check_cxx_compiler_flag(-std=c++0x HPX_WITH_CXX0X)
+          if(HPX_WITH_CXX0X)
+            set(CXX_FLAG -std=c++0x)
+          endif()
         endif()
       endif()
     endif()
-  endif()
 
-  hpx_add_target_compile_option(${CXX_FLAG})
+    hpx_add_target_compile_option(${CXX_FLAG})
+  endif()
 endif()
 
 ################################################################################
@@ -764,10 +870,16 @@ hpx_check_for_cxx11_defaulted_functions(
   DEFINITIONS HPX_HAVE_CXX11_DEFAULTED_FUNCTIONS)
 
 hpx_check_for_cxx11_deleted_functions(
-  DEFINITIONS HPX_HAVE_CXX11_DELETED_FUNCTIONS)
+  REQUIRED "HPX needs support for C++11 deleted functions")
 
 hpx_check_for_cxx11_explicit_cvt_ops(
-  DEFINITIONS HPX_HAVE_CXX11_EXPLICIT_CONVERSION_OPERATORS)
+  REQUIRED "HPX needs support for C++11 explicit conversion operators")
+
+hpx_check_for_cxx11_explicit_variadic_templates(
+  DEFINITIONS HPX_HAVE_CXX11_EXPLICIT_VARIADIC_TEMPLATES)
+
+hpx_check_for_cxx11_extended_friend_declarations(
+  DEFINITIONS HPX_HAVE_CXX11_EXTENDED_FRIEND_DECLARATIONS)
 
 hpx_check_for_cxx11_function_template_default_args(
   REQUIRED "HPX needs support for C++11 defaulted function template arguments")
@@ -785,7 +897,7 @@ hpx_check_for_cxx11_noexcept(
   DEFINITIONS HPX_HAVE_CXX11_NOEXCEPT)
 
 hpx_check_for_cxx11_nullptr(
-  DEFINITIONS HPX_HAVE_CXX11_NULLPTR)
+  REQUIRED "HPX needs support for C++11 nullptr")
 
 hpx_check_for_cxx11_range_based_for(
   REQUIRED "HPX needs support for C++11 range-based for-loop")
@@ -805,12 +917,6 @@ hpx_check_for_cxx11_variadic_macros(
 hpx_check_for_cxx11_variadic_templates(
   REQUIRED "HPX needs support for C++11 variadic templates")
 
-hpx_check_for_cxx11_explicit_variadic_templates(
-  DEFINITIONS HPX_HAVE_CXX11_EXPLICIT_VARIADIC_TEMPLATES)
-
-hpx_check_for_cxx11_extended_friend_declarations(
-  DEFINITIONS HPX_HAVE_CXX11_EXTENDED_FRIEND_DECLARATIONS)
-
 # Check the availability of certain C++11 library features
 hpx_check_for_cxx11_std_array(
   DEFINITIONS HPX_HAVE_CXX11_STD_ARRAY)
@@ -827,23 +933,35 @@ hpx_check_for_cxx11_std_initializer_list(
 hpx_check_for_cxx11_std_is_bind_expression(
   DEFINITIONS HPX_HAVE_CXX11_STD_IS_BIND_EXPRESSION)
 
-hpx_check_for_cxx11_std_is_final(
-  DEFINITIONS HPX_HAVE_CXX11_STD_IS_FINAL)
-
-hpx_check_for_cxx11_std_is_null_pointer(
-  DEFINITIONS HPX_HAVE_CXX11_STD_IS_NULL_POINTER)
-
 hpx_check_for_cxx11_std_is_placeholder(
   DEFINITIONS HPX_HAVE_CXX11_STD_IS_PLACEHOLDER)
 
+hpx_check_for_cxx11_std_is_trivially_copyable(
+  DEFINITIONS HPX_HAVE_CXX11_STD_IS_TRIVIALLY_COPYABLE)
+
+hpx_check_for_cxx11_std_lock_guard(
+  REQUIRED "HPX needs support for C++11 std::lock_guard")
+
 hpx_check_for_cxx11_std_reference_wrapper(
   DEFINITIONS HPX_HAVE_CXX11_STD_REFERENCE_WRAPPER)
+
+hpx_check_for_cxx11_std_shared_ptr(
+  REQUIRED "HPX needs support for C++11 std::shared_ptr")
+
+hpx_check_for_cxx11_std_to_string(
+  REQUIRED "HPX needs support for C++11 std::to_string")
+
+hpx_check_for_cxx11_std_unique_lock(
+  REQUIRED "HPX needs support for C++11 std::unique_lock")
 
 hpx_check_for_cxx11_std_unique_ptr(
   REQUIRED "HPX needs support for C++11 std::unique_ptr")
 
 hpx_check_for_cxx11_std_unordered_map(
   REQUIRED "HPX needs support for C++11 std::unordered_map")
+
+hpx_check_for_cxx11_std_unordered_set(
+  REQUIRED "HPX needs support for C++11 std::unordered_set")
 
 hpx_check_for_cxx11_std_type_traits(
   DEFINITIONS HPX_HAVE_CXX11_STD_TYPE_TRAITS)
@@ -859,12 +977,60 @@ hpx_check_for_cxx14_lambdas(
 hpx_check_for_cxx14_std_integer_sequence(
   DEFINITIONS HPX_HAVE_CXX14_STD_INTEGER_SEQUENCE)
 
+hpx_check_for_cxx14_std_is_final(
+  DEFINITIONS HPX_HAVE_CXX14_STD_IS_FINAL)
+
+hpx_check_for_cxx14_std_is_null_pointer(
+  DEFINITIONS HPX_HAVE_CXX14_STD_IS_NULL_POINTER)
+
 hpx_check_for_cxx14_std_result_of_sfinae(
   DEFINITIONS HPX_HAVE_CXX14_STD_RESULT_OF_SFINAE)
 
 # check for experimental facilities
 hpx_check_for_cxx_experimental_std_optional(
   DEFINITIONS HPX_HAVE_CXX1Y_EXPERIMENTAL_OPTIONAL)
+
+################################################################################
+# CUDA features
+################################################################################
+if(HPX_WITH_CUDA AND NOT HPX_WITH_CUDA_CLANG)
+  hpx_libraries(cudadevrt)
+  if(NOT MSVC)
+    link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib64)
+#     set(CUDA_NVCC_FLAGS_DEBUG ${CUDA_NVCC_FLAGS_DEBUG};-D_DEBUG;-O0;-g;-std=c++11;-Xcompiler=-g,-O0)
+#     set(CUDA_NVCC_FLAGS_RELWITHDEBINFO ${CUDA_NVCC_FLAGS_RELWITHDEBINFO};-DNDEBUG;-O3;-std=c++11;-g;-Xcompiler=-g,-O3)
+#     set(CUDA_NVCC_FLAGS_MINSIZEREL ${CUDA_NVCC_FLAGS_MINSIZEREL};-DNDEBUG;-O1-std=c++11;;-Xcompiler=-g,-O1)
+#     set(CUDA_NVCC_FLAGS_RELEASE ${CUDA_NVCC_FLAGS_RELEASE};-DNDEBUG;-O3;-std=c++11;-Xcompiler=-O3)
+  else()
+    set(CUDA_PROPAGATE_HOST_FLAGS OFF)
+    link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib/x64)
+    set(CUDA_NVCC_FLAGS_DEBUG ${CUDA_NVCC_FLAGS_DEBUG};-D_DEBUG;-O0;-g;-Xcompiler=-MDd,-Od,-Zi)
+    set(CUDA_NVCC_FLAGS_RELWITHDEBINFO ${CUDA_NVCC_FLAGS_RELWITHDEBINFO};-DNDEBUG;-O2;-g;-Xcompiler=-MD,-O2,-Zi)
+    set(CUDA_NVCC_FLAGS_MINSIZEREL ${CUDA_NVCC_FLAGS_MINSIZEREL};-DNDEBUG;-O1;-Xcompiler=-MD,-O1)
+    set(CUDA_NVCC_FLAGS_RELEASE ${CUDA_NVCC_FLAGS_RELEASE};-DNDEBUG;-O2;-Xcompiler=-MD,-Ox)
+  endif()
+  set(CUDA_SEPARABLE_COMPILATION ON)
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode=arch=compute_30,code=sm_30)
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode=arch=compute_35,code=sm_35)
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode=arch=compute_30,code=compute_30)
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode=arch=compute_35,code=compute_35)
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};--expt-relaxed-constexpr)
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};--expt-extended-lambda)
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-lcudadevrt)
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-rdc=true)
+endif()
+if(HPX_WITH_CUDA AND HPX_WITH_CUDA_CLANG)
+  hpx_add_target_compile_option(--cuda-path=${CUDA_TOOLKIT_ROOT_DIR})
+  hpx_libraries(cudart)
+  link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib64)
+endif()
+
+################################################################################
+# check for miscellaneous things
+################################################################################
+
+hpx_check_for_mm_prefetch(
+  DEFINITIONS HPX_HAVE_MM_PREFETCH)
 
 ################################################################################
 # Check for misc system headers
@@ -995,6 +1161,9 @@ if(HPX_WITH_COMPILER_WARNINGS)
     # MSVC2012/2013 are overeager to report 'qualifier applied to function type
     # has no meaning; ignored'
     hpx_add_compile_flag(-wd4180)
+
+    # max symbol length exceeded
+    hpx_add_compile_flag(-wd4503)
 
     # OpenMPI triggers a lot of forcing value to bool 'true' or 'false'
     # (performance warning)
@@ -1205,7 +1374,7 @@ if(HPX_WITH_APEX)
   include(GitExternal)
   git_external(apex
     https://github.com/khuck/xpress-apex.git
-    v0.1
+    v0.5
     VERBOSE)
 
   LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/apex/cmake/Modules")
@@ -1401,12 +1570,6 @@ if(HPX_WITH_EXAMPLES)
 endif()
 
 ###############################################################################
-# Activate plugins
-###############################################################################
-add_plugin_modules()
-###############################################################################
-
-###############################################################################
 # Tests
 ###############################################################################
 if(HPX_WITH_TESTS)
@@ -1438,6 +1601,11 @@ endif()
 if(HPX_WITH_DOCUMENTATION)
   add_subdirectory(docs)
 endif()
+
+###############################################################################
+# Activate plugins
+###############################################################################
+add_plugin_modules()
 
 ################################################################################
 # Configure the header to include all compile definitions
@@ -1585,23 +1753,6 @@ install( # Install HPX Python scripts
 #   # create a symlink in share pointing to the latest HPX installation
 #   execute_process(COMMAND "${CMAKE_COMMAND}" -E create_symlink "hpx-${HPX_VERSION}" "hpx" WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/python")
 #   install(DIRECTORY "${CMAKE_BINARY_DIR}/python/hpx" DESTINATION "share")
-
-install( # Install external dependencies
-  DIRECTORY external/cache/boost
-  DESTINATION include/hpx/external
-  COMPONENT core
-  FILES_MATCHING PATTERN "*.hpp"
-  PATTERN ".git" EXCLUDE)
-
-if(Boost_VERSION LESS 104900)
-  # Install Boost.Serialization patch for older Boost versions only
-  install(
-    DIRECTORY external/serialization/boost
-    DESTINATION include/hpx/external
-    COMPONENT core
-    FILES_MATCHING PATTERN "*.hpp"
-    PATTERN ".git" EXCLUDE)
-endif()
 
 if("${HPX_PLATFORM_UC}" STREQUAL "XEONPHI")
   # FIXME: push changes upstream

@@ -3,7 +3,11 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <hpx/config.hpp>
 #include <hpx/components/component_storage/server/component_storage.hpp>
+#include <hpx/runtime/find_localities.hpp>
+
+#include <vector>
 
 namespace hpx { namespace components { namespace server
 {
@@ -38,7 +42,8 @@ namespace hpx { namespace components { namespace server
         return naming::invalid_gid;
     }
 
-    std::vector<char> component_storage::migrate_from_here(naming::gid_type id)
+    std::vector<char> component_storage::migrate_from_here(
+        naming::gid_type const& id)
     {
         // return the stored data and erase it from the map
         return data_.get_value_sync(naming::detail::get_stripped_gid(id), true);

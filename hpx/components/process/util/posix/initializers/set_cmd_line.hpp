@@ -13,12 +13,12 @@
 #include <hpx/config.hpp>
 
 #if !defined(HPX_WINDOWS)
+#include <hpx/components/process/util/posix/initializers/initializer_base.hpp>
 #include <hpx/runtime/serialization/string.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
-#include <hpx/components/process/util/posix/initializers/initializer_base.hpp>
 
-#include <boost/tokenizer.hpp>
 #include <boost/shared_array.hpp>
+#include <boost/tokenizer.hpp>
 
 #include <string>
 #include <vector>
@@ -57,7 +57,7 @@ private:
         std::size_t i = 0;
         for (std::string const& s : args_)
             cmd_line_[i++] = const_cast<char*>(s.c_str());
-        cmd_line_[i] = 0;
+        cmd_line_[i] = nullptr;
     }
 
     friend class hpx::serialization::access;

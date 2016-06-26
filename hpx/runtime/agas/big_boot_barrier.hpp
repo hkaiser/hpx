@@ -9,29 +9,33 @@
 #if !defined(HPX_0C9D09E0_725D_4FA6_A879_8226DE97C6B9)
 #define HPX_0C9D09E0_725D_4FA6_A879_8226DE97C6B9
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/lcos/local/spinlock.hpp>
-#include <hpx/util/io_service_pool.hpp>
-#include <hpx/util/connection_cache.hpp>
-#include <hpx/util/unique_function.hpp>
-#include <boost/lockfree/queue.hpp>
 #include <hpx/runtime.hpp>
 #include <hpx/runtime/naming/address.hpp>
 #include <hpx/runtime/parcelset/parcelhandler.hpp>
 #include <hpx/runtime/parcelset/parcelport.hpp>
-
-#include <hpx/config/warnings_prefix.hpp>
+#include <hpx/util/connection_cache.hpp>
+#include <hpx/util/io_service_pool.hpp>
+#include <hpx/util_fwd.hpp>
+#include <boost/lockfree/queue.hpp>
 
 #include <boost/cstdint.hpp>
-#include <boost/noncopyable.hpp>
-#include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
+#include <boost/thread/mutex.hpp>
+
+#include <string>
+
+#include <hpx/config/warnings_prefix.hpp>
 
 namespace hpx { namespace agas
 {
 
-struct HPX_EXPORT big_boot_barrier : boost::noncopyable
+struct HPX_EXPORT big_boot_barrier
 {
+  private:
+    HPX_NON_COPYABLE(big_boot_barrier);
+
   private:
     parcelset::parcelport* pp;
     parcelset::endpoints_type const& endpoints;

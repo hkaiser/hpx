@@ -1,22 +1,23 @@
-//  Copyright (c) 2007-2013 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#if !defined(HPX_ACTION_BZIP2_SERIALIZATION_FILTER_FEB_18_2013_1240AM)
-#define HPX_ACTION_BZIP2_SERIALIZATION_FILTER_FEB_18_2013_1240AM
+#if !defined(HPX_ACTION_BZIP2_SERIALIZATION_FILTER_REGISTRATION_APR_28_2016_1006AM)
+#define HPX_ACTION_BZIP2_SERIALIZATION_FILTER_REGISTRATION_APR_28_2016_1006AM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
+
+#include <hpx/plugins/binary_filter/bzip2_serialization_filter_registration.hpp>
 
 #if defined(HPX_HAVE_COMPRESSION_BZIP2)
 
-#include <hpx/config/forceinline.hpp>
-#include <hpx/traits/action_serialization_filter.hpp>
 #include <hpx/runtime/serialization/binary_filter.hpp>
 
 #include <boost/iostreams/filter/bzip2.hpp>
 
 #include <memory>
+#include <vector>
 
 #include <hpx/config/warnings_prefix.hpp>
 
@@ -63,14 +64,14 @@ namespace hpx { namespace plugins { namespace compression
     }
 
     struct HPX_LIBRARY_EXPORT bzip2_serialization_filter
-        : public serialization::binary_filter
+      : public serialization::binary_filter
     {
         bzip2_serialization_filter()
           : current_(0)
         {}
 
         bzip2_serialization_filter(bool compress,
-                serialization::binary_filter* next_filter = 0)
+                serialization::binary_filter* next_filter = nullptr)
           : compdecomp_(compress), current_(0)
         {}
 
@@ -103,29 +104,5 @@ namespace hpx { namespace plugins { namespace compression
 
 #include <hpx/config/warnings_suffix.hpp>
 
-///////////////////////////////////////////////////////////////////////////////
-#define HPX_ACTION_USES_BZIP2_COMPRESSION(action)                             \
-    namespace hpx { namespace traits                                          \
-    {                                                                         \
-        template <>                                                           \
-        struct action_serialization_filter<action>                            \
-        {                                                                     \
-            /* Note that the caller is responsible for deleting the filter */ \
-            /* instance returned from this function */                        \
-            static serialization::binary_filter* call(                        \
-                    parcelset::parcel const& p)                               \
-            {                                                                 \
-                return hpx::create_binary_filter(                             \
-                    "bzip2_serialization_filter", true);                      \
-            }                                                                 \
-        };                                                                    \
-    }}                                                                        \
-/**/
-
-#else
-
-#define HPX_ACTION_USES_BZIP2_COMPRESSION(action)
-
 #endif
-
 #endif

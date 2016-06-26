@@ -15,6 +15,8 @@
 #include <boost/random.hpp>
 
 #include <iostream>
+#include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 // Define the vector types to be used.
@@ -133,12 +135,12 @@ int hpx_main(boost::program_options::variables_map& vm)
 
 int main(int argc, char* argv[])
 {
-    std::srand((unsigned int)std::time(0));
+    std::srand((unsigned int)std::time(nullptr));
 
     // initialize program
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
     cfg.push_back("hpx.run_hpx_main=1");
 
     boost::program_options::options_description cmdline(

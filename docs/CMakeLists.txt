@@ -49,10 +49,12 @@ set(doxygen_dependencies
     "${PROJECT_SOURCE_DIR}/hpx/hpx_start.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/hpx_finalize.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/error.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/error_code.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/exception.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/exception_fwd.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/exception_list.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/lcos_fwd.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/throw_exception.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/components/component_storage/migrate_from_storage.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/components/component_storage/migrate_to_storage.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/parallel/execution_policy.hpp"
@@ -82,6 +84,7 @@ set(doxygen_dependencies
     "${PROJECT_SOURCE_DIR}/hpx/parallel/algorithms/mismatch.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/parallel/algorithms/move.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/parallel/algorithms/reduce.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/parallel/algorithms/reduce_by_key.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/parallel/algorithms/remove_copy.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/parallel/algorithms/replace.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/parallel/algorithms/reverse.hpp"
@@ -116,6 +119,7 @@ set(doxygen_dependencies
     "${PROJECT_SOURCE_DIR}/hpx/parallel/executors/executor_parameter_traits.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/parallel/executors/guided_chunk_size.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/parallel/executors/parallel_executor.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/parallel/executors/persistent_auto_chunk_size.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/parallel/executors/sequential_executor.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/parallel/executors/service_executors.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/parallel/executors/static_chunk_size.hpp"
@@ -126,17 +130,23 @@ set(doxygen_dependencies
     "${PROJECT_SOURCE_DIR}/hpx/runtime/applier_fwd.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/runtime/basename_registration.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/runtime/components_fwd.hpp"
-    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_ptr.hpp"
-    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_locality_name.hpp"
-    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_locality_id.hpp"
-    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_os_thread_count.hpp"
-    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_worker_thread_num.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/runtime/find_here.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/runtime/find_localities.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_colocation_id.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_ptr.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_locality_id.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_locality_name.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_num_localities.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_os_thread_count.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_thread_name.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/runtime/get_worker_thread_num.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/runtime/launch_policy.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/runtime/naming_fwd.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/runtime/parcelset_fwd.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/runtime/runtime_mode.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/runtime/set_parcel_write_handler.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/runtime/shutdown_function.hpp"
+    "${PROJECT_SOURCE_DIR}/hpx/runtime/startup_function.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/runtime/trigger_lco.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/runtime/actions/basic_action.hpp"
     "${PROJECT_SOURCE_DIR}/hpx/runtime/actions/component_action.hpp"
@@ -177,9 +187,6 @@ set(doxygen_output_dir "${CMAKE_CURRENT_BINARY_DIR}/doxygen")
 
 set(doxygen_definition_list
     "DOXYGEN:=1"
-    "BOOST_SCOPED_ENUM_START(x):=enum x"
-    "BOOST_SCOPED_ENUM_END="
-    "BOOST_SCOPED_ENUM(x):=x"
     "BOOST_SYSTEM_NOEXCEPT="
     "HPX_EXCEPTION_EXPORT="
     "HPX_EXPORT="
@@ -326,8 +333,8 @@ hpx_quickbook_to_html(hpx
                 toc.max.depth=4
                 generate.section.toc.level=4
                 boost.image.src=${image}
-                boost.image.w=479
-                boost.image.h=104
+                boost.image.w=755
+                boost.image.h=112
                 boost.image.alt="HPX - High Performance ParalleX"
                 ${auto_index_xsl_param}
   QUICKBOOK_ARGS ${quickbook_fixme_mode} ${auto_index_mode}

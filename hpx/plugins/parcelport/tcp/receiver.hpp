@@ -12,15 +12,18 @@
 #ifndef HPX_PARCELSET_POLICIES_TCP_RECEIVER_HPP
 #define HPX_PARCELSET_POLICIES_TCP_RECEIVER_HPP
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
+
 #if defined(HPX_HAVE_PARCELPORT_TCP)
 
 #include <hpx/config/asio.hpp>
-#include <hpx/util/high_resolution_timer.hpp>
-#include <hpx/runtime/parcelset/parcelport_connection.hpp>
-#include <hpx/runtime/parcelset/decode_parcels.hpp>
 #include <hpx/performance_counters/parcels/data_point.hpp>
 #include <hpx/performance_counters/parcels/gatherer.hpp>
+#include <hpx/runtime/parcelset/decode_parcels.hpp>
+#include <hpx/runtime/parcelset/parcelport_connection.hpp>
+#include <hpx/util/bind.hpp>
+#include <hpx/util/high_resolution_timer.hpp>
+#include <hpx/util/protect.hpp>
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/io_service.hpp>
@@ -29,13 +32,9 @@
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/atomic.hpp>
-#include <boost/bind.hpp>
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/noncopyable.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/tuple/tuple.hpp>
-#include <boost/thread/locks.hpp>
 
+#include <memory>
+#include <mutex>
 #include <sstream>
 #include <vector>
 
@@ -54,6 +53,8 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
           , max_inbound_size_(max_inbound_size)
           , ack_(0)
           , parcelport_(parcelport)
+          , timer_()
+          , mtx_()
         {}
 
         ~receiver()
@@ -88,7 +89,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
                 sizeof(buffer_.num_chunks_)));
 
             {
-                boost::unique_lock<mutex_type> lk(mtx_);
+                std::unique_lock<mutex_type> lk(mtx_);
                 if(!socket_.is_open())
                 {
                     lk.unlock();
@@ -104,20 +105,20 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
 #endif
 
                 void (receiver::*f)(boost::system::error_code const&,
-                        std::size_t, boost::tuple<Handler>)
+                        std::size_t, Handler)
                     = &receiver::handle_read_header<Handler>;
 
                 boost::asio::async_read(socket_, buffers,
-                    boost::bind(f, shared_from_this(),
+                    util::bind(f, shared_from_this(),
                         boost::asio::placeholders::error,
                         boost::asio::placeholders::bytes_transferred,
-                        boost::make_tuple(handler)));
+                        util::protect(handler)));
             }
         }
 
         void shutdown()
         {
-            boost::lock_guard<mutex_type> lk(mtx_);
+            std::lock_guard<mutex_type> lk(mtx_);
             // gracefully and portably shutdown the socket
             boost::system::error_code ec;
             if (socket_.is_open()) {
@@ -129,18 +130,15 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
     private:
         /// Handle a completed read of the message size from the
         /// message header.
-        /// The handler is passed using a tuple since boost::bind seems to have
-        /// trouble binding a function object created using boost::bind as a
-        /// parameter.
         template <typename Handler>
         void handle_read_header(boost::system::error_code const& e,
-            std::size_t bytes_transferred, boost::tuple<Handler> handler)
+            std::size_t bytes_transferred, Handler handler)
         {
             if (e) {
-                boost::get<0>(handler)(e);
+                handler(e);
 
                 // Issue a read operation to read the next parcel.
-//                 async_read(boost::get<0>(handler));
+//                 async_read(handler);
             }
             else {
                 // Determine the length of the serialized data.
@@ -149,7 +147,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
                 if (inbound_size > max_inbound_size_)
                 {
                     // report this problem back to the handler
-                    boost::get<0>(handler)(boost::asio::error::make_error_code(
+                    handler(boost::asio::error::make_error_code(
                         boost::asio::error::operation_not_supported));
                     return;
                 }
@@ -168,7 +166,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
                         static_cast<boost::uint32_t>(buffer_.num_chunks_.second));
 
                 void (receiver::*f)(boost::system::error_code const&,
-                        boost::tuple<Handler>) = 0;
+                        Handler) = nullptr;
 
                 if (num_zero_copy_chunks != 0) {
                     typedef parcel_buffer_type::transmission_chunk_type
@@ -201,12 +199,12 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
                 }
 
                 {
-                    boost::unique_lock<mutex_type> lk(mtx_);
+                    std::unique_lock<mutex_type> lk(mtx_);
                     if(!socket_.is_open())
                     {
                         lk.unlock();
                         // report this problem back to the handler
-                        boost::get<0>(handler)(boost::asio::error::make_error_code(
+                        handler(boost::asio::error::make_error_code(
                             boost::asio::error::not_connected));
                         return;
                     }
@@ -216,8 +214,9 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
                     socket_.set_option(quickack);
 #endif
                     boost::asio::async_read(socket_, buffers,
-                        boost::bind(f, shared_from_this(),
-                            boost::asio::placeholders::error, handler));
+                        util::bind(f, shared_from_this(),
+                            boost::asio::placeholders::error,
+                            util::protect(handler)));
                 }
             }
         }
@@ -225,13 +224,13 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
         /// Handle a completed read of message data.
         template <typename Handler>
         void handle_read_chunk_data(boost::system::error_code const& e,
-            boost::tuple<Handler> handler)
+            Handler handler)
         {
             if (e) {
-                boost::get<0>(handler)(e);
+                handler(e);
 
                 // Issue a read operation to read the next parcel.
-//                 async_read(boost::get<0>(handler));
+//                 async_read(handler);
             }
             else {
                 // receive buffers
@@ -253,16 +252,16 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
 
                 // Start an asynchronous call to receive the data.
                 void (receiver::*f)(boost::system::error_code const&,
-                        boost::tuple<Handler>)
+                        Handler)
                     = &receiver::handle_read_data<Handler>;
 
                 {
-                    boost::unique_lock<mutex_type> lk(mtx_);
+                    std::unique_lock<mutex_type> lk(mtx_);
                     if(!socket_.is_open())
                     {
                         lk.unlock();
                         // report this problem back to the handler
-                        boost::get<0>(handler)(boost::asio::error::make_error_code(
+                        handler(boost::asio::error::make_error_code(
                             boost::asio::error::not_connected));
                         return;
                     }
@@ -272,8 +271,9 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
                     socket_.set_option(quickack);
 #endif
                     boost::asio::async_read(socket_, buffers,
-                        boost::bind(f, shared_from_this(),
-                            boost::asio::placeholders::error, handler));
+                        util::bind(f, shared_from_this(),
+                            boost::asio::placeholders::error,
+                            util::protect(handler)));
                 }
             }
         }
@@ -281,13 +281,13 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
         /// Handle a completed read of message data.
         template <typename Handler>
         void handle_read_data(boost::system::error_code const& e,
-            boost::tuple<Handler> handler)
+            Handler handler)
         {
             if (e) {
-                boost::get<0>(handler)(e);
+                handler(e);
 
                 // Issue a read operation to read the next parcel.
-//                 async_read(boost::get<0>(handler));
+//                 async_read(handler);
             }
             else {
                 // complete data point and pass it along
@@ -296,7 +296,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
 
                 // now send acknowledgment byte
                 void (receiver::*f)(boost::system::error_code const&,
-                        boost::tuple<Handler>)
+                        Handler)
                     = &receiver::handle_write_ack<Handler>;
 
                 // decode the received parcels.
@@ -305,34 +305,35 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
 
                 ack_ = true;
                 {
-                    boost::unique_lock<mutex_type> lk(mtx_);
+                    std::unique_lock<mutex_type> lk(mtx_);
                     if(!socket_.is_open())
                     {
                         lk.unlock();
                         // report this problem back to the handler
-                        boost::get<0>(handler)(boost::asio::error::make_error_code(
+                        handler(boost::asio::error::make_error_code(
                             boost::asio::error::not_connected));
                         return;
                     }
                     boost::asio::async_write(socket_,
                         boost::asio::buffer(&ack_, sizeof(ack_)),
-                        boost::bind(f, shared_from_this(),
-                            boost::asio::placeholders::error, handler));
+                        util::bind(f, shared_from_this(),
+                            boost::asio::placeholders::error,
+                            util::protect(handler)));
                 }
             }
         }
 
         template <typename Handler>
         void handle_write_ack(boost::system::error_code const& e,
-            boost::tuple<Handler> handler)
+            Handler handler)
         {
             // Inform caller that data has been received ok.
-            boost::get<0>(handler)(e);
+            handler(e);
 
             // Issue a read operation to read the next parcel.
             if (!e)
             {
-                async_read(boost::get<0>(handler));
+                async_read(handler);
             }
         }
 
@@ -352,13 +353,6 @@ namespace hpx { namespace parcelset { namespace policies { namespace tcp
 
         mutex_type mtx_;
     };
-
-    // this makes sure we can store our connections in a set
-    inline bool operator<(boost::shared_ptr<receiver> const& lhs,
-        boost::shared_ptr<receiver> const& rhs)
-    {
-        return lhs.get() < rhs.get();
-    }
 }}}}
 
 #endif

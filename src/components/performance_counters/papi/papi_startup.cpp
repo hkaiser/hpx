@@ -10,15 +10,17 @@
 
 #include <cctype>
 #include <set>
+#include <string>
 
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
 
-#include <hpx/hpx.hpp>
 #include <hpx/util/bind.hpp>
 #include <hpx/util/thread_mapper.hpp>
 #include <hpx/components/performance_counters/papi/server/papi.hpp>
 #include <hpx/components/performance_counters/papi/util/papi.hpp>
+#include <hpx/runtime/components/component_factory_base.hpp>
+#include <hpx/runtime/components/component_startup_shutdown.hpp>
 #include <hpx/exception.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -193,7 +195,7 @@ namespace hpx { namespace performance_counters { namespace papi
             else {
                 hpx::util::thread_mapper& tm = get_runtime().get_thread_mapper();
                 std::string lab = p.instancename_+"#"+
-                    boost::lexical_cast<std::string>(p.instanceindex_);
+                    std::to_string(p.instanceindex_);
                 if (p.objectname_ == "papi" &&
                     p.parentinstancename_ == "locality" &&
                     tm.get_thread_index(lab) != tm.invalid_index &&

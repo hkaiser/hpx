@@ -7,10 +7,11 @@
 #define HPX_UTIL_DEFERRED_CALL_HPP
 
 #include <hpx/config.hpp>
-#include <hpx/traits/is_callable.hpp>
 #include <hpx/traits/get_function_address.hpp>
+#include <hpx/traits/is_callable.hpp>
 #include <hpx/util/decay.hpp>
 #include <hpx/util/invoke_fused.hpp>
+#include <hpx/util/result_of.hpp>
 #include <hpx/util/tuple.hpp>
 
 #include <type_traits>
@@ -71,11 +72,11 @@ namespace hpx { namespace util
             {}
 #endif
 
-#if defined(HPX_HAVE_CXX11_DELETED_FUNCTIONS)
-            deferred& operator=(deferred&&) = delete;
-#endif
+            HPX_DELETE_COPY_ASSIGN(deferred);
+            HPX_DELETE_MOVE_ASSIGN(deferred);
 
-            inline typename deferred_result_of<F(Ts...)>::type
+            HPX_HOST_DEVICE HPX_FORCEINLINE
+            typename deferred_result_of<F(Ts...)>::type
             operator()()
             {
                 return util::invoke_fused(std::move(_f), std::move(_args));

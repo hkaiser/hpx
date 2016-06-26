@@ -7,21 +7,23 @@
 #if !defined(HPX_THREADMANAGER_SCHEDULING_LOCAL_PRIORITY_QUEUE_MAR_15_2011_0926AM)
 #define HPX_THREADMANAGER_SCHEDULING_LOCAL_PRIORITY_QUEUE_MAR_15_2011_0926AM
 
-#include <vector>
-#include <memory>
-
 #include <hpx/config.hpp>
-#include <hpx/exception.hpp>
-#include <hpx/util/logging.hpp>
-#include <hpx/runtime/threads/thread_data.hpp>
-#include <hpx/runtime/threads/topology.hpp>
-#include <hpx/runtime/threads/policies/thread_queue.hpp>
 #include <hpx/runtime/threads/policies/affinity_data.hpp>
 #include <hpx/runtime/threads/policies/scheduler_base.hpp>
+#include <hpx/runtime/threads/policies/thread_queue.hpp>
+#include <hpx/runtime/threads/thread_data.hpp>
+#include <hpx/runtime/threads/topology.hpp>
+#include <hpx/runtime/threads_fwd.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/util/logging.hpp>
 
-#include <boost/noncopyable.hpp>
 #include <boost/atomic.hpp>
+#include <boost/exception_ptr.hpp>
 #include <boost/mpl/bool.hpp>
+
+#include <memory>
+#include <string>
+#include <vector>
 
 #include <hpx/config/warnings_prefix.hpp>
 
@@ -77,6 +79,7 @@ namespace hpx { namespace threads { namespace policies
         {
             init_parameter()
               : num_queues_(1),
+                num_high_priority_queues_(1),
                 max_queue_thread_count_(max_thread_count),
                 numa_sensitive_(0),
                 description_("local_priority_queue_scheduler")
@@ -503,7 +506,7 @@ namespace hpx { namespace threads { namespace policies
             std::size_t high_priority_queues = high_priority_queues_.size();
 
             HPX_ASSERT(num_thread < queues_size);
-            thread_queue_type* this_high_priority_queue = 0;
+            thread_queue_type* this_high_priority_queue = nullptr;
             thread_queue_type* this_queue = queues_[num_thread];
 
             if (num_thread < high_priority_queues)
@@ -965,7 +968,7 @@ namespace hpx { namespace threads { namespace policies
             bool result = true;
 
             std::size_t high_priority_queues = high_priority_queues_.size();
-            thread_queue_type* this_high_priority_queue = 0;
+            thread_queue_type* this_high_priority_queue = nullptr;
             thread_queue_type* this_queue = queues_[num_thread];
 
             if (num_thread < high_priority_queues)
@@ -1135,7 +1138,7 @@ namespace hpx { namespace threads { namespace policies
                             << "no new work available, are we deadlocked?";
                     }
                     else {
-                        LHPX_CONSOLE_(hpx::util::logging::level::error)
+                        LHPX_CONSOLE_(hpx::util::logging::level::error) //-V128
                               << "  [TM] " //-V128
                               << "queue(" << num_thread << "): "
                               << "no new work available, are we deadlocked?\n";
@@ -1154,7 +1157,7 @@ namespace hpx { namespace threads { namespace policies
         ///////////////////////////////////////////////////////////////////////
         void on_start_thread(std::size_t num_thread)
         {
-            if (0 == queues_[num_thread])
+            if (nullptr == queues_[num_thread])
             {
                 queues_[num_thread] =
                     new thread_queue_type(max_queue_thread_count_);

@@ -1,4 +1,4 @@
-//  Copyright (c) 2014-2015 Hartmut Kaiser
+//  Copyright (c) 2014-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -9,22 +9,22 @@
 #define HPX_PARALLEL_ALGORITHM_TRANSFORM_EXCLUSIVE_SCAN_JAN_04_2015_0354PM
 
 #include <hpx/config.hpp>
+#include <hpx/traits/is_iterator.hpp>
 
-#include <hpx/parallel/config/inline_namespace.hpp>
-#include <hpx/parallel/execution_policy.hpp>
 #include <hpx/parallel/algorithms/detail/dispatch.hpp>
 #include <hpx/parallel/algorithms/transform_inclusive_scan.hpp>
+#include <hpx/parallel/config/inline_namespace.hpp>
+#include <hpx/parallel/execution_policy.hpp>
 #include <hpx/parallel/util/detail/algorithm_result.hpp>
+#include <hpx/parallel/util/loop.hpp>
 #include <hpx/parallel/util/partitioner.hpp>
 #include <hpx/parallel/util/scan_partitioner.hpp>
-#include <hpx/parallel/util/loop.hpp>
 
 #include <algorithm>
-#include <numeric>
 #include <iterator>
-
-#include <boost/utility/enable_if.hpp>
-#include <boost/type_traits/is_base_of.hpp>
+#include <numeric>
+#include <type_traits>
+#include <vector>
 
 namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
 {
@@ -252,36 +252,26 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
     ///
     template <typename ExPolicy, typename InIter, typename OutIter,
         typename Conv, typename T, typename Op>
-    inline typename boost::enable_if<
-        is_execution_policy<ExPolicy>,
+    inline typename std::enable_if<
+        is_execution_policy<ExPolicy>::value,
         typename util::detail::algorithm_result<ExPolicy, OutIter>::type
     >::type
     transform_exclusive_scan(ExPolicy&& policy, InIter first, InIter last,
         OutIter dest, Conv && conv, T init, Op && op)
     {
-        typedef typename std::iterator_traits<InIter>::iterator_category
-            iterator_category;
-        typedef typename std::iterator_traits<OutIter>::iterator_category
-            output_iterator_category;
-
         static_assert(
-            (boost::is_base_of<std::input_iterator_tag, iterator_category>::value),
+            (hpx::traits::is_input_iterator<InIter>::value),
             "Requires at least input iterator.");
-
         static_assert(
-            (boost::mpl::or_<
-                boost::is_base_of<
-                    std::forward_iterator_tag, output_iterator_category>,
-                boost::is_same<
-                    std::output_iterator_tag, output_iterator_category>
-            >::value),
+            (hpx::traits::is_output_iterator<OutIter>::value ||
+                hpx::traits::is_input_iterator<OutIter>::value),
             "Requires at least output iterator.");
 
-        typedef typename boost::mpl::or_<
-            is_sequential_execution_policy<ExPolicy>,
-            boost::is_same<std::input_iterator_tag, iterator_category>,
-            boost::is_same<std::output_iterator_tag, output_iterator_category>
-        >::type is_seq;
+        typedef std::integral_constant<bool,
+                is_sequential_execution_policy<ExPolicy>::value ||
+               !hpx::traits::is_forward_iterator<InIter>::value ||
+               !hpx::traits::is_forward_iterator<OutIter>::value
+            > is_seq;
 
         return detail::transform_exclusive_scan<OutIter>().call(
             std::forward<ExPolicy>(policy), is_seq(),

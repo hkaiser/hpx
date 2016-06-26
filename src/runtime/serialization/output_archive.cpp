@@ -3,8 +3,10 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/serialization/output_archive.hpp>
+
+#include <list>
 
 namespace hpx { namespace serialization
 {
@@ -22,10 +24,12 @@ namespace hpx { namespace serialization
 
         new_gids_map::iterator it = new_gids_->find(gid);
 
-        HPX_ASSERT(it != new_gids_->end() && !it->second.empty());
+        std::list<naming::gid_type>& gids = it->second;
 
-        naming::gid_type new_gid = it->second.front();
-        it->second.pop_front();
+        HPX_ASSERT(it != new_gids_->end() && !gids.empty());
+
+        naming::gid_type new_gid = gids.front();
+        gids.pop_front();
 
         return new_gid;
     }

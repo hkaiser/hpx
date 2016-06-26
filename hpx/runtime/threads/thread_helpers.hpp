@@ -5,20 +5,23 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#if !defined(HPX_THREAD_HELPERS_NOV_15_2008_0504PM)
-#define HPX_THREAD_HELPERS_NOV_15_2008_0504PM
+#ifndef HPX_RUNTIME_THREADS_THREAD_HELPERS_HPP
+#define HPX_RUNTIME_THREADS_THREAD_HELPERS_HPP
 
 #include <hpx/config.hpp>
-#include <hpx/runtime/naming/id_type.hpp>
-#include <hpx/runtime/threads/thread_enums.hpp>
-#include <hpx/runtime/threads/thread_data_fwd.hpp>
+#include <hpx/exception_fwd.hpp>
+#include <hpx/runtime/naming_fwd.hpp>
 #include <hpx/runtime/threads/policies/scheduler_mode.hpp>
-#include <hpx/util/backtrace.hpp>
+#include <hpx/runtime/threads/thread_data_fwd.hpp>
+#include <hpx/runtime/threads/thread_enums.hpp>
 #include <hpx/util/date_time_chrono.hpp>
-#include <hpx/util/function.hpp>
-#include <hpx/exception.hpp>
+#include <hpx/util/thread_description.hpp>
+#include <hpx/util_fwd.hpp>
 
-#include <boost/exception_ptr.hpp>
+#include <boost/chrono/chrono.hpp>
+
+#include <cstddef>
+#include <cstdint>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace threads
@@ -197,12 +200,13 @@ namespace hpx { namespace threads
     HPX_API_EXPORT char const* get_thread_backtrace(
         thread_id_type const& id, error_code& ec = throws);
     HPX_API_EXPORT char const* set_thread_backtrace(
-        thread_id_type const& id, char const* bt = 0, error_code& ec = throws);
+        thread_id_type const& id, char const* bt = nullptr,
+        error_code& ec = throws);
 #else
     HPX_API_EXPORT util::backtrace const* get_thread_backtrace(
         thread_id_type const& id, error_code& ec = throws);
     HPX_API_EXPORT util::backtrace const* set_thread_backtrace(
-        thread_id_type const& id, util::backtrace const* bt = 0,
+        thread_id_type const& id, util::backtrace const* bt = nullptr,
         error_code& ec = throws);
 #endif
 
@@ -530,7 +534,7 @@ namespace hpx { namespace this_thread
     ///         running, it will throw an \a hpx#exception with an error code of
     ///         \a hpx#invalid_status.
     ///
-    inline threads::thread_state_ex_enum suspend(boost::uint64_t ms,
+    inline threads::thread_state_ex_enum suspend(std::uint64_t ms,
         util::thread_description const& description =
             util::thread_description("this_thread::suspend"),
         error_code& ec = throws)
@@ -556,6 +560,11 @@ namespace hpx { namespace this_thread
 
     // returns the remaining available stack space
     HPX_EXPORT std::ptrdiff_t get_available_stack_space();
+
+    // returns whether the remaining stack-space is at least as large as
+    // requested
+    HPX_EXPORT bool has_sufficient_stack_space(
+        std::size_t space_needed = 8 * HPX_THREADS_STACK_OVERHEAD);
 }}
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -741,7 +750,7 @@ namespace hpx { namespace applier
     HPX_API_EXPORT void register_work_plain(
         threads::thread_function_type && func,
         util::thread_description const& description = util::thread_description(),
-        boost::uint64_t /*naming::address_type*/ lva = 0,
+        std::uint64_t /*naming::address_type*/ lva = 0,
         threads::thread_state_enum initial_state = threads::pending,
         threads::thread_priority priority = threads::thread_priority_normal,
         std::size_t os_thread = std::size_t(-1),
@@ -752,7 +761,7 @@ namespace hpx { namespace applier
     HPX_API_EXPORT void register_work_plain(
         threads::thread_function_type && func, naming::id_type const& target,
         util::thread_description const& description = util::thread_description(),
-        boost::uint64_t /*naming::address_type*/ lva = 0,
+        std::uint64_t /*naming::address_type*/ lva = 0,
         threads::thread_state_enum initial_state = threads::pending,
         threads::thread_priority priority = threads::thread_priority_normal,
         std::size_t os_thread = std::size_t(-1),
@@ -832,4 +841,4 @@ namespace hpx { namespace threads
     using applier::register_work_nullary;
 }}
 
-#endif
+#endif /*HPX_RUNTIME_THREADS_THREAD_HELPERS_HPP*/

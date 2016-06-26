@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2014 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -6,23 +6,27 @@
 #if !defined(HPX_RUNTIME_THREADS_DETAIL_SCHEDULING_LOOP_JAN_11_2013_0838PM)
 #define HPX_RUNTIME_THREADS_DETAIL_SCHEDULING_LOOP_JAN_11_2013_0838PM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/state.hpp>
-#include <hpx/runtime/threads/thread_data.hpp>
-#include <hpx/runtime/threads/detail/periodic_maintenance.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/agas/interface.hpp>
 #include <hpx/runtime/get_config_entry.hpp>
-#include <hpx/util/itt_notify.hpp>
-#include <hpx/util/hardware/timestamp.hpp>
+#include <hpx/runtime/get_thread_name.hpp>
+#include <hpx/runtime/threads/detail/periodic_maintenance.hpp>
+#include <hpx/runtime/threads/thread_data.hpp>
+#include <hpx/state.hpp>
 #include <hpx/util/assert.hpp>
 #include <hpx/util/function.hpp>
+#include <hpx/util/hardware/timestamp.hpp>
+#include <hpx/util/itt_notify.hpp>
 #include <hpx/util/safe_lexical_cast.hpp>
 
+#include <boost/atomic.hpp>
 #include <boost/cstdint.hpp>
 
 #if defined(HPX_HAVE_APEX)
 #include <hpx/util/apex.hpp>
 #endif
+
+#include <cstdint>
 #include <limits>
 
 namespace hpx { namespace threads { namespace detail
@@ -78,15 +82,16 @@ namespace hpx { namespace threads { namespace detail
         // execution
         thread_state operator=(thread_state_enum new_state)
         {
-            return prev_state_ = thread_state(new_state, prev_state_.get_tag() + 1);
+            return prev_state_ = thread_state(new_state,
+                prev_state_.state_ex(), prev_state_.tag() + 1);
         }
 
         // Get the state this thread was in before execution (usually pending),
         // this helps making sure no other worker-thread is started to execute this
         // HPX-thread in the meantime.
-        thread_state get_previous() const
+        thread_state_enum get_previous() const
         {
-            return prev_state_;
+            return prev_state_.state();
         }
 
         // This restores the previous state, while making sure that the
@@ -116,19 +121,19 @@ namespace hpx { namespace threads { namespace detail
 #ifdef HPX_HAVE_THREAD_IDLE_RATES
     struct idle_collect_rate
     {
-        idle_collect_rate(boost::uint64_t& tfunc_time, boost::uint64_t& exec_time)
+        idle_collect_rate(std::uint64_t& tfunc_time, std::uint64_t& exec_time)
           : start_timestamp_(util::hardware::timestamp())
           , tfunc_time_(tfunc_time)
           , exec_time_(exec_time)
         {}
 
-        void collect_exec_time(boost::uint64_t timestamp)
+        void collect_exec_time(std::uint64_t timestamp)
         {
             exec_time_ += util::hardware::timestamp() - timestamp;
         }
         void take_snapshot()
         {
-            if (tfunc_time_ == boost::uint64_t(-1))
+            if (tfunc_time_ == std::uint64_t(-1))
             {
                 start_timestamp_ = util::hardware::timestamp();
                 tfunc_time_ = 0;
@@ -140,10 +145,10 @@ namespace hpx { namespace threads { namespace detail
             }
         }
 
-        boost::uint64_t start_timestamp_;
+        std::uint64_t start_timestamp_;
 
-        boost::uint64_t& tfunc_time_;
-        boost::uint64_t& exec_time_;
+        std::uint64_t& tfunc_time_;
+        std::uint64_t& exec_time_;
     };
 
     struct exec_time_wrapper
@@ -157,7 +162,7 @@ namespace hpx { namespace threads { namespace detail
             idle_rate_.collect_exec_time(timestamp_);
         }
 
-        boost::uint64_t timestamp_;
+        std::uint64_t timestamp_;
         idle_collect_rate& idle_rate_;
     };
 
@@ -177,7 +182,7 @@ namespace hpx { namespace threads { namespace detail
 #else
     struct idle_collect_rate
     {
-        idle_collect_rate(boost::uint64_t&, boost::uint64_t&) {}
+        idle_collect_rate(std::uint64_t&, std::uint64_t&) {}
     };
 
     struct exec_time_wrapper
@@ -194,19 +199,19 @@ namespace hpx { namespace threads { namespace detail
     ///////////////////////////////////////////////////////////////////////////
     struct scheduling_counters
     {
-        scheduling_counters(boost::int64_t& executed_threads,
-                boost::int64_t& executed_thread_phases,
-                boost::uint64_t& tfunc_time, boost::uint64_t& exec_time)
+        scheduling_counters(std::int64_t& executed_threads,
+                std::int64_t& executed_thread_phases,
+                std::uint64_t& tfunc_time, std::uint64_t& exec_time)
           : executed_threads_(executed_threads),
             executed_thread_phases_(executed_thread_phases),
             tfunc_time_(tfunc_time),
             exec_time_(exec_time)
         {}
 
-        boost::int64_t& executed_threads_;
-        boost::int64_t& executed_thread_phases_;
-        boost::uint64_t& tfunc_time_;
-        boost::uint64_t& exec_time_;
+        std::int64_t& executed_threads_;
+        std::int64_t& executed_thread_phases_;
+        std::uint64_t& tfunc_time_;
+        std::uint64_t& exec_time_;
     };
 
     struct scheduling_callbacks
@@ -259,7 +264,7 @@ namespace hpx { namespace threads { namespace detail
 
         while (true) {
             // Get the next HPX thread from the queue
-            thread_data* thrd = NULL;
+            thread_data* thrd = nullptr;
 
             if (scheduler.SchedulingPolicy::get_next_thread(
                     num_thread, idle_loop_count, thrd))
@@ -275,7 +280,7 @@ namespace hpx { namespace threads { namespace detail
                 // Any non-pending HPX threads are leftovers from a set_state()
                 // call for a previously pending HPX thread (see comments above).
                 thread_state state = thrd->get_state();
-                thread_state_enum state_val = state;
+                thread_state_enum state_val = state.state();
 
                 detail::write_old_state_log(num_thread, thrd, state_val);
 
@@ -302,15 +307,14 @@ namespace hpx { namespace threads { namespace detail
                                 // Record time elapsed in thread changing state
                                 // and add to aggregate execution time.
                                 exec_time_wrapper exec_time_collector(idle_rate);
+
 #if defined(HPX_HAVE_APEX)
                                 util::apex_wrapper apex_profiler(
                                     thrd->get_description());
 
                                 thrd_stat = (*thrd)();
 
-                                thread_state prev_state = thrd_stat.get_previous();
-                                thread_state_enum prev_state_enum = prev_state;
-                                if (prev_state_enum == terminated)
+                                if (thrd_stat.get_previous() == terminated)
                                 {
                                     apex_profiler.stop();
                                 }
@@ -346,7 +350,8 @@ namespace hpx { namespace threads { namespace detail
                                 num_thread, thrd, state_val, "no state change");
                             continue;
                         }
-                        state_val = state;
+
+                        state_val = state.state();
 
                         // any exception thrown from the thread will reset its
                         // state at this point

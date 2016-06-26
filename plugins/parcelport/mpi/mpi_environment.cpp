@@ -3,21 +3,20 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
 
 #include <mpi.h>
 
-#include <hpx/config.hpp>
-
-#include <hpx/hpx_fwd.hpp>
 #include <hpx/util/runtime_configuration.hpp>
 #include <hpx/util/command_line_handling.hpp>
 #include <hpx/plugins/parcelport/mpi/mpi_environment.hpp>
 
 #include <boost/assign/std/vector.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/tokenizer.hpp>
 
 #include <cstdlib>
+#include <string>
 
 namespace hpx { namespace util
 {
@@ -190,7 +189,7 @@ namespace hpx { namespace util
         }
 
         cfg.ini_config_ += std::string("hpx.parcel.mpi.rank!=") +
-            boost::lexical_cast<std::string>(this_rank);
+            std::to_string(this_rank);
         cfg.ini_config_ += std::string("hpx.parcel.mpi.processorname!=") +
             get_processor_name();
 

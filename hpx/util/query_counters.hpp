@@ -6,11 +6,11 @@
 #if !defined(HPX_UTIL_QUERY_COUNTERS_SEP_27_2011_0255PM)
 #define HPX_UTIL_QUERY_COUNTERS_SEP_27_2011_0255PM
 
-#include <hpx/config/export_definitions.hpp>
-#include <hpx/exception.hpp>
-#include <hpx/util/interval_timer.hpp>
+#include <hpx/config.hpp>
+#include <hpx/exception_fwd.hpp>
 #include <hpx/lcos/local/mutex.hpp>
-#include <hpx/include/performance_counters.hpp>
+#include <hpx/performance_counters/counters.hpp>
+#include <hpx/util/interval_timer.hpp>
 
 #include <boost/cstdint.hpp>
 
@@ -42,7 +42,7 @@ namespace hpx { namespace util
         void stop_counters(error_code& ec = throws);
         void reset_counters(error_code& ec = throws);
         bool evaluate_counters(bool reset = false,
-            char const* description = 0, error_code& ec = throws);
+            char const* description = nullptr, error_code& ec = throws);
 
     protected:
         void find_counters();

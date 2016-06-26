@@ -14,20 +14,20 @@
 #if defined(__linux) || defined(linux) || defined(__linux__)
 
 #include <hpx/config.hpp>
-#include <hpx/util/assert.hpp>
+#include <hpx/runtime/threads/coroutines/detail/get_stack_pointer.hpp>
 #include <hpx/runtime/threads/coroutines/detail/posix_utility.hpp>
 #include <hpx/runtime/threads/coroutines/detail/swap_context.hpp>
-#include <hpx/runtime/threads/coroutines/detail/get_stack_pointer.hpp>
+#include <hpx/util/assert.hpp>
 #include <hpx/util/get_and_reset_value.hpp>
 
-#include <sys/param.h>
-#include <cstdlib>
 #include <cstddef>
+#include <cstdlib>
 #include <stdexcept>
+#include <sys/param.h>
 
-#include <boost/format.hpp>
-#include <boost/cstdint.hpp>
 #include <boost/atomic.hpp>
+#include <boost/cstdint.hpp>
+#include <boost/format.hpp>
 
 #if defined(HPX_HAVE_VALGRIND)
 #if defined(__GNUG__) && !defined(__INTEL_COMPILER)
@@ -141,7 +141,7 @@ namespace hpx { namespace threads { namespace coroutines
             typedef x86_linux_context_impl_base context_impl_base;
 
             x86_linux_context_impl()
-                : m_stack(0)
+                : m_stack(nullptr)
             {}
 
             /**
@@ -153,7 +153,7 @@ namespace hpx { namespace threads { namespace coroutines
               : m_stack_size(stack_size == -1
                   ? static_cast<std::ptrdiff_t>(default_stack_size)
                   : stack_size),
-                m_stack(0)
+                m_stack(nullptr)
             {
                 if (0 != (m_stack_size % EXEC_PAGESIZE))
                 {

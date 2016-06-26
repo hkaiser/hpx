@@ -11,13 +11,12 @@
 
 #if defined(HPX_HAVE_PAPI)
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/util/interval_timer.hpp>
 #include <hpx/performance_counters/server/base_performance_counter.hpp>
 #include <hpx/runtime/components/server/component_base.hpp>
+#include <hpx/util/interval_timer.hpp>
 
-#include <vector>
 #include <map>
+#include <vector>
 
 #include <papi.h>
 
@@ -124,8 +123,10 @@ namespace hpx { namespace performance_counters { namespace papi { namespace serv
     };
 
     ///////////////////////////////////////////////////////////////////////////
-    class papi_counter_base: boost::noncopyable
+    class papi_counter_base
     {
+        HPX_NON_COPYABLE(papi_counter_base);
+
     public:
         typedef hpx::lcos::local::spinlock mutex_type;
 

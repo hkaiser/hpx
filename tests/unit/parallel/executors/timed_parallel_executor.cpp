@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2015 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <string>
 #include <vector>
 
 #include <boost/range/functions.hpp>
@@ -18,7 +19,11 @@
 using namespace boost::chrono;
 
 ///////////////////////////////////////////////////////////////////////////////
-hpx::thread::id test() { return hpx::this_thread::get_id(); }
+hpx::thread::id test(int passed_through)
+{
+    HPX_TEST_EQ(passed_through, 42);
+    return hpx::this_thread::get_id();
+}
 
 void test_timed_sync()
 {
@@ -27,12 +32,14 @@ void test_timed_sync()
 
     executor exec;
     HPX_TEST(
-        traits::execute_after(exec, milliseconds(1), &test) !=
-            hpx::this_thread::get_id());
+        traits::execute_after(
+            exec, milliseconds(1), &test, 42
+        ) != hpx::this_thread::get_id());
 
     HPX_TEST(
-        traits::execute_at(exec, steady_clock::now()+milliseconds(1), &test) !=
-            hpx::this_thread::get_id());
+        traits::execute_at(
+            exec, steady_clock::now() + milliseconds(1), &test, 42
+        ) != hpx::this_thread::get_id());
 }
 
 void test_timed_async()
@@ -43,11 +50,11 @@ void test_timed_async()
     executor exec;
     HPX_TEST(
         traits::async_execute_after(
-            exec, milliseconds(1), &test
+            exec, milliseconds(1), &test, 42
         ).get() != hpx::this_thread::get_id());
     HPX_TEST(
         traits::async_execute_at(
-            exec, steady_clock::now()+milliseconds(1), &test
+            exec, steady_clock::now() + milliseconds(1), &test, 42
         ).get() != hpx::this_thread::get_id());
 }
 
@@ -57,8 +64,9 @@ void test_timed_apply()
     typedef hpx::parallel::timed_executor_traits<executor> traits;
 
     executor exec;
-    traits::apply_execute_after(exec, milliseconds(1), &test);
-    traits::apply_execute_at(exec, steady_clock::now()+milliseconds(1), &test);
+    traits::apply_execute_after(exec, milliseconds(1), &test, 42);
+    traits::apply_execute_at(
+        exec, steady_clock::now() + milliseconds(1), &test, 42);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -76,7 +84,7 @@ int main(int argc, char* argv[])
     // By default this test should run on all available cores
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
 
     // Initialize and run HPX
     HPX_TEST_EQ_MSG(hpx::init(argc, argv, cfg), 0,

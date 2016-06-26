@@ -20,6 +20,10 @@
 #include <hpx/include/run_as.hpp>
 #include <hpx/hpx_start.hpp>
 
+#include <mutex>
+#include <string>
+#include <vector>
+
 ///////////////////////////////////////////////////////////////////////////////
 // Store the command line arguments in global variables to make them available
 // to the startup code.
@@ -27,7 +31,7 @@
 #if defined(linux) || defined(__linux) || defined(__linux__)
 
 int __argc = 0;
-char** __argv = 0;
+char** __argv = nullptr;
 
 void set_argv_argv(int argc, char* argv[], char* env[])
 {
@@ -45,9 +49,9 @@ __attribute__((section(".init_array")))
 inline int get_arraylen(char** argv)
 {
     int count = 0;
-    if (NULL != argv)
+    if (nullptr != argv)
     {
-        while(NULL != argv[count])
+        while(nullptr != argv[count])
             ++count;
     }
     return count;
@@ -69,19 +73,22 @@ char** __argv = *_NSGetArgv();
 struct manage_global_runtime
 {
     manage_global_runtime()
-      : running_(false), rts_(0)
+      : running_(false), rts_(nullptr)
     {
 #if defined(HPX_WINDOWS)
         hpx::detail::init_winsocket();
 #endif
 
+        // make sure hpx_main is always executed
+        std::vector<std::string> cfg;
+        cfg.push_back("hpx.run_hpx_main!=1");
+
         using hpx::util::placeholders::_1;
         using hpx::util::placeholders::_2;
-
-        auto start_function =
+        hpx::util::function_nonser<int(int, char**)> start_function =
             hpx::util::bind(&manage_global_runtime::hpx_main, this, _1, _2);
 
-        if (!hpx::start(start_function, __argc, __argv, hpx::runtime_mode_console))
+        if (!hpx::start(start_function, __argc, __argv, cfg, hpx::runtime_mode_console))
         {
             // Something went wrong while initializing the runtime.
             // This early we can't generate any output, just bail out.
@@ -99,7 +106,7 @@ struct manage_global_runtime
         // notify hpx_main above to tear down the runtime
         {
             std::lock_guard<hpx::lcos::local::spinlock> lk(mtx_);
-            rts_ = 0;               // reset pointer
+            rts_ = nullptr;               // reset pointer
         }
 
         cond_.notify_one();     // signal exit
@@ -111,11 +118,11 @@ struct manage_global_runtime
     // registration of external (to HPX) threads
     void register_thread(char const* name)
     {
-        rts_->register_thread(name);
+        hpx::register_thread(rts_, name);
     }
     void unregister_thread()
     {
-        rts_->unregister_thread();
+        hpx::unregister_thread(rts_);
     }
 
 protected:
@@ -138,7 +145,7 @@ protected:
         // Now, wait for destructor to be called.
         {
             std::unique_lock<hpx::lcos::local::spinlock> lk(mtx_);
-            if (rts_ != 0)
+            if (rts_ != nullptr)
                 cond_.wait(lk);
         }
 
@@ -148,7 +155,7 @@ protected:
 
 private:
     hpx::lcos::local::spinlock mtx_;
-    hpx::lcos::local::condition_variable cond_;
+    hpx::lcos::local::condition_variable_any cond_;
 
     std::mutex startup_mtx_;
     std::condition_variable startup_cond_;
@@ -239,5 +246,3 @@ int main()
 
     return 0;
 }
-
-

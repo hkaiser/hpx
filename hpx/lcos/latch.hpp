@@ -6,10 +6,12 @@
 #if !defined(HPX_LCOS_LATCH_APR_19_2015_1002AM)
 #define HPX_LCOS_LATCH_APR_19_2015_1002AM
 
-#include <hpx/exception.hpp>
+#include <hpx/config.hpp>
+#include <hpx/lcos/server/latch.hpp>
 #include <hpx/runtime/components/client_base.hpp>
 #include <hpx/runtime/components/new.hpp>
-#include <hpx/lcos/server/latch.hpp>
+
+#include <boost/exception_ptr.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace lcos
@@ -41,8 +43,8 @@ namespace hpx { namespace lcos
 
         /// Extension: Create a client side representation for the existing
         /// \a server#latch instance with the given global id \a id.
-        latch(hpx::future<naming::id_type> && id)
-          : base_type(id.share())
+        latch(hpx::future<naming::id_type> && f)
+          : base_type(std::move(f))
         {}
 
         /// Extension: Create a client side representation for the existing

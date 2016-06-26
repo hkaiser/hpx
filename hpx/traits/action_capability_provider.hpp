@@ -6,7 +6,7 @@
 #if !defined(HPX_TRAITS_ACTION_CAPABILITY_PROVIDER_JUN_09_2013_1257PM)
 #define HPX_TRAITS_ACTION_CAPABILITY_PROVIDER_JUN_09_2013_1257PM
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
 
 #if defined(HPX_HAVE_SECURITY)
 #include <hpx/components/security/capability.hpp>
@@ -16,7 +16,7 @@ namespace hpx { namespace traits
 {
     ///////////////////////////////////////////////////////////////////////////
     // Customization point for action capabilities
-    template <typename Action, typename Enable>
+    template <typename Action, typename Enable = void>
     struct action_capability_provider
     {
         // return the required capabilities to invoke the given action

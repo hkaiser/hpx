@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/components/server/memory.hpp>
 #include <hpx/lcos/base_lco_with_value.hpp>
 #include <hpx/runtime/applier/apply.hpp>
@@ -63,7 +63,8 @@ namespace hpx { namespace components { namespace server
     {
         naming::gid_type gid(hpx::applier::get_applier().get_raw_locality());
         gid.set_lsb(new boost::uint8_t[size]);
-        naming::detail::set_credit_for_gid(gid, HPX_GLOBALCREDIT_INITIAL);
+        naming::detail::set_credit_for_gid(gid,
+            boost::int64_t(HPX_GLOBALCREDIT_INITIAL));
         return gid;
     }
 }}}

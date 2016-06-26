@@ -6,15 +6,21 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
+#include <hpx/performance_counters/counters.hpp>
+#include <hpx/performance_counters/counter_creators.hpp>
+#include <hpx/performance_counters/manage_counter_type.hpp>
 #include <hpx/runtime/actions/continuation.hpp>
 #include <hpx/runtime/agas/interface.hpp>
 #include <hpx/runtime/agas/server/component_namespace.hpp>
 #include <hpx/runtime/naming/resolver_client.hpp>
-#include <hpx/include/performance_counters.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/get_and_reset_value.hpp>
 
-#include <boost/thread/locks.hpp>
+#include <mutex>
+
+#include <string>
+#include <vector>
 
 // TODO: Remove the use of the name "prefix"
 
@@ -167,12 +173,14 @@ void component_namespace::register_counter_types(
     error_code& ec
     )
 {
+    using hpx::util::placeholders::_1;
+    using hpx::util::placeholders::_2;
     boost::format help_count(
         "returns the number of invocations of the AGAS service '%s'");
     boost::format help_time(
         "returns the overall execution time of the AGAS service '%s'");
     performance_counters::create_counter_func creator(
-        boost::bind(&performance_counters::agas_raw_counter_creator, _1, _2
+        util::bind(&performance_counters::agas_raw_counter_creator, _1, _2
       , agas::server::component_namespace_service_name));
 
     for (std::size_t i = 0;
@@ -213,8 +221,10 @@ void component_namespace::register_global_counter_types(
     error_code& ec
     )
 {
+    using util::placeholders::_1;
+    using util::placeholders::_2;
     performance_counters::create_counter_func creator(
-        boost::bind(&performance_counters::agas_raw_counter_creator, _1, _2
+        util::bind(&performance_counters::agas_raw_counter_creator, _1, _2
       , agas::server::component_namespace_service_name));
 
     for (std::size_t i = 0;
@@ -308,7 +318,7 @@ response component_namespace::bind_prefix(
     std::string key = req.get_name();
     boost::uint32_t prefix = req.get_locality_id();
 
-    boost::unique_lock<mutex_type> l(mutex_);
+    std::unique_lock<mutex_type> l(mutex_);
 
     component_id_table_type::left_map::iterator cit = component_ids_.left.find(key)
                                     , cend = component_ids_.left.end();
@@ -325,7 +335,7 @@ response component_namespace::bind_prefix(
             HPX_THROWS_IF(ec, lock_error
               , "component_namespace::bind_prefix"
               , "component id table insertion failed due to a locking "
-                "error or memory corruption")
+                "error or memory corruption");
             return response();
         }
 
@@ -352,7 +362,7 @@ response component_namespace::bind_prefix(
               , boost::str(boost::format(
                     "component id is already registered for the given "
                     "locality, key(%1%), prefix(%2%), ctype(%3%)")
-                    % key % prefix % cit->second))
+                    % key % prefix % cit->second));
             return response();
         }
 
@@ -386,7 +396,7 @@ response component_namespace::bind_prefix(
         HPX_THROWS_IF(ec, lock_error
             , "component_namespace::bind_prefix"
             , "factory table insertion failed due to a locking "
-              "error or memory corruption")
+              "error or memory corruption");
         return response();
     }
 
@@ -410,7 +420,7 @@ response component_namespace::bind_name(
     // parameters
     std::string key = req.get_name();
 
-    boost::unique_lock<mutex_type> l(mutex_);
+    std::unique_lock<mutex_type> l(mutex_);
 
     component_id_table_type::left_map::iterator it = component_ids_.left.find(key)
                                     , end = component_ids_.left.end();
@@ -459,7 +469,7 @@ response component_namespace::resolve_id(
     if (key != components::get_base_type(key))
         key = components::get_derived_type(key);
 
-    boost::lock_guard<mutex_type> l(mutex_);
+    std::lock_guard<mutex_type> l(mutex_);
 
     factory_table_type::const_iterator it = factories_.find(key)
                                      , end = factories_.end();
@@ -509,7 +519,7 @@ response component_namespace::unbind(
     // parameters
     std::string key = req.get_name();
 
-    boost::lock_guard<mutex_type> l(mutex_);
+    std::lock_guard<mutex_type> l(mutex_);
 
     component_id_table_type::left_map::iterator it = component_ids_.left.find(key);
 
@@ -549,7 +559,7 @@ response component_namespace::iterate_types(
 { // {{{ iterate implementation
     iterate_types_function_type f = req.get_iterate_types_function();
 
-    boost::lock_guard<mutex_type> l(mutex_);
+    std::lock_guard<mutex_type> l(mutex_);
 
     for (component_id_table_type::left_map::iterator it = component_ids_.left.begin()
                                          , end = component_ids_.left.end();
@@ -586,7 +596,7 @@ response component_namespace::get_component_type_name(
 { // {{{ get_component_type_name implementation
     components::component_type t = req.get_component_type();
 
-    boost::lock_guard<mutex_type> l(mutex_);
+    std::lock_guard<mutex_type> l(mutex_);
 
     std::string result;
 
@@ -641,7 +651,7 @@ response component_namespace::get_num_localities(
     if (key != components::get_base_type(key))
         key = components::get_derived_type(key);
 
-    boost::lock_guard<mutex_type> l(mutex_);
+    std::lock_guard<mutex_type> l(mutex_);
 
     factory_table_type::const_iterator it = factories_.find(key)
                                      , end = factories_.end();
@@ -714,41 +724,42 @@ response component_namespace::statistics_counter(
 
     typedef component_namespace::counter_data cd;
 
+    using util::placeholders::_1;
     util::function_nonser<boost::int64_t(bool)> get_data_func;
     if (target == detail::counter_target_count)
     {
         switch (code) {
         case component_ns_bind_prefix:
-            get_data_func = boost::bind(&cd::get_bind_prefix_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_bind_prefix_count,
+                &counter_data_, _1);
             break;
         case component_ns_bind_name:
-            get_data_func = boost::bind(&cd::get_bind_name_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_bind_name_count,
+                &counter_data_, _1);
             break;
         case component_ns_resolve_id:
-            get_data_func = boost::bind(&cd::get_resolve_id_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_resolve_id_count,
+                &counter_data_, _1);
             break;
         case component_ns_unbind_name:
-            get_data_func = boost::bind(&cd::get_unbind_name_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_unbind_name_count,
+                &counter_data_, _1);
             break;
         case component_ns_iterate_types:
-            get_data_func = boost::bind(&cd::get_iterate_types_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_iterate_types_count,
+                &counter_data_, _1);
             break;
         case component_ns_get_component_type_name:
-            get_data_func = boost::bind(&cd::get_component_type_name_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_component_type_name_count,
+                &counter_data_, _1);
             break;
         case component_ns_num_localities:
-            get_data_func = boost::bind(&cd::get_num_localities_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_num_localities_count,
+                &counter_data_, _1);
             break;
         case component_ns_statistics_counter:
-            get_data_func = boost::bind(&cd::get_overall_count,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_overall_count,
+                &counter_data_, _1);
             break;
         default:
             HPX_THROWS_IF(ec, bad_parameter
@@ -761,32 +772,32 @@ response component_namespace::statistics_counter(
         HPX_ASSERT(detail::counter_target_time == target);
         switch (code) {
         case component_ns_bind_prefix:
-            get_data_func = boost::bind(&cd::get_bind_prefix_time,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_bind_prefix_time,
+                &counter_data_, _1);
             break;
         case component_ns_bind_name:
-            get_data_func = boost::bind(&cd::get_bind_name_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_bind_name_time, &counter_data_, _1);
             break;
         case component_ns_resolve_id:
-            get_data_func = boost::bind(&cd::get_resolve_id_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_resolve_id_time, &counter_data_, _1);
             break;
         case component_ns_unbind_name:
-            get_data_func = boost::bind(&cd::get_unbind_name_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_unbind_name_time, &counter_data_, _1);
             break;
         case component_ns_iterate_types:
-            get_data_func = boost::bind(&cd::get_iterate_types_time,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_iterate_types_time,
+                &counter_data_, _1);
             break;
         case component_ns_get_component_type_name:
-            get_data_func = boost::bind(&cd::get_component_type_name_time,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_component_type_name_time,
+                &counter_data_, _1);
             break;
         case component_ns_num_localities:
-            get_data_func = boost::bind(&cd::get_num_localities_time,
-                &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_num_localities_time,
+                &counter_data_, _1);
             break;
         case component_ns_statistics_counter:
-            get_data_func = boost::bind(&cd::get_overall_time, &counter_data_, ::_1);
+            get_data_func = util::bind(&cd::get_overall_time, &counter_data_, _1);
             break;
         default:
             HPX_THROWS_IF(ec, bad_parameter

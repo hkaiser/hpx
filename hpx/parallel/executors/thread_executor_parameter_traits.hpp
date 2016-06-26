@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2015 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -9,16 +9,16 @@
 #define HPX_PARALLEL_THREAD_EXECUTOR_PARAMETER_TRAITS_AUG_26_2015_1204PM
 
 #include <hpx/config.hpp>
-#include <hpx/traits/is_executor_parameters.hpp>
 #include <hpx/parallel/config/inline_namespace.hpp>
-#include <hpx/parallel/executors/thread_executor_traits.hpp>
 #include <hpx/parallel/executors/executor_parameter_traits.hpp>
+#include <hpx/parallel/executors/thread_executor_traits.hpp>
+#include <hpx/traits/is_executor_parameters.hpp>
 #include <hpx/util/always_void.hpp>
 
+#include <cstdarg>
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include <cstdarg>
 
 namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v3)
 {
@@ -107,6 +107,32 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v3)
             executor_parameters_type& params)
         {
             return detail::call_processing_units_parameter_count(params);
+        }
+
+        /// Mark the begin of a parallel algorithm execution
+        ///
+        /// \param params [in] The executor parameters object to use as a
+        ///              fallback if the executor does not expose
+        ///
+        /// \note This calls params.mark_begin_execution(exec) if it exists;
+        ///       otherwise it does nothing.
+        ///
+        static void mark_begin_execution(executor_parameters_type& params)
+        {
+            detail::call_mark_begin_execution(params);
+        }
+
+        /// Mark the end of a parallel algorithm execution
+        ///
+        /// \param params [in] The executor parameters object to use as a
+        ///              fallback if the executor does not expose
+        ///
+        /// \note This calls params.mark_end_execution(exec) if it exists;
+        ///       otherwise it does nothing.
+        ///
+        static void mark_end_execution(executor_parameters_type& params)
+        {
+            detail::call_mark_end_execution(params);
         }
     };
 }}}

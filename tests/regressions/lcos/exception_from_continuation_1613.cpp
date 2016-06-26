@@ -11,6 +11,10 @@
 #include <hpx/lcos/future.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
+#include <boost/atomic.hpp>
+
+#include <vector>
+
 #define NUM_FUTURES std::size_t(2*HPX_CONTINUATION_MAX_RECURSION_DEPTH)
 
 void test_exception_from_continuation1()

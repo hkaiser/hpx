@@ -9,9 +9,13 @@
 #include <hpx/include/apply.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
+#include <boost/atomic.hpp>
+
+#include <mutex>
+
 ///////////////////////////////////////////////////////////////////////////////
 boost::atomic<boost::int32_t> accumulator;
-hpx::lcos::local::condition_variable result_cv;
+hpx::lcos::local::condition_variable_any result_cv;
 
 void increment(boost::int32_t i)
 {
@@ -28,17 +32,6 @@ void increment_with_future(hpx::shared_future<boost::int32_t> fi)
 ///////////////////////////////////////////////////////////////////////////////
 struct increment_function_object
 {
-    // implement result_of protocol
-    template <typename F>
-    struct result;
-
-    template <typename F, typename T>
-    struct result<F(T)>
-    {
-        typedef void type;
-    };
-
-    // actual functionality
     void operator()(boost::int32_t i) const
     {
         accumulator += i;
@@ -124,7 +117,7 @@ int hpx_main()
 #   endif
 
     hpx::lcos::local::no_mutex result_mutex;
-    boost::unique_lock<hpx::lcos::local::no_mutex> l(result_mutex);
+    std::unique_lock<hpx::lcos::local::no_mutex> l(result_mutex);
 #   if defined(HPX_HAVE_CXX11_LAMBDAS) && defined(HPX_HAVE_CXX11_AUTO)
     result_cv.wait_for(l, boost::chrono::seconds(1),
         hpx::util::bind(std::equal_to<boost::int32_t>(), boost::ref(accumulator), 18));

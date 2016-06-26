@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2015 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //  Copyright (c) 2013-2014 Thomas Heller
 //  Copyright (c) 2007      Richard D Guidry Jr
 //  Copyright (c) 2011      Bryce Lelbach & Katelyn Kufahl
@@ -6,7 +6,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/state.hpp>
 #include <hpx/exception.hpp>
 #include <hpx/config/asio.hpp>
@@ -14,29 +14,40 @@
 #include <hpx/util/safe_lexical_cast.hpp>
 #include <hpx/util/runtime_configuration.hpp>
 #include <hpx/util/bind.hpp>
-#include <hpx/runtime/naming/resolver_client.hpp>
-#include <hpx/runtime/parcelset/parcelhandler.hpp>
-#include <hpx/runtime/parcelset/static_parcelports.hpp>
-#include <hpx/runtime/threads/threadmanager.hpp>
+#include <hpx/util/deferred_call.hpp>
+#include <hpx/util/unlock_guard.hpp>
 #include <hpx/runtime/actions/continuation.hpp>
 #include <hpx/runtime/applier/applier.hpp>
+#include <hpx/runtime/get_config_entry.hpp>
+#include <hpx/runtime/message_handler_fwd.hpp>
+#include <hpx/runtime/naming/resolver_client.hpp>
+#include <hpx/runtime/message_handler_fwd.hpp>
+#include <hpx/runtime/parcelset/parcelhandler.hpp>
+#include <hpx/runtime/parcelset/static_parcelports.hpp>
+#include <hpx/runtime/parcelset/policies/message_handler.hpp>
+#include <hpx/runtime/threads/threadmanager.hpp>
+#include <hpx/runtime/threads/thread_helpers.hpp>
 #include <hpx/lcos/local/counting_semaphore.hpp>
-#include <hpx/include/performance_counters.hpp>
+#include <hpx/lcos/local/promise.hpp>
+#include <hpx/performance_counters/counters.hpp>
 #include <hpx/performance_counters/counter_creators.hpp>
+#include <hpx/performance_counters/manage_counter_type.hpp>
 
 #include <hpx/plugins/parcelport_factory_base.hpp>
 
+#include <boost/algorithm/string.hpp>
 #include <boost/asio/error.hpp>
 #include <boost/assign/std/vector.hpp>
-#include <boost/algorithm/string.hpp>
-#include <boost/thread/locks.hpp>
-#include <boost/format.hpp>
-#include <boost/thread/locks.hpp>
 #include <boost/detail/endian.hpp>
+#include <boost/exception_ptr.hpp>
+#include <boost/format.hpp>
 
 #include <algorithm>
+#include <memory>
+#include <mutex>
 #include <sstream>
 #include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx
@@ -95,7 +106,7 @@ namespace hpx { namespace parcelset
     {
         for (plugins::parcelport_factory_base* factory : get_parcelport_factories())
         {
-            boost::shared_ptr<parcelport> pp;
+            std::shared_ptr<parcelport> pp;
             pp.reset(
                 factory->create(
                     cfg
@@ -107,7 +118,7 @@ namespace hpx { namespace parcelset
         }
     }
 
-    boost::shared_ptr<parcelport> parcelhandler::get_bootstrap_parcelport() const
+    std::shared_ptr<parcelport> parcelhandler::get_bootstrap_parcelport() const
     {
         if(!pports_.empty())
         {
@@ -121,7 +132,7 @@ namespace hpx { namespace parcelset
             if(pp.first > 0 && pp.second->can_bootstrap())
                 return pp.second;
         }
-        return boost::shared_ptr<parcelport>();
+        return std::shared_ptr<parcelport>();
     }
 
 
@@ -175,7 +186,7 @@ namespace hpx { namespace parcelset
         strm << '\n';
     }
 
-    void parcelhandler::attach_parcelport(boost::shared_ptr<parcelport> const& pp)
+    void parcelhandler::attach_parcelport(std::shared_ptr<parcelport> const& pp)
     {
         using util::placeholders::_1;
 
@@ -227,19 +238,24 @@ namespace hpx { namespace parcelset
         // flush all parcel buffers
         if(0 == num_thread)
         {
-            boost::unique_lock<mutex_type> l(handlers_mtx_, boost::try_to_lock);
+            std::unique_lock<mutex_type> l(handlers_mtx_, std::try_to_lock);
 
             if(l.owns_lock())
             {
+                using parcelset::policies::message_handler;
+                message_handler::flush_mode mode =
+                    message_handler::flush_mode_background_work;
+
                 message_handler_map::iterator end = handlers_.end();
                 for (message_handler_map::iterator it = handlers_.begin();
                      it != end; ++it)
                 {
                     if ((*it).second)
                     {
-                        boost::shared_ptr<policies::message_handler> p((*it).second);
-                        util::unlock_guard<boost::unique_lock<mutex_type> > ul(l);
-                        did_some_work = p->flush(stop_buffering) || did_some_work;
+                        std::shared_ptr<policies::message_handler> p((*it).second);
+                        util::unlock_guard<std::unique_lock<mutex_type> > ul(l);
+                        did_some_work =
+                            p->flush(mode, stop_buffering) || did_some_work;
                     }
                 }
             }
@@ -268,6 +284,9 @@ namespace hpx { namespace parcelset
                 pp.second->stop(blocking);
             }
         }
+
+        // release all message handlers
+        handlers_.clear();
     }
 
     naming::resolver_client& parcelhandler::get_resolver()
@@ -302,7 +321,7 @@ namespace hpx { namespace parcelset
         return !locality_ids.empty();
     }
 
-    std::pair<boost::shared_ptr<parcelport>, locality>
+    std::pair<std::shared_ptr<parcelport>, locality>
     parcelhandler::find_appropriate_destination(
         naming::gid_type const& dest_gid)
     {
@@ -324,7 +343,7 @@ namespace hpx { namespace parcelset
             "parcelhandler::find_appropriate_destination",
             "The locality gid cannot be resolved to a valid endpoint. "
             "No valid parcelport configured.");
-        return std::pair<boost::shared_ptr<parcelport>, locality>();
+        return std::pair<std::shared_ptr<parcelport>, locality>();
     }
 
     locality parcelhandler::find_endpoint(endpoints_type const & eps,
@@ -338,7 +357,7 @@ namespace hpx { namespace parcelset
     /// Return the reference to an existing io_service
     util::io_service_pool* parcelhandler::get_thread_pool(char const* name)
     {
-        util::io_service_pool* result = 0;
+        util::io_service_pool* result = nullptr;
         for (pports_type::value_type& pp : pports_)
         {
             result = pp.second->get_thread_pool(name);
@@ -349,7 +368,7 @@ namespace hpx { namespace parcelset
 
     namespace detail
     {
-        void parcel_sent_handler(parcelhandler::write_handler_type & f,
+        void parcel_sent_handler(parcelhandler::write_handler_type & f, //-V669
             boost::system::error_code const & ec, parcel const & p)
         {
             // inform termination detection of a sent message
@@ -372,12 +391,14 @@ namespace hpx { namespace parcelset
 
         // During bootstrap this is handled separately (see
         // addressing_service::resolve_locality.
-        if (0 == hpx::threads::get_self_ptr() && !hpx::is_starting())
+
+        // if this isn't an HPX thread, the stack space check will return false
+        if (!this_thread::has_sufficient_stack_space() &&
+            hpx::threads::threadmanager_is(hpx::state::state_running))
         {
-            HPX_ASSERT(resolver_);
-            naming::gid_type locality =
-                naming::get_locality_from_gid(ids[0].get_gid());
-            if (!resolver_->has_resolved_locality(locality))
+//             naming::gid_type locality =
+//                 naming::get_locality_from_gid(ids[0].get_gid());
+//             if (!resolver_->has_resolved_locality(locality))
             {
                 // reschedule request as an HPX thread to avoid hangs
                 void (parcelhandler::*put_parcel_ptr) (
@@ -385,11 +406,11 @@ namespace hpx { namespace parcelset
                     ) = &parcelhandler::put_parcel;
 
                 threads::register_thread_nullary(
-                    util::bind(
-                        util::one_shot(put_parcel_ptr), this,
+                    util::deferred_call(put_parcel_ptr, this,
                         std::move(p), std::move(f)),
                     "parcelhandler::put_parcel", threads::pending, true,
-                    threads::thread_priority_boost);
+                    threads::thread_priority_boost, std::size_t(-1),
+                    threads::thread_stacksize_medium);
                 return;
             }
         }
@@ -437,7 +458,7 @@ namespace hpx { namespace parcelset
         {
             // dispatch to the message handler which is associated with the
             // encapsulated action
-            typedef std::pair<boost::shared_ptr<parcelport>, locality> destination_pair;
+            typedef std::pair<std::shared_ptr<parcelport>, locality> destination_pair;
             destination_pair dest = find_appropriate_destination(addrs[0].locality_);
 
             if (load_message_handlers_ && !hpx::is_stopped_or_shutting_down())
@@ -475,13 +496,13 @@ namespace hpx { namespace parcelset
             return;
         }
 
-        if (0 == hpx::threads::get_self_ptr())
+        // if this isn't an HPX thread, the stack space check will return false
+        if (!this_thread::has_sufficient_stack_space() &&
+            hpx::threads::threadmanager_is(hpx::state::state_running))
         {
-            HPX_ASSERT(!hpx::is_starting());
-
-            naming::gid_type locality = naming::get_locality_from_gid(
-                (*parcels[0].destinations()).get_gid());
-            if (!resolver_->has_resolved_locality(locality))
+//             naming::gid_type locality = naming::get_locality_from_gid(
+//                 (*parcels[0].destinations()).get_gid());
+//             if (!resolver_->has_resolved_locality(locality))
             {
                 // reschedule request as an HPX thread to avoid hangs
                 void (parcelhandler::*put_parcels_ptr) (
@@ -489,11 +510,11 @@ namespace hpx { namespace parcelset
                     ) = &parcelhandler::put_parcels;
 
                 threads::register_thread_nullary(
-                    util::bind(
-                        util::one_shot(put_parcels_ptr), this,
+                    util::deferred_call(put_parcels_ptr, this,
                         std::move(parcels), std::move(handlers)),
                     "parcelhandler::put_parcels", threads::pending, true,
-                    threads::thread_priority_boost);
+                    threads::thread_priority_boost, std::size_t(-1),
+                    threads::thread_stacksize_medium);
                 return;
             }
         }
@@ -507,7 +528,7 @@ namespace hpx { namespace parcelset
         std::vector<write_handler_type> resolved_handlers;
         resolved_handlers.reserve(num_parcels);
 
-        typedef std::pair<boost::shared_ptr<parcelport>, locality>
+        typedef std::pair<std::shared_ptr<parcelport>, locality>
             destination_pair;
 
         destination_pair resolved_dest;
@@ -653,15 +674,15 @@ namespace hpx { namespace parcelset
         std::size_t num_messages, std::size_t interval,
         locality const& loc, error_code& ec)
     {
-        boost::unique_lock<mutex_type> l(handlers_mtx_);
+        std::unique_lock<mutex_type> l(handlers_mtx_);
         handler_key_type key(loc, action);
         message_handler_map::iterator it = handlers_.find(key);
 
         if (it == handlers_.end()) {
-            boost::shared_ptr<policies::message_handler> p;
+            std::shared_ptr<policies::message_handler> p;
 
             {
-                util::unlock_guard<boost::unique_lock<mutex_type> > ul(l);
+                util::unlock_guard<std::unique_lock<mutex_type> > ul(l);
                 p.reset(hpx::create_message_handler(message_handler_type,
                     action, find_parcelport(loc.type()), num_messages, interval, ec));
             }
@@ -691,9 +712,9 @@ namespace hpx { namespace parcelset
                     HPX_THROWS_IF(ec, internal_server_error,
                         "parcelhandler::get_message_handler",
                         "could not store empty message handler");
-                    return 0;
+                    return nullptr;
                 }
-                return 0;           // no message handler available
+                return nullptr;           // no message handler available
             }
 
             std::pair<message_handler_map::iterator, bool> r =
@@ -704,7 +725,7 @@ namespace hpx { namespace parcelset
                 HPX_THROWS_IF(ec, internal_server_error,
                     "parcelhandler::get_message_handler",
                     "could not store newly created message handler");
-                return 0;
+                return nullptr;
             }
             it = r.first;
         }
@@ -720,7 +741,7 @@ namespace hpx { namespace parcelset
                     "parcelhandler::get_message_handler",
                     "couldn't find an appropriate message handler");
             }
-            return 0;           // no message handler available
+            return nullptr;           // no message handler available
         }
 
         if (&ec != &throws)

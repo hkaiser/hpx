@@ -9,12 +9,14 @@
 #define HPX_UTIL_DETAIL_UNIQUE_FUNCTION_TEMPLATE_HPP
 
 #include <hpx/config.hpp>
-#include <hpx/traits/is_callable.hpp>
 #include <hpx/traits/get_function_address.hpp>
+#include <hpx/traits/is_callable.hpp>
 #include <hpx/util/detail/basic_function.hpp>
 #include <hpx/util/detail/vtable/callable_vtable.hpp>
 #include <hpx/util/detail/vtable/vtable.hpp>
+#include <hpx/util_fwd.hpp>
 
+#include <cstddef>
 #include <type_traits>
 #include <utility>
 
@@ -58,7 +60,7 @@ namespace hpx { namespace util { namespace detail
 namespace hpx { namespace util
 {
     ///////////////////////////////////////////////////////////////////////////
-    template <typename Sig, bool Serializable = true>
+    template <typename Sig, bool Serializable>
     class unique_function;
 
     template <typename R, typename ...Ts, bool Serializable>
@@ -71,12 +73,16 @@ namespace hpx { namespace util
         typedef detail::unique_function_vtable_ptr<R(Ts...)> vtable_ptr;
         typedef detail::basic_function<vtable_ptr, R(Ts...), Serializable> base_type;
 
-        HPX_MOVABLE_BUT_NOT_COPYABLE(unique_function)
+        HPX_MOVABLE_ONLY(unique_function);
 
     public:
         typedef typename base_type::result_type result_type;
 
         unique_function() HPX_NOEXCEPT
+          : base_type()
+        {}
+
+        unique_function(std::nullptr_t) HPX_NOEXCEPT
           : base_type()
         {}
 
@@ -128,12 +134,7 @@ namespace hpx { namespace util
     }
 
     ///////////////////////////////////////////////////////////////////////////
-#   ifdef HPX_HAVE_CXX11_ALIAS_TEMPLATES
-
-    template <typename Sig>
-    using unique_function_nonser = unique_function<Sig, false>;
-
-#   else
+#   ifndef HPX_HAVE_CXX11_ALIAS_TEMPLATES
 
     template <typename T>
     class unique_function_nonser;
@@ -144,10 +145,14 @@ namespace hpx { namespace util
     {
         typedef unique_function<R(Ts...), false> base_type;
 
-        HPX_MOVABLE_BUT_NOT_COPYABLE(unique_function_nonser);
+        HPX_MOVABLE_ONLY(unique_function_nonser);
 
     public:
         unique_function_nonser() HPX_NOEXCEPT
+          : base_type()
+        {}
+
+        unique_function_nonser(std::nullptr_t) HPX_NOEXCEPT
           : base_type()
         {}
 

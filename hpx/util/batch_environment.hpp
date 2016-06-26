@@ -9,12 +9,12 @@
 #include <hpx/config.hpp>
 #include <hpx/config/asio.hpp>
 #include <hpx/util/spinlock.hpp>
-#include <hpx/util/runtime_configuration.hpp>
+#include <hpx/util_fwd.hpp>
 
 #include <boost/asio/ip/tcp.hpp>
 
-#include <map>
 #include <cstdlib>
+#include <map>
 #include <string>
 #include <vector>
 

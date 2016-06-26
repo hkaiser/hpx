@@ -10,6 +10,8 @@
 #include <hpx/lcos/wait_all.hpp>
 
 #include <boost/foreach.hpp>
+
+#include <vector>
 #include <time.h>
 
 #include "random_mem_access/random_mem_access.hpp"
@@ -37,7 +39,7 @@ int hpx_main(boost::program_options::variables_map& vm)
           accu[i].init(i);
         }
 
-        srand( time(NULL) );
+        srand( time(nullptr) );
 
         std::vector<hpx::lcos::future<void> > barrier;
         for (std::size_t i=0;i<iterations;i++) {

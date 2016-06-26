@@ -16,26 +16,14 @@
 
 #include <iostream>
 #include <iterator>
-#include <vector>
 #include <utility>
+#include <vector>
 
 template <typename T>
 struct print_obj
 {
 public:
-    typedef void result_type;
-
-    template <typename F>
-    struct result;
-
-    template <typename F, typename A1>
-    struct result<F(A1)>
-    {
-        typedef void type;
-    };
-
-    typename result<print_obj(T)>::type
-        operator()(T const& input) const
+    void operator()(T const& input) const
     {
         std::cout << input << std::endl;
     }

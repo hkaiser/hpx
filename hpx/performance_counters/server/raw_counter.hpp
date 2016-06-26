@@ -6,9 +6,9 @@
 #if !defined(HPX_PERFORMANCE_COUNTERS_SERVER_RAW_COUNTER_MAR_03_2009_0743M)
 #define HPX_PERFORMANCE_COUNTERS_SERVER_RAW_COUNTER_MAR_03_2009_0743M
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/runtime/components/server/component_base.hpp>
+#include <hpx/config.hpp>
 #include <hpx/performance_counters/server/base_performance_counter.hpp>
+#include <hpx/runtime/components/server/component_base.hpp>
 #include <hpx/util/function.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -24,7 +24,10 @@ namespace hpx { namespace performance_counters { namespace server
         typedef raw_counter type_holder;
         typedef base_performance_counter base_type_holder;
 
-        raw_counter() {}
+        raw_counter()
+          : reset_(false)
+        {}
+
         raw_counter(counter_info const& info,
             hpx::util::function_nonser<boost::int64_t(bool)> f);
 

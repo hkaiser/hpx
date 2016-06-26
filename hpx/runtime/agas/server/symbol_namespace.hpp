@@ -9,24 +9,26 @@
 #if !defined(HPX_D69CE952_C5D9_4545_B83E_BA3DCFD812EB)
 #define HPX_D69CE952_C5D9_4545_B83E_BA3DCFD812EB
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
+#include <hpx/lcos/local/mutex.hpp>
+#include <hpx/runtime/agas/namespace_action_code.hpp>
 #include <hpx/runtime/agas/request.hpp>
 #include <hpx/runtime/agas/response.hpp>
-#include <hpx/runtime/agas/namespace_action_code.hpp>
 #include <hpx/runtime/components/component_type.hpp>
 #include <hpx/runtime/components/server/fixed_component_base.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
-#include <hpx/util/insert_checked.hpp>
-#include <hpx/util/logging.hpp>
 #include <hpx/util/function.hpp>
 #include <hpx/util/high_resolution_clock.hpp>
-#include <hpx/lcos/local/mutex.hpp>
+#include <hpx/util/insert_checked.hpp>
+#include <hpx/util/logging.hpp>
 
 #include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include <boost/format.hpp>
-#include <boost/shared_ptr.hpp>
 #include <boost/atomic.hpp>
+#include <boost/format.hpp>
 
 namespace hpx { namespace agas
 {
@@ -52,7 +54,7 @@ struct HPX_EXPORT symbol_namespace
         void(std::string const&, naming::gid_type const&)
     > iterate_names_function_type;
 
-    typedef std::map<std::string, boost::shared_ptr<naming::gid_type> >
+    typedef std::map<std::string, std::shared_ptr<naming::gid_type> >
         gid_table_type;
 
     typedef std::multimap<
@@ -69,8 +71,12 @@ struct HPX_EXPORT symbol_namespace
     struct update_time_on_exit;
 
     // data structure holding all counters for the omponent_namespace component
-    struct counter_data :  boost::noncopyable
+    struct counter_data
     {
+    private:
+        HPX_NON_COPYABLE(counter_data);
+
+    public:
         typedef lcos::local::spinlock mutex_type;
 
         struct api_counter_data
@@ -240,6 +246,12 @@ struct HPX_EXPORT symbol_namespace
 };
 
 }}}
+
+HPX_ACTION_USES_MEDIUM_STACK(
+    hpx::agas::server::symbol_namespace::service_action)
+
+HPX_ACTION_USES_MEDIUM_STACK(
+    hpx::agas::server::symbol_namespace::bulk_service_action)
 
 HPX_REGISTER_ACTION_DECLARATION(
     hpx::agas::server::symbol_namespace::bulk_service_action,

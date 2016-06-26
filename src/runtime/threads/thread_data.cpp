@@ -1,16 +1,25 @@
-//  Copyright (c) 2007-2013 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //  Copyright (c) 2008-2009 Chirag Dekate, Anshul Tandon
 //  Copyright (c) 2011      Bryce Lelbach
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/exception.hpp>
-#include <hpx/runtime/components/component_type.hpp>
-#include <hpx/runtime/threads/threadmanager.hpp>
 #include <hpx/runtime/threads/thread_data.hpp>
+
+#include <hpx/error_code.hpp>
+#include <hpx/exception.hpp>
+#include <hpx/throw_exception.hpp>
+#include <hpx/runtime/naming/address.hpp>
 #include <hpx/util/assert.hpp>
+#include <hpx/util/function.hpp>
+#include <hpx/util/register_locks.hpp>
+#include <hpx/util/unlock_guard.hpp>
+
+#include <boost/exception_ptr.hpp>
+
+#include <cstddef>
+#include <cstdint>
 
 // #if HPX_DEBUG
 // #  define HPX_DEBUG_THREAD_POOL 1
@@ -57,11 +66,12 @@ namespace hpx { namespace threads
         ran_exit_funcs_ = true;
     }
 
-    bool thread_data::add_thread_exit_callback(util
-        ::function_nonser<void()> const& f)
+    bool thread_data::add_thread_exit_callback(
+        util::function_nonser<void()> const& f)
     {
         mutex_type::scoped_lock l(this);
-        if (ran_exit_funcs_ || get_state() == terminated)
+
+        if (ran_exit_funcs_ || get_state().state() == terminated)
         {
             return false;
         }
@@ -110,7 +120,7 @@ namespace hpx { namespace threads
         thread_self* p = get_self_ptr();
         if (HPX_UNLIKELY(!p)) {
             HPX_THROW_EXCEPTION(null_thread_id, "threads::get_self",
-                "NULL thread id encountered (is this executed on a HPX-thread?)");
+                "null thread id encountered (is this executed on a HPX-thread?)");
         }
         return *p;
     }
@@ -141,8 +151,8 @@ namespace hpx { namespace threads
         if (HPX_UNLIKELY(!p))
         {
             HPX_THROWS_IF(ec, null_thread_id, "threads::get_self_ptr_checked",
-                "NULL thread id encountered (is this executed on a HPX-thread?)");
-            return 0;
+                "null thread id encountered (is this executed on a HPX-thread?)");
+            return nullptr;
         }
 
         if (&ec != &throws)
@@ -154,7 +164,7 @@ namespace hpx { namespace threads
     thread_id_type get_self_id()
     {
         thread_self* self = get_self_ptr();
-        if (0 == self)
+        if (nullptr == self)
             return threads::invalid_thread_id;
 
         return thread_id_type(
@@ -181,7 +191,7 @@ namespace hpx { namespace threads
     thread_id_repr_type get_parent_id()
     {
         thread_self* self = get_self_ptr();
-        if (0 == self)
+        if (nullptr == self)
             return threads::invalid_thread_id_repr;
         return get_self_id()->get_parent_thread_id();
     }
@@ -189,7 +199,7 @@ namespace hpx { namespace threads
     std::size_t get_parent_phase()
     {
         thread_self* self = get_self_ptr();
-        if (0 == self)
+        if (nullptr == self)
             return 0;
         return get_self_id()->get_parent_thread_phase();
     }
@@ -197,7 +207,7 @@ namespace hpx { namespace threads
     boost::uint32_t get_parent_locality_id()
     {
         thread_self* self = get_self_ptr();
-        if (0 == self)
+        if (nullptr == self)
             return naming::invalid_locality_id;
         return get_self_id()->get_parent_locality_id();
     }
@@ -209,7 +219,7 @@ namespace hpx { namespace threads
         return 0;
 #else
         thread_self* self = get_self_ptr();
-        if (0 == self)
+        if (nullptr == self)
             return 0;
         return get_self_id()->get_component_id();
 #endif

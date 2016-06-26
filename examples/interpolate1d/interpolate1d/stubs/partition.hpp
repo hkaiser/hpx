@@ -6,9 +6,11 @@
 #if !defined(HPX_PARTITION_AUG_04_2011_0255PM)
 #define HPX_PARTITION_AUG_04_2011_0255PM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/lcos/future.hpp>
 #include <hpx/runtime/components/stubs/stub_base.hpp>
+
+#include <string>
 
 #include "../server/partition.hpp"
 

@@ -9,8 +9,7 @@
 #define HPX_VERSION_AUG_18_2011_0854PM
 
 #include <hpx/config.hpp>
-#include <hpx/config/export_definitions.hpp>
-#include <hpx/config/version.hpp>
+#include <hpx/util_fwd.hpp>
 
 #include <boost/cstdint.hpp>
 
@@ -74,11 +73,6 @@ namespace hpx
     HPX_EXPORT std::string configuration_string();
 
     // Return the HPX runtime configuration information
-    namespace util
-    {
-        struct command_line_handling;
-    }
-
     HPX_EXPORT std::string runtime_configuration_string(
         util::command_line_handling const& cfg);
 }

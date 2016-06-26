@@ -3,15 +3,16 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/hpx.hpp>
 #include <hpx/runtime/components/component_factory.hpp>
 
 #include <hpx/util/assert.hpp>
 
 #include <cmath>
+#include <cstring>
 #include <memory>
-
-#include <boost/move/move.hpp>
+#include <string>
+#include <vector>
 
 #include "partition3d.hpp"
 #include "../read_values.hpp"
@@ -266,7 +267,7 @@ namespace sheneos { namespace server
             HPX_THROW_EXCEPTION(hpx::bad_parameter,
                 "partition3d::interpolate_one",
                 "requested to interpolate more than one physical value: " +
-                boost::lexical_cast<std::string>(eosvalue));
+                std::to_string(eosvalue));
         }
 
         // Calculate all required values.
@@ -321,7 +322,7 @@ namespace sheneos { namespace server
 
         HPX_THROW_EXCEPTION(hpx::bad_parameter, "partition3d::interpolate_one",
             "requested to interpolate unknown physical value: " +
-            boost::lexical_cast<std::string>(eosvalue));
+            std::to_string(eosvalue));
 
         return 0;
     }

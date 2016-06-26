@@ -4,8 +4,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
-
+#include <hpx/config.hpp>
 #include <hpx/runtime/naming/name.hpp>
 #include <hpx/runtime/naming/address.hpp>
 #include <hpx/runtime/naming/resolver_client.hpp>
@@ -20,7 +19,7 @@ namespace hpx { namespace applier
         error_code& ec)
     {
         applier* appl = get_applier_ptr();
-        if (0 == appl) {
+        if (nullptr == appl) {
             HPX_THROWS_IF(ec, invalid_status, "applier::bind_gid_local",
                 "applier is not valid");
             return false;
@@ -32,7 +31,7 @@ namespace hpx { namespace applier
     {
         if (gid_) {
             applier* appl = get_applier_ptr();
-            if (0 == appl) {
+            if (nullptr == appl) {
                 HPX_THROWS_IF(ec, invalid_status, "applier::unbind_gid_local",
                     "applier is not valid");
             }
@@ -50,7 +49,7 @@ namespace hpx { namespace applier
         naming::address const& addr, std::size_t offset, error_code& ec)
     {
         applier* appl = get_applier_ptr();
-        if (0 == appl) {
+        if (nullptr == appl) {
             HPX_THROWS_IF(ec, invalid_status, "applier::bind_range_local",
                 "applier is not valid");
             return false;
@@ -62,7 +61,7 @@ namespace hpx { namespace applier
         error_code& ec)
     {
         applier* appl = get_applier_ptr();
-        if (0 == appl) {
+        if (nullptr == appl) {
             HPX_THROWS_IF(ec, invalid_status, "applier::unbind_range_local",
                 "applier is not valid");
         }

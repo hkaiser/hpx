@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2014 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //  Copyright (c)      2011 Bryce Lelbach
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -7,16 +7,15 @@
 #if !defined(HPX_APPLIER_APPLY_HELPER_JUN_25_2008_0917PM)
 #define HPX_APPLIER_APPLY_HELPER_JUN_25_2008_0917PM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/exception.hpp>
-#include <hpx/runtime/naming/address.hpp>
-#include <hpx/runtime/applier/applier.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/actions/continuation.hpp>
+#include <hpx/runtime/applier/applier.hpp>
+#include <hpx/runtime/naming/address.hpp>
 #include <hpx/runtime/threads/thread_helpers.hpp>
+#include <hpx/traits/action_priority.hpp>
 #include <hpx/traits/action_schedule_thread.hpp>
 #include <hpx/traits/action_stacksize.hpp>
-
-#include <boost/mpl/bool.hpp>
+#include <hpx/util/decay.hpp>
 
 #include <memory>
 
@@ -35,11 +34,11 @@ namespace hpx { namespace applier { namespace detail
 
     ///////////////////////////////////////////////////////////////////////
     template <typename Action,
-        typename DirectExecute = typename Action::direct_execution>
+        bool DirectExecute = Action::direct_execution::value>
     struct apply_helper;
 
     template <typename Action>
-    struct apply_helper<Action, boost::mpl::false_>
+    struct apply_helper<Action, /*DirectExecute=*/false>
     {
         template <typename ...Ts>
         static void
@@ -48,10 +47,10 @@ namespace hpx { namespace applier { namespace detail
         {
             std::unique_ptr<actions::continuation> cont;
             threads::thread_init_data data;
-            if (traits::action_decorate_continuation<Action>::call(cont))
+            if (traits::action_decorate_continuation<Action>::call(cont)) //-V614
             {
-                data.func = Action::construct_thread_function(std::move(cont), lva,
-                    std::forward<Ts>(vs)...);
+                data.func = Action::construct_thread_function(std::move(cont),
+                    lva, std::forward<Ts>(vs)...);
             }
             else
             {
@@ -89,9 +88,9 @@ namespace hpx { namespace applier { namespace detail
 
         template <typename ...Ts>
         static void
-        call (std::unique_ptr<actions::continuation> cont, naming::id_type const& target,
-            naming::address::address_type lva, threads::thread_priority priority,
-            Ts&&... vs)
+        call (std::unique_ptr<actions::continuation> cont,
+            naming::id_type const& target, naming::address::address_type lva,
+            threads::thread_priority priority, Ts&&... vs)
         {
             // first decorate the continuation
             traits::action_decorate_continuation<Action>::call(cont);
@@ -117,43 +116,63 @@ namespace hpx { namespace applier { namespace detail
         }
     };
 
+    ///////////////////////////////////////////////////////////////////////////
     template <typename Action>
-    struct apply_helper<Action, boost::mpl::true_>
+    struct apply_helper<Action, /*DirectExecute=*/true>
     {
         // If local and to be directly executed, just call the function
         template <typename ...Ts>
-        static void
+        HPX_FORCEINLINE static void
         call (naming::id_type const& target, naming::address::address_type lva,
-            threads::thread_priority, Ts&&... vs)
+            threads::thread_priority priority, Ts &&... vs)
         {
-            Action::execute_function(lva, std::forward<Ts>(vs)...);
+            if (this_thread::has_sufficient_stack_space())
+            {
+                Action::execute_function(lva, std::forward<Ts>(vs)...);
+            }
+            else
+            {
+                apply_helper<Action, false>::call(target, lva, priority,
+                    std::forward<Ts>(vs)...);
+            }
         }
 
         template <typename Continuation, typename ...Ts>
-        static void
+        HPX_FORCEINLINE static void
         call (Continuation && c, naming::id_type const& target,
-            naming::address::address_type lva, threads::thread_priority priority,
-            Ts&&... vs)
+            naming::address::address_type lva,
+            threads::thread_priority priority, Ts &&... vs)
         {
             std::unique_ptr<actions::continuation> cont(
                 new typename util::decay<Continuation>::type(
                     std::forward<Continuation>(c)));
-            call(std::move(cont), target, lva, priority, std::forward<Ts>(vs)...);
+
+            call(std::move(cont), target, lva, priority,
+                std::forward<Ts>(vs)...);
         }
 
         template <typename ...Ts>
-        static void
-        call (std::unique_ptr<actions::continuation> cont, naming::id_type const& target,
-            naming::address::address_type lva, threads::thread_priority,
-            Ts&&... vs)
+        HPX_FORCEINLINE static void
+        call (std::unique_ptr<actions::continuation> cont,
+            naming::id_type const& target, naming::address::address_type lva,
+            threads::thread_priority priority, Ts &&... vs)
         {
-            try {
-                cont->trigger(Action::execute_function(lva,
-                    std::forward<Ts>(vs)...));
+            if (this_thread::has_sufficient_stack_space())
+            {
+                try {
+                    cont->trigger(Action::execute_function(lva,
+                        std::forward<Ts>(vs)...));
+                }
+                catch (...) {
+                    // make sure hpx::exceptions are propagated back to the
+                    // client
+                    cont->trigger_error(boost::current_exception());
+                }
             }
-            catch (hpx::exception const& /*e*/) {
-                // make sure hpx::exceptions are propagated back to the client
-                cont->trigger_error(boost::current_exception());
+            else
+            {
+                apply_helper<Action, false>::call(std::move(cont), target,
+                    lva, priority, std::forward<Ts>(vs)...);
             }
         }
     };

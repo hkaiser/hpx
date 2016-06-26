@@ -6,7 +6,7 @@
 #if !defined(HPX_TRAITS_IS_TIMED_EXECUTOR_AUG_05_2015_0840AM)
 #define HPX_TRAITS_IS_TIMED_EXECUTOR_AUG_05_2015_0840AM
 
-#include <hpx/traits.hpp>
+#include <hpx/config.hpp>
 #include <hpx/config/inline_namespace.hpp>
 #include <hpx/parallel/config/inline_namespace.hpp>
 #include <hpx/traits/is_executor.hpp>
@@ -48,7 +48,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v3)
 namespace hpx { namespace traits
 {
     // new executor framework
-    template <typename Executor, typename Enable>
+    template <typename Executor, typename Enable = void>
     struct is_timed_executor
       : parallel::v3::is_timed_executor<Executor>
     {};

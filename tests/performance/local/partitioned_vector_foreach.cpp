@@ -18,6 +18,8 @@
 #include "worker_timed.hpp"
 
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 // Define the vector types to be used.
@@ -52,7 +54,8 @@ boost::uint64_t foreach_vector(Policy && policy, Vector const& v)
     for (int i = 0; i != test_count; ++i)
     {
         hpx::parallel::for_each(
-            policy, boost::begin(v), boost::end(v), wait_op<Vector>()
+            std::forward<Policy>(policy),
+            boost::begin(v), boost::end(v), wait_op<Vector>()
         );
     }
 
@@ -129,7 +132,7 @@ int main(int argc, char* argv[])
     //initialize program
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
     boost::program_options::options_description cmdline(
         "usage: " HPX_APPLICATION_STRING " [options]");
 

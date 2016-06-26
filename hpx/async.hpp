@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2013 Hartmut Kaiser
+//  Copyright (c) 2007-2015 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -6,17 +6,17 @@
 #if !defined(HPX_ASYNC_APR_16_20012_0225PM)
 #define HPX_ASYNC_APR_16_20012_0225PM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/lcos/async.hpp>
 #include <hpx/lcos/async_continue.hpp>
-#include <hpx/lcos/local/packaged_task.hpp>
+#include <hpx/lcos/local/futures_factory.hpp>
+#include <hpx/runtime/launch_policy.hpp>
 #include <hpx/runtime/threads/thread.hpp>
-#include <hpx/util/bind_action.hpp>
-#include <hpx/util/deferred_call.hpp>
 #include <hpx/traits/is_action.hpp>
 #include <hpx/traits/is_executor.hpp>
 #include <hpx/traits/is_launch_policy.hpp>
-#include <hpx/runtime/launch_policy.hpp>
+#include <hpx/util/bind_action.hpp>
+#include <hpx/util/deferred_call.hpp>
 
 #include <boost/type_traits/is_void.hpp>
 #include <boost/utility/enable_if.hpp>
@@ -44,12 +44,12 @@ namespace hpx { namespace detail
     template <typename F>
     HPX_FORCEINLINE
     typename boost::lazy_enable_if<
-        boost::is_reference<typename util::detail::deferred_result_of<F()>::type>
-      , detail::create_future<F()>
+        boost::is_reference<typename util::detail::deferred_result_of<F&&()>::type>
+      , detail::create_future<F&&()>
     >::type
     call_sync(F&& f, boost::mpl::false_)
     {
-        typedef typename util::detail::deferred_result_of<F()>::type result_type;
+        typedef typename util::detail::deferred_result_of<F&&()>::type result_type;
         try
         {
             return lcos::make_ready_future(boost::ref(f()));
@@ -62,7 +62,7 @@ namespace hpx { namespace detail
     template <typename F>
     HPX_FORCEINLINE
     typename boost::lazy_disable_if<
-        boost::is_reference<typename util::detail::deferred_result_of<F()>::type>
+        boost::is_reference<typename util::detail::deferred_result_of<F&&()>::type>
       , detail::create_future<F()>
     >::type
     call_sync(F&& f, boost::mpl::false_) //-V659
@@ -100,14 +100,16 @@ namespace hpx { namespace detail
         template <typename F, typename ...Ts>
         HPX_FORCEINLINE static
         typename boost::enable_if_c<
-            traits::detail::is_deferred_callable<F(Ts&&...)>::value,
-            hpx::future<typename util::detail::deferred_result_of<F(Ts&&...)>::type>
+            traits::detail::is_deferred_callable<F&&(Ts&&...)>::value,
+            hpx::future<
+                typename util::detail::deferred_result_of<F&&(Ts&&...)>::type
+            >
         >::type
-        call(launch launch_policy, F&& f, Ts&&... ts)
+        call(launch launch_policy, F && f, Ts&&... ts)
         {
             typedef typename util::detail::deferred_result_of<
-                F(Ts&&...)
-            >::type result_type;
+                    F(Ts&&...)
+                >::type result_type;
 
             if (launch_policy == launch::sync) {
                 return detail::call_sync(
@@ -137,8 +139,10 @@ namespace hpx { namespace detail
         template <typename F, typename ...Ts>
         HPX_FORCEINLINE static
         typename boost::enable_if_c<
-            traits::detail::is_deferred_callable<F(Ts&&...)>::value,
-            hpx::future<typename util::detail::deferred_result_of<F(Ts&&...)>::type>
+            traits::detail::is_deferred_callable<F&&(Ts&&...)>::value,
+            hpx::future<
+                typename util::detail::deferred_result_of<F&&(Ts&&...)>::type
+            >
         >::type
         call(F&& f, Ts&&... ts)
         {
@@ -157,8 +161,10 @@ namespace hpx { namespace detail
         template <typename F, typename ...Ts>
         HPX_FORCEINLINE static
         typename boost::enable_if_c<
-            traits::detail::is_deferred_callable<F(Ts&&...)>::value,
-            hpx::future<typename util::detail::deferred_result_of<F(Ts&&...)>::type>
+            traits::detail::is_deferred_callable<F&&(Ts&&...)>::value,
+            hpx::future<
+                typename util::detail::deferred_result_of<F&&(Ts&&...)>::type
+            >
         >::type
         call(Executor& sched, F&& f, Ts&&... ts)
         {
@@ -183,13 +189,15 @@ namespace hpx { namespace detail
         template <typename F, typename ...Ts>
         HPX_FORCEINLINE static
         typename boost::enable_if_c<
-            traits::detail::is_deferred_callable<F(Ts&&...)>::value,
-            hpx::future<typename util::detail::deferred_result_of<F(Ts&&...)>::type>
+            traits::detail::is_deferred_callable<F&&(Ts&&...)>::value,
+            hpx::future<
+                typename util::detail::deferred_result_of<F&&(Ts&&...)>::type
+            >
         >::type
         call(Executor& exec, F&& f, Ts&&... ts)
         {
-            return parallel::executor_traits<Executor>::async_execute(exec,
-                util::deferred_call(std::forward<F>(f), std::forward<Ts>(ts)...));
+            return parallel::executor_traits<Executor>::async_execute(
+                exec, std::forward<F>(f), std::forward<Ts>(ts)...);
         }
     };
 
@@ -221,8 +229,9 @@ namespace hpx
             std::forward<F>(f), std::forward<Ts>(ts)...
         ))
     {
-        return detail::async_dispatch<typename util::decay<F>::type>::call(
-            std::forward<F>(f), std::forward<Ts>(ts)...);
+        return detail::async_dispatch<
+                typename util::decay<F>::type
+            >::call(std::forward<F>(f), std::forward<Ts>(ts)...);
     }
 }
 

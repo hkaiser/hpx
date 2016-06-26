@@ -3,12 +3,16 @@
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 
 #if defined(HPX_WINDOWS)
 
 #include <hpx/exception.hpp>
 #include <boost/format.hpp>
+
+#include <cstring>
+#include <string>
+
 #include <psapi.h>
 
 namespace hpx { namespace performance_counters { namespace memory
@@ -30,9 +34,9 @@ namespace hpx { namespace performance_counters { namespace memory
             if (!FormatMessage(
                 FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
                 FORMAT_MESSAGE_IGNORE_INSERTS,
-                NULL, hr,
+                nullptr, hr,
                 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
-                (LPTSTR) &buffer, 0, NULL))
+                (LPTSTR) &buffer, 0, nullptr))
             {
                 HPX_THROW_EXCEPTION(kernel_error,
                     "hpx::performance_counters::memory::read_psm_virtual",
@@ -68,9 +72,9 @@ namespace hpx { namespace performance_counters { namespace memory
             if (!FormatMessage(
                 FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
                 FORMAT_MESSAGE_IGNORE_INSERTS,
-                NULL, hr,
+                nullptr, hr,
                 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
-                (LPTSTR) &buffer, 0, NULL))
+                (LPTSTR) &buffer, 0, nullptr))
             {
                 HPX_THROW_EXCEPTION(kernel_error,
                     "hpx::performance_counters::memory::read_psm_resident",

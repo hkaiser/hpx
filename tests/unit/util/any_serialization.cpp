@@ -7,9 +7,10 @@
 
 #include <hpx/config.hpp>
 
-#include <cstddef> // NULL
+#include <cstddef>
 #include <cstdio> // remove
 #include <fstream>
+#include <vector>
 
 #include <boost/config.hpp>
 #if defined(BOOST_NO_STDC_NAMESPACE)

@@ -15,7 +15,11 @@
 #include <boost/format.hpp>
 #include <boost/range/functions.hpp>
 
+#include <memory>
+#include <numeric>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 int delay = 1000;
@@ -61,8 +65,8 @@ void measure_parallel_foreach(std::size_t size)
 
 hpx::future<void> measure_task_foreach(std::size_t size)
 {
-    boost::shared_ptr<std::vector<std::size_t> > data_representation(
-        boost::make_shared<std::vector<std::size_t> >(size));
+    std::shared_ptr<std::vector<std::size_t> > data_representation(
+        std::make_shared<std::vector<std::size_t> >(size));
     std::iota(boost::begin(*data_representation),
         boost::end(*data_representation),
         std::rand());
@@ -201,7 +205,7 @@ int main(int argc, char* argv[])
     //initialize program
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
     boost::program_options::options_description cmdline(
         "usage: " HPX_APPLICATION_STRING " [options]");
 

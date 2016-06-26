@@ -32,18 +32,20 @@
 #include "worker_timed.hpp"
 
 #include <hpx/util/assert.hpp>
+#include <hpx/util/bind.hpp>
 #include <hpx/util/high_resolution_timer.hpp>
 
-#include <stdexcept>
 #include <iostream>
+#include <numeric>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #include <qthread/qthread.h>
 
 #include <boost/atomic.hpp>
-#include <boost/bind.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/program_options.hpp>
 #include <boost/random.hpp>
 #include <boost/ref.hpp>
@@ -137,7 +139,7 @@ int qthreads_main(
         ///////////////////////////////////////////////////////////////////////
         // Initialize the PRNG seed.
         if (!seed)
-            seed = boost::uint64_t(std::time(0));
+            seed = boost::uint64_t(std::time(nullptr));
 
         ///////////////////////////////////////////////////////////////////////
         // Validate command-line arguments.
@@ -214,10 +216,9 @@ int qthreads_main(
         }
 
         // Randomly shuffle the entire sequence to deal with drift.
-        boost::function<boost::uint64_t(boost::uint64_t)> shuffler_f =
-            boost::bind(&shuffler, boost::ref(prng), _1);
-        std::random_shuffle(payloads.begin(), payloads.end()
-                          , shuffler_f);
+        using hpx::util::placeholders::_1;
+        std::random_shuffle(payloads.begin(), payloads.end(),
+            hpx::util::bind(&shuffler, boost::ref(prng), _1));
 
         ///////////////////////////////////////////////////////////////////////
         // Validate the payloads.
@@ -238,7 +239,7 @@ int qthreads_main(
         for (boost::uint64_t i = 0; i < tasks; ++i)
         {
             void* const ptr = reinterpret_cast<void*>(payloads[i]);
-            qthread_fork(&worker_func, ptr, NULL);
+            qthread_fork(&worker_func, ptr, nullptr);
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -320,9 +321,9 @@ int main(
         header = false;
 
     // Set qthreads environment variables.
-    std::string const shepherds = boost::lexical_cast<std::string>
+    std::string const shepherds = std::to_string
         (vm["shepherds"].as<boost::uint64_t>());
-    std::string const workers = boost::lexical_cast<std::string>
+    std::string const workers = std::to_string
         (vm["workers-per-shepherd"].as<boost::uint64_t>());
 
     setenv("QT_NUM_SHEPHERDS", shepherds.c_str(), 1);

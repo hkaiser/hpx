@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/runtime/threads/executors/thread_pool_os_executors.hpp>
 
 #if defined(HPX_HAVE_LOCAL_SCHEDULER)
 #include <hpx/runtime/threads/policies/local_queue_scheduler.hpp>
@@ -15,12 +15,20 @@
 #if defined(HPX_HAVE_STATIC_PRIORITY_SCHEDULER)
 #include <hpx/runtime/threads/policies/static_priority_queue_scheduler.hpp>
 #endif
-#include <hpx/runtime/threads/executors/thread_pool_os_executors.hpp>
-#include <hpx/util/assert.hpp>
+#include <hpx/runtime/threads/thread_enums.hpp>
 #include <hpx/util/bind.hpp>
-#include <hpx/util/safe_lexical_cast.hpp>
+#include <hpx/util/date_time_chrono.hpp>
+#include <hpx/util/thread_description.hpp>
+#include <hpx/util/unique_function.hpp>
 
-#include <boost/thread/locks.hpp>
+#include <boost/atomic.hpp>
+#include <boost/chrono/chrono.hpp>
+
+#include <cstddef>
+#include <cstdint>
+#include <mutex>
+#include <string>
+#include <utility>
 
 namespace hpx
 {
@@ -36,7 +44,7 @@ namespace hpx { namespace threads { namespace executors { namespace detail
     {
         std::string name = Scheduler::get_scheduler_name();
         name += "#";
-        name += hpx::util::safe_lexical_cast<std::string>(++os_executor_count_);
+        name += std::to_string(++os_executor_count_);
         return name;
     }
 
@@ -64,7 +72,7 @@ namespace hpx { namespace threads { namespace executors { namespace detail
             return;
         }
 
-        boost::unique_lock<mutex_type> lk(mtx_);
+        std::unique_lock<mutex_type> lk(mtx_);
 
         // initialize the affinity configuration for this scheduler
         threads::policies::init_affinity_data data("pu", affinity_desc);
@@ -88,7 +96,7 @@ namespace hpx { namespace threads { namespace executors { namespace detail
 
         // inform the scheduler to stop the core
         {
-            boost::unique_lock<mutex_type> lk(mtx_);
+            std::unique_lock<mutex_type> lk(mtx_);
             pool_.stop(lk, true);
         }
 
@@ -211,13 +219,13 @@ namespace hpx { namespace threads { namespace executors { namespace detail
 
     // Return an estimate of the number of waiting tasks.
     template <typename Scheduler>
-    boost::uint64_t thread_pool_os_executor<Scheduler>::num_pending_closures(
+    std::uint64_t thread_pool_os_executor<Scheduler>::num_pending_closures(
         error_code& ec) const
     {
         if (&ec != &throws)
             ec = make_success_code();
 
-        boost::lock_guard<mutex_type> lk(mtx_);
+        std::lock_guard<mutex_type> lk(mtx_);
         return pool_.get_thread_count(unknown, thread_priority_default,
             std::size_t(-1), false);
     }

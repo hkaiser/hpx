@@ -6,7 +6,8 @@
 #include <hpx/config.hpp>
 #include <hpx/apply.hpp>
 
-#include <boost/thread/locks.hpp>
+#include <functional>
+#include <mutex>
 
 #include "widget.hpp"
 
@@ -17,7 +18,7 @@
 #include <QtGui/QPushButton>
 #include <QtGui/QListWidget>
 
-widget::widget(boost::function<void(widget *, std::size_t)> callback, QWidget *parent)
+widget::widget(std::function<void(widget *, std::size_t)> callback, QWidget *parent)
     : QDialog(parent)
     , no_threads(50)
     , callback_(callback)
@@ -48,7 +49,7 @@ widget::widget(boost::function<void(widget *, std::size_t)> callback, QWidget *p
 
 void widget::add_label(std::size_t i, double t)
 {
-    boost::lock_guard<hpx::lcos::local::spinlock> l(mutex);
+    std::lock_guard<hpx::lcos::local::spinlock> l(mutex);
     QString txt("Thread ");
     txt.append(QString::number(i))
        .append(" finished in ")

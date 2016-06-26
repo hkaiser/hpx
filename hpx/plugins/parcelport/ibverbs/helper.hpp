@@ -6,21 +6,25 @@
 #if !defined(HPX_PARCELSET_POLICIES_IBVERBS_HELPER_HPP)
 #define HPX_PARCELSET_POLICIES_IBVERBS_HELPER_HPP
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
+
 #if defined(HPX_HAVE_PARCELPORT_IBVERBS)
 
-#include <boost/cache/entries/lru_entry.hpp>
-#include <boost/cache/local_cache.hpp>
+#include <hpx/util/cache/entries/lru_entry.hpp>
+#include <hpx/util/cache/local_cache.hpp>
+
+#include <cstring>
+#include <memory>
 
 #include <netdb.h>
 #include <rdma/rdma_cma.h>
 
+#include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <poll.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
 
 namespace hpx { namespace parcelset { namespace policies { namespace ibverbs {
     template <typename Connection>
@@ -35,7 +39,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs {
             return false;
         }
 
-        rdma_cm_event * event = NULL;
+        rdma_cm_event * event = nullptr;
 
         if(rdma_get_cm_event(event_channel, &event) == 0)
         {
@@ -103,7 +107,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs {
                 boost::system::error_code err(verrno, boost::system::system_category());
                 HPX_IBVERBS_THROWS(err);
             }
-            mr_ = boost::shared_ptr<ibv_mr>(mr, deleter);
+            mr_ = std::shared_ptr<ibv_mr>(mr, deleter);
         }
 
         void reset()
@@ -111,7 +115,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs {
             mr_.reset();
         }
 
-        boost::shared_ptr<ibv_mr> mr_;
+        std::shared_ptr<ibv_mr> mr_;
     };
 
 }}}}

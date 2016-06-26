@@ -8,7 +8,13 @@
 #if !defined(HPX_LCOS_ASYNC_CONTINUE_CALLBACK_MAR_30_2015_1132AM)
 #define HPX_LCOS_ASYNC_CONTINUE_CALLBACK_MAR_30_2015_1132AM
 
+#include <hpx/lcos/async_callback_fwd.hpp>
 #include <hpx/lcos/async_continue.hpp>
+#include <hpx/runtime/applier/apply_callback.hpp>
+#include <hpx/traits/extract_action.hpp>
+#include <hpx/traits/is_distribution_policy.hpp>
+#include <hpx/traits/promise_local_result.hpp>
+#include <hpx/traits/promise_remote_result.hpp>
 
 namespace hpx
 {
@@ -33,17 +39,20 @@ namespace hpx
             result_type;
 
             typedef
-                typename hpx::actions::extract_action<
+                typename hpx::traits::extract_action<
                     Action
-                >::result_type
+                >::remote_result_type
             continuation_result_type;
 
             lcos::promise<result_type, RemoteResult> p;
+            auto f = p.get_future();
+
             apply_cb<Action>(
-                hpx::actions::typed_continuation<continuation_result_type>(
+                hpx::actions::typed_continuation<result_type, continuation_result_type>(
                     p.get_id(), std::forward<Cont>(cont))
               , target, std::forward<Callback>(cb), std::forward<Ts>(vs)...);
-            return p.get_future();
+
+            return f;
         }
     }
 

@@ -8,10 +8,13 @@
 #include <hpx/include/parallel_inner_product.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
-#include "test_utils.hpp"
-
-#include <iostream>
 #include <ctime>
+#include <iostream>
+#include <numeric>
+#include <string>
+#include <vector>
+
+#include "test_utils.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -27,7 +30,7 @@ void test_inner_product(ExPolicy policy, IteratorTag)
 
     std::vector<std::size_t> c = test::random_iota(1007);
     std::vector<std::size_t> d = test::random_iota(1007);
-    std::size_t init = std::rand() % 1007;
+    std::size_t init = std::rand() % 1007; //-V101
 
     std::size_t r = hpx::parallel::inner_product(policy,
         iterator(boost::begin(c)), iterator(boost::end(c)),
@@ -49,7 +52,7 @@ void test_inner_product_async(ExPolicy p, IteratorTag)
 
     std::vector<std::size_t> c = test::random_iota(1007);
     std::vector<std::size_t> d = test::random_iota(1007);
-    std::size_t init = std::rand() % 1007;
+    std::size_t init = std::rand() % 1007; //-V101
 
     hpx::future<std::size_t> fut_r =
         hpx::parallel::inner_product(p, iterator(boost::begin(c)),
@@ -72,12 +75,14 @@ void test_inner_product()
     test_inner_product_async(seq(task), IteratorTag());
     test_inner_product_async(par(task), IteratorTag());
 
+#if defined(HPX_HAVE_GENERIC_EXECUTION_POLICY)
     test_inner_product(execution_policy(seq), IteratorTag());
     test_inner_product(execution_policy(par), IteratorTag());
     test_inner_product(execution_policy(par_vec), IteratorTag());
 
     test_inner_product(execution_policy(seq(task)), IteratorTag());
     test_inner_product(execution_policy(par(task)), IteratorTag());
+#endif
 }
 
 void inner_product_test()
@@ -89,7 +94,7 @@ void inner_product_test()
 ///////////////////////////////////////////////////////////////////////////////
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if (vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 

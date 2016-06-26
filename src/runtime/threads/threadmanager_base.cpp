@@ -1,13 +1,17 @@
-//  Copyright (c) 2007-2013 Hartmut Kaiser
+//  Copyright (c) 2007-2016 Hartmut Kaiser
 //  Copyright (c)      2011 Bryce Lelbach, Katelyn Kufahl
 //  Copyright (c) 2008-2009 Chirag Dekate, Anshul Tandon
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
+#include <hpx/runtime/get_worker_thread_num.hpp>
 #include <hpx/runtime/threads/threadmanager.hpp>
+#include <hpx/runtime/threads/thread_init_data.hpp>
 #include <hpx/runtime/threads/topology.hpp>
+
+#include <cstdint>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace threads
@@ -22,12 +26,12 @@ namespace hpx { namespace threads
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    boost::int64_t get_thread_count(thread_state_enum state)
+    std::int64_t get_thread_count(thread_state_enum state)
     {
         return get_thread_manager().get_thread_count(state);
     }
 
-    boost::int64_t get_thread_count(thread_priority priority,
+    std::int64_t get_thread_count(thread_priority priority,
         thread_state_enum state)
     {
         return get_thread_manager().get_thread_count(state, priority);

@@ -4,14 +4,17 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/include/performance_counters.hpp>
-#include <hpx/include/runtime.hpp>
+#include <hpx/config.hpp>
+#include <hpx/performance_counters/base_performance_counter.hpp>
+#include <hpx/performance_counters/counters.hpp>
+#include <hpx/performance_counters/counter_creators.hpp>
+#include <hpx/performance_counters/manage_counter_type.hpp>
 #include <hpx/performance_counters/registry.hpp>
+#include <hpx/runtime.hpp>
 #include <hpx/runtime/actions/continuation.hpp>
 #include <hpx/runtime/agas/interface.hpp>
-#include <hpx/runtime/components/base_lco_factory.hpp>
 #include <hpx/runtime/components/stubs/runtime_support.hpp>
+#include <hpx/runtime/get_num_localities.hpp>
 #include <hpx/util/function.hpp>
 
 #include <hpx/util/bind.hpp>
@@ -19,7 +22,6 @@
 #include <hpx/lcos/local/packaged_continuation.hpp>
 
 #include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
 
 #define BOOST_SPIRIT_USE_PHOENIX_V3
 #include <boost/spirit/include/qi_char.hpp>
@@ -31,6 +33,9 @@
 #include <boost/spirit/include/qi_auxiliary.hpp>
 #include <boost/spirit/include/qi_directive.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
+
+#include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization support for the performance counter actions
@@ -101,7 +106,7 @@ namespace hpx { namespace performance_counters
                 if (-1 != path.parentinstanceindex_)
                 {
                     result += "#";
-                    result += boost::lexical_cast<std::string>
+                    result += std::to_string
                                 (path.parentinstanceindex_);
                 }
                 if (!path.instancename_.empty())
@@ -112,7 +117,7 @@ namespace hpx { namespace performance_counters
                 if (-1 != path.instanceindex_)
                 {
                     result += "#";
-                    result += boost::lexical_cast<std::string>(path.instanceindex_);
+                    result += std::to_string(path.instanceindex_);
                 }
             }
             result += "}";

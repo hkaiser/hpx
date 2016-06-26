@@ -6,6 +6,9 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
 
+#include <string>
+#include <vector>
+
 #include "foreach_tests.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -54,7 +57,7 @@ void for_each_executors_test()
 ///////////////////////////////////////////////////////////////////////////////
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if (vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 
@@ -80,7 +83,7 @@ int main(int argc, char* argv[])
     // By default this test should run on all available cores
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
 
     // Initialize and run HPX
     HPX_TEST_EQ_MSG(hpx::init(desc_commandline, argc, argv, cfg), 0,

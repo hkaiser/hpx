@@ -6,12 +6,15 @@
 #if !defined(HPX_PARCELSET_POLICIES_IBVERBS_CLIENT_HPP)
 #define HPX_PARCELSET_POLICIES_IBVERBS_CLIENT_HPP
 
-#include <hpx/config/defines.hpp>
+#include <hpx/config.hpp>
+
 #if defined(HPX_HAVE_PARCELPORT_IBVERBS)
 
-#include <hpx/plugins/parcelport/ibverbs/messages.hpp>
 #include <hpx/plugins/parcelport/ibverbs/ibverbs_errors.hpp>
+#include <hpx/plugins/parcelport/ibverbs/messages.hpp>
 #include <hpx/util/spinlock.hpp>
+
+#include <cstring>
 
 namespace hpx { namespace parcelset { namespace policies { namespace ibverbs {
     namespace detail {
@@ -84,7 +87,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs {
                 return;
             }
 
-            struct ibv_recv_wr wr, *bad_wr = NULL;
+            struct ibv_recv_wr wr, *bad_wr = nullptr;
             struct ibv_sge sge;
 
             std::memset(&wr, 0, sizeof(ibv_recv_wr));
@@ -155,7 +158,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs {
                 return;
             }
 
-            ibv_send_wr wr[2], *bad_wr = NULL;
+            ibv_send_wr wr[2], *bad_wr = nullptr;
             ibv_sge sge[2];
 
             std::memset(wr, 0, sizeof(wr));
@@ -208,7 +211,7 @@ namespace hpx { namespace parcelset { namespace policies { namespace ibverbs {
                 return;
             }
 
-            struct ibv_send_wr wr, *bad_wr = NULL;
+            struct ibv_send_wr wr, *bad_wr = nullptr;
             struct ibv_sge sge;
 
             std::memset(&wr, 0, sizeof(ibv_recv_wr));

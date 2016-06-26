@@ -8,21 +8,22 @@
 #define HPX_COMPONENT_REGISTRY_MAR_10_2010_0720PM
 
 #include <hpx/config.hpp>
-#include <hpx/hpx_fwd.hpp>
-
-#include <hpx/runtime/components/unique_component_name.hpp>
-#include <hpx/runtime/components/component_registry_base.hpp>
 #include <hpx/runtime/components/component_factory_base.hpp>
+#include <hpx/runtime/components/component_registry_base.hpp>
+#include <hpx/runtime/components/unique_component_name.hpp>
 #include <hpx/util/detail/count_num_args.hpp>
 #include <hpx/util/find_prefix.hpp>
 
 #include <hpx/traits/component_config_data.hpp>
 
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
 #include <boost/assign/std/vector.hpp>
 #include <boost/preprocessor/cat.hpp>
 #include <boost/preprocessor/stringize.hpp>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/classification.hpp>
+
+#include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace components

@@ -8,15 +8,16 @@
 #if !defined(HPX_LCOS_ASYNC_CONTINUE_JAN_25_2013_0824AM)
 #define HPX_LCOS_ASYNC_CONTINUE_JAN_25_2013_0824AM
 
-#include <hpx/hpx_fwd.hpp>
-#include <hpx/traits.hpp>
-#include <hpx/traits/promise_remote_result.hpp>
-#include <hpx/traits/promise_local_result.hpp>
-#include <hpx/runtime/actions/action_support.hpp>
-#include <hpx/lcos/packaged_action.hpp>
-#include <hpx/lcos/future.hpp>
-#include <hpx/lcos/async_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/lcos/async_continue_fwd.hpp>
+#include <hpx/lcos/async_fwd.hpp>
+#include <hpx/lcos/future.hpp>
+#include <hpx/lcos/packaged_action.hpp>
+#include <hpx/runtime/actions/action_support.hpp>
+#include <hpx/traits/extract_action.hpp>
+#include <hpx/traits/is_distribution_policy.hpp>
+#include <hpx/traits/promise_local_result.hpp>
+#include <hpx/traits/promise_remote_result.hpp>
 
 namespace hpx
 {
@@ -40,17 +41,21 @@ namespace hpx
             result_type;
 
             typedef
-                typename hpx::actions::extract_action<
+                typename hpx::traits::extract_action<
                     Action
-                >::result_type
+                >::remote_result_type
             continuation_result_type;
 
             lcos::promise<result_type, RemoteResult> p;
+            auto f = p.get_future();
+
             apply<Action>(
-                hpx::actions::typed_continuation<continuation_result_type>(
-                    p.get_id(), std::forward<Cont>(cont))
+                hpx::actions::typed_continuation<
+                        result_type, continuation_result_type
+                >(p.get_id(), std::forward<Cont>(cont))
               , target, std::forward<Ts>(vs)...);
-            return p.get_future();
+
+            return f;
         }
     }
 

@@ -15,6 +15,8 @@
 
 #include <cstdlib>
 #include <ctime>
+#include <string>
+#include <vector>
 
 #include "sheneos/interpolator.hpp"
 #include "fname.h"
@@ -356,7 +358,7 @@ int hpx_main(boost::program_options::variables_map& vm)
 
     std::size_t seed = vm["seed"].as<std::size_t>();
     if (!seed)
-        seed = std::size_t(std::time(0));
+        seed = std::size_t(std::time(nullptr));
 
     std::cout << "Seed: " << seed << std::endl;
 

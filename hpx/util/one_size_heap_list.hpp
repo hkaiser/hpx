@@ -4,23 +4,27 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#if !defined(HPX_041EF599_BA27_47ED_B1F0_2691B28966B3)
-#define HPX_041EF599_BA27_47ED_B1F0_2691B28966B3
+#ifndef HPX_UTIL_ONE_SIZE_HEAP_LIST_HPP
+#define HPX_UTIL_ONE_SIZE_HEAP_LIST_HPP
 
 #include <hpx/config.hpp>
-#include <hpx/state.hpp>
-#include <hpx/exception.hpp>
 #include <hpx/lcos/local/spinlock.hpp>
-#include <hpx/runtime/threads/thread_helpers.hpp>
-#include <hpx/util/assert.hpp>
+#include <hpx/runtime/threads/thread_data_fwd.hpp>
+#include <hpx/state.hpp>
+#include <hpx/throw_exception.hpp>
 #include <hpx/util/bind.hpp>
+#if defined(HPX_DEBUG)
+#include <hpx/util/logging.hpp>
+#endif
 #include <hpx/util/one_size_heap_list_base.hpp>
 #include <hpx/util/unlock_guard.hpp>
 
-#include <boost/shared_ptr.hpp>
 #include <boost/format.hpp>
 
+#include <cstddef>
 #include <list>
+#include <memory>
+#include <mutex>
 #include <string>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -35,7 +39,7 @@ namespace hpx { namespace util
         typedef typename heap_type::allocator_type allocator_type;
         typedef typename heap_type::value_type value_type;
 
-        typedef std::list<boost::shared_ptr<heap_type> > list_type;
+        typedef std::list<std::shared_ptr<heap_type> > list_type;
         typedef typename list_type::iterator iterator;
         typedef typename list_type::const_iterator const_iterator;
 
@@ -47,7 +51,7 @@ namespace hpx { namespace util
 
         typedef Mutex mutex_type;
 
-        typedef typename mutex_type::scoped_lock unique_lock_type;
+        typedef std::unique_lock<mutex_type> unique_lock_type;
 
         explicit one_size_heap_list(char const* class_name = "")
             : class_name_(class_name)
@@ -110,7 +114,7 @@ namespace hpx { namespace util
             }
 
             //std::size_t size = 0;
-            value_type* p = NULL;
+            value_type* p = nullptr;
             {
                 if (!heap_list_.empty())
                 {
@@ -171,7 +175,7 @@ namespace hpx { namespace util
                     result = heap->alloc(&p, count);
                 }
 
-                if (HPX_UNLIKELY(!result || NULL == p))
+                if (HPX_UNLIKELY(!result || nullptr == p))
                 {
                     // out of memory
                     HPX_THROW_EXCEPTION(out_of_memory,
@@ -214,7 +218,7 @@ namespace hpx { namespace util
             if (HPX_UNLIKELY(!p))
             {
                 HPX_THROW_EXCEPTION(bad_parameter,
-                    name() + "::add_heap", "encountered NULL heap");
+                    name() + "::add_heap", "encountered nullptr heap");
             }
 
             unique_lock_type ul(mtx_);
@@ -241,7 +245,7 @@ namespace hpx { namespace util
         // need to reschedule if not using boost::mutex
         bool reschedule(void* p, std::size_t count)
         {
-            if (0 == threads::get_self_ptr())
+            if (nullptr == threads::get_self_ptr())
             {
                 hpx::applier::register_work(
                     util::bind(&one_size_heap_list::free, this, p, count),
@@ -255,7 +259,7 @@ namespace hpx { namespace util
         {
             unique_lock_type ul(mtx_);
 
-            if (NULL == p || !threads::threadmanager_is(state_running))
+            if (nullptr == p || !threads::threadmanager_is(state_running))
                 return;
 
             // if this is called from outside a HPX thread we need to
@@ -335,5 +339,4 @@ namespace hpx { namespace util
     };
 }} // namespace hpx::util
 
-#endif // HPX_041EF599_BA27_47ED_B1F0_2691B28966B3
-
+#endif /*HPX_UTIL_ONE_SIZE_HEAP_LIST_HPP*/

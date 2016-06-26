@@ -9,13 +9,13 @@
 #if !defined(HPX_83DB815F_26D5_4525_AC5B_E702FBD886D4)
 #define HPX_83DB815F_26D5_4525_AC5B_E702FBD886D4
 
-#include <hpx/exception.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/components/component_type.hpp>
 #include <hpx/runtime/naming/name.hpp>
-#include <hpx/util/safe_bool.hpp>
+#include <hpx/throw_exception.hpp>
 
-#include <boost/io/ios_state.hpp>
 #include <boost/cstdint.hpp>
+#include <boost/io/ios_state.hpp>
 
 namespace hpx { namespace agas
 {
@@ -139,7 +139,7 @@ struct gva
 
     template<class Archive>
     void save(Archive& ar, const unsigned int version) const
-    { ar << prefix << type << count << lva_ << offset; }
+    { ar << prefix << type << count << lva_ << offset; } //-V128
 
     template<class Archive>
     void load(Archive& ar, const unsigned int version)
@@ -148,7 +148,7 @@ struct gva
             HPX_THROW_EXCEPTION(version_too_new
               , "gva::load"
               , "trying to load GVA with unknown version");
-        ar >> prefix >> type >> count >> lva_ >> offset;
+        ar >> prefix >> type >> count >> lva_ >> offset; //-V128
     }
 
     HPX_SERIALIZATION_SPLIT_MEMBER()

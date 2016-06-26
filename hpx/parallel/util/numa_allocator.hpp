@@ -1,5 +1,5 @@
 //  Copyright (c) 2015 Thomas Heller
-//  Copyright (c) 2015 Hartmut Kaiser
+//  Copyright (c) 2015-2016 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -9,14 +9,17 @@
 
 #include <hpx/config.hpp>
 #include <hpx/lcos/future.hpp>
-#include <hpx/runtime/threads/topology.hpp>
-#include <hpx/parallel/execution_policy.hpp>
+#include <hpx/lcos/wait_all.hpp>
 #include <hpx/parallel/algorithms/for_each.hpp>
+#include <hpx/parallel/execution_policy.hpp>
 #include <hpx/parallel/executors/executor_information_traits.hpp>
 #include <hpx/parallel/executors/static_chunk_size.hpp>
+#include <hpx/runtime/get_worker_thread_num.hpp>
+#include <hpx/runtime/threads/topology.hpp>
 #include <hpx/util/assert.hpp>
 
 #include <cstddef>
+#include <limits>
 #include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -70,7 +73,7 @@ namespace hpx { namespace parallel { namespace util
 
         // memory allocation
         pointer allocate(size_type cnt,
-            typename std::allocator<void>::const_pointer = 0)
+            typename std::allocator<void>::const_pointer = nullptr)
         {
             // allocate memory
             pointer p = reinterpret_cast<pointer>(topo_.allocate(cnt * sizeof(T)));
@@ -82,13 +85,13 @@ namespace hpx { namespace parallel { namespace util
 
             for (std::size_t i = 0; i != executors_.size(); ++i)
             {
-                using namespace hpx::parallel;
-
                 pointer begin = p + i * part_size;
                 pointer end = begin + part_size;
                 first_touch.push_back(
-                    for_each(
-                        par(task).on(executors_[i]).with(static_chunk_size()),
+                    hpx::parallel::for_each(
+                        hpx::parallel::par(hpx::parallel::task)
+                            .on(executors_[i])
+                            .with(hpx::parallel::static_chunk_size()),
                         begin, end,
                         [this, i](T& val)
                         {

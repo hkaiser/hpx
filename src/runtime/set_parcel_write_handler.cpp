@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime.hpp>
 #include <hpx/runtime/parcelset/parcelhandler.hpp>
 #include <hpx/exception.hpp>
@@ -15,7 +15,7 @@ namespace hpx
         parcel_write_handler_type const& f)
     {
         runtime* rt = get_runtime_ptr();
-        if (0 != rt)
+        if (nullptr != rt)
             return rt->get_parcel_handler().set_write_handler(f);
 
         HPX_THROW_EXCEPTION(invalid_status,

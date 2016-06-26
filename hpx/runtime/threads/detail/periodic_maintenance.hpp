@@ -8,18 +8,18 @@
 
 #include <hpx/config.hpp>
 #include <hpx/config/asio.hpp>
+#include <hpx/runtime_fwd.hpp>
 #include <hpx/state.hpp>
-#include <hpx/util/io_service_pool.hpp>
 #include <hpx/util/bind.hpp>
 #include <hpx/util/date_time_chrono.hpp>
-#include <hpx/runtime_fwd.hpp>
+#include <hpx/util/io_service_pool.hpp>
 
-#include <boost/cstdint.hpp>
-#include <boost/mpl/bool.hpp>
-#include <boost/ref.hpp>
 #include <boost/asio/basic_deadline_timer.hpp>
 #include <boost/atomic.hpp>
 #include <boost/chrono/system_clocks.hpp>
+#include <boost/cstdint.hpp>
+#include <boost/mpl/bool.hpp>
+#include <boost/ref.hpp>
 
 namespace hpx { namespace threads { namespace detail
 {
@@ -59,7 +59,7 @@ namespace hpx { namespace threads { namespace detail
                 boost::mpl::true_) =
                 &periodic_maintenance_handler<SchedulingPolicy>;
 
-            t.async_wait(boost::bind(handler, boost::ref(scheduler),
+            t.async_wait(util::bind(handler, boost::ref(scheduler),
                 boost::ref(global_state), boost::mpl::true_()));
         }
     }

@@ -9,13 +9,14 @@
 #define HPX_PARALLEL_EXECUTORS_PARALLEL_EXECUTOR_MAY_13_2015_1057AM
 
 #include <hpx/config.hpp>
-#include <hpx/traits/is_executor.hpp>
+#include <hpx/parallel/config/inline_namespace.hpp>
+#include <hpx/parallel/executors/auto_chunk_size.hpp>
+#include <hpx/parallel/executors/executor_traits.hpp>
 #include <hpx/runtime/launch_policy.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/parallel/config/inline_namespace.hpp>
-#include <hpx/parallel/executors/executor_traits.hpp>
-#include <hpx/parallel/executors/auto_chunk_size.hpp>
 #include <hpx/runtime/threads/thread_executor.hpp>
+#include <hpx/traits/is_executor.hpp>
+#include <hpx/util/deferred_call.hpp>
 
 #include <type_traits>
 #include <utility>
@@ -39,17 +40,18 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v3)
         {}
 
         /// \cond NOINTERNAL
-        template <typename F>
-        static void apply_execute(F && f)
+        template <typename F, typename ... Ts>
+        static void apply_execute(F && f, Ts &&... ts)
         {
-            hpx::apply(std::forward<F>(f));
+            hpx::apply(std::forward<F>(f), std::forward<Ts>(ts)...);
         }
 
-        template <typename F>
-        hpx::future<typename hpx::util::result_of<F()>::type>
-        async_execute(F && f)
+        template <typename F, typename ... Ts>
+        hpx::future<
+            typename hpx::util::detail::deferred_result_of<F(Ts&&...)>::type>
+        async_execute(F && f, Ts &&... ts)
         {
-            return hpx::async(l_, std::forward<F>(f));
+            return hpx::async(l_, std::forward<F>(f), std::forward<Ts>(ts)...);
         }
         /// \endcond
 

@@ -13,10 +13,12 @@
 #include <hpx/include/util.hpp>
 #include <hpx/include/lcos.hpp>
 
-#include <iostream>
-
 #include <boost/cstdint.hpp>
 #include <boost/format.hpp>
+
+#include <iostream>
+#include <memory>
+#include <string>
 
 ///////////////////////////////////////////////////////////////////////////////
 boost::uint64_t threshold = 2;
@@ -64,7 +66,7 @@ struct _fibonacci_frame
     boost::uint64_t rhs_result_;
 };
 
-void _fibonacci(boost::shared_ptr<_fibonacci_frame> const& frame_)
+void _fibonacci(std::shared_ptr<_fibonacci_frame> const& frame_)
 {
     _fibonacci_frame* frame = frame_.get();
     int state = frame->state_;
@@ -139,8 +141,8 @@ L2:
 
 hpx::future<boost::uint64_t> fibonacci(boost::uint64_t n)
 {
-    boost::shared_ptr<_fibonacci_frame> frame =
-        boost::make_shared<_fibonacci_frame>(n);
+    std::shared_ptr<_fibonacci_frame> frame =
+        std::make_shared<_fibonacci_frame>(n);
 
     _fibonacci(frame);
 

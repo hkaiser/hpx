@@ -12,6 +12,8 @@
 #include <boost/range/irange.hpp>
 
 #include <algorithm>
+#include <memory>
+#include <string>
 #include <vector>
 
 #define COL_SHIFT 1000.00           // Constant to shift column index
@@ -31,7 +33,7 @@ struct sub_block
 
     sub_block()
       : size_(0)
-      , data_(0)
+      , data_(nullptr)
       , mode_(reference)
     {}
 
@@ -54,7 +56,7 @@ struct sub_block
       , data_(other.data_)
       , mode_(other.mode_)
     {
-        if(mode_ == owning) { other.data_ = 0; other.size_ = 0; }
+        if(mode_ == owning) { other.data_ = nullptr; other.size_ = 0; }
     }
 
     sub_block & operator=(sub_block && other)
@@ -62,7 +64,7 @@ struct sub_block
         size_ = other.size_;
         data_ = other.data_;
         mode_ = other.mode_;
-        if(mode_ == owning) { other.data_ = 0; other.size_ = 0; }
+        if(mode_ == owning) { other.data_ = nullptr; other.size_ = 0; }
 
         return *this;
     }
@@ -108,7 +110,7 @@ struct sub_block
     double * data_;
     mode mode_;
 
-    HPX_MOVABLE_BUT_NOT_COPYABLE(sub_block);
+    HPX_MOVABLE_ONLY(sub_block);
 };
 
 struct block_component
@@ -246,9 +248,9 @@ int hpx_main(boost::program_options::variables_map& vm)
         for_each(par, boost::begin(range), boost::end(range),
             [&](boost::uint64_t b)
             {
-                boost::shared_ptr<block_component> A_ptr =
+                std::shared_ptr<block_component> A_ptr =
                     hpx::get_ptr<block_component>(A[b].get_id()).get();
-                boost::shared_ptr<block_component> B_ptr =
+                std::shared_ptr<block_component> B_ptr =
                     hpx::get_ptr<block_component>(B[b].get_id()).get();
 
                 for(boost::uint64_t i = 0; i != order; ++i)

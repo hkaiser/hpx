@@ -10,11 +10,13 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
+#include <boost/atomic.hpp>
+
 ///////////////////////////////////////////////////////////////////////////////
 struct moveonly
 {
 private:
-    HPX_MOVABLE_BUT_NOT_COPYABLE(moveonly);
+    HPX_MOVABLE_ONLY(moveonly);
 
 public:
     moveonly() {}

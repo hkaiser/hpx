@@ -11,6 +11,9 @@
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/range/functions.hpp>
 
+#include <string>
+#include <vector>
+
 #include "test_utils.hpp"
 
 // uncomment to see some numbers from scan algorithm validation
@@ -66,7 +69,7 @@ void test_exclusive_scan_validate(ExPolicy p, std::vector<int> &a, std::vector<i
     //
     for (int i=0; i<static_cast<int>(b.size()); ++i) {
         // counting from zero,
-        int value = b[i];
+        int value = b[i]; //-V108
         int expected_value  = INITIAL_VAL + check_n_triangle(i-1);
         if (!HPX_TEST(value == expected_value)) break;
     }
@@ -93,7 +96,7 @@ void test_exclusive_scan_validate(ExPolicy p, std::vector<int> &a, std::vector<i
     //
     for (int i=0; i<static_cast<int>(b.size()); ++i) {
         // counting from 1, use i+1
-        int value = b[i];
+        int value = b[i]; //-V108
         int expected_value  = INITIAL_VAL + check_n_triangle(i);
         if (!HPX_TEST(value == expected_value)) break;
     }
@@ -120,7 +123,7 @@ void test_exclusive_scan_validate(ExPolicy p, std::vector<int> &a, std::vector<i
     //
     for (int i=0; i<static_cast<int>(b.size()); ++i) {
         // counting from zero,
-        int value = b[i];
+        int value = b[i]; //-V108
         int expected_value  = INITIAL_VAL + check_n_const(i, FILL_VALUE);
         if (!HPX_TEST(value == expected_value)) break;
     }
@@ -147,7 +150,7 @@ void exclusive_scan_validate()
 ///////////////////////////////////////////////////////////////////////////////
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    unsigned int seed = (unsigned int)std::time(0);
+    unsigned int seed = (unsigned int)std::time(nullptr);
     if (vm.count("seed"))
         seed = vm["seed"].as<unsigned int>();
 
@@ -173,7 +176,7 @@ int main(int argc, char* argv[])
     // By default this test should run on all available cores
     std::vector<std::string> cfg;
     cfg.push_back("hpx.os_threads=" +
-        boost::lexical_cast<std::string>(hpx::threads::hardware_concurrency()));
+        std::to_string(hpx::threads::hardware_concurrency()));
 
     // Initialize and run HPX
     HPX_TEST_EQ_MSG(hpx::init(desc_commandline, argc, argv, cfg), 0,

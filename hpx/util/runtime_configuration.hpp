@@ -4,8 +4,8 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#if !defined(HPX_UTIL_RUNTIME_CONFIGURATION_OCT_02_2008_0530PM)
-#define HPX_UTIL_RUNTIME_CONFIGURATION_OCT_02_2008_0530PM
+#ifndef HPX_UTIL_RUNTIME_CONFIGURATION_HPP
+#define HPX_UTIL_RUNTIME_CONFIGURATION_HPP
 
 #include <hpx/config.hpp>
 #include <hpx/runtime/agas_fwd.hpp>
@@ -15,10 +15,12 @@
 #include <hpx/util/plugin/dll.hpp>
 #include <hpx/plugins/plugin_registry_base.hpp>
 
-#include <boost/cstdint.hpp>
-
-#include <vector>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
 #include <string>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace util
@@ -44,7 +46,7 @@ namespace hpx { namespace util
         // any explicit command line options
         void reconfigure(std::vector<std::string> const& ini_defs);
 
-        std::vector<boost::shared_ptr<plugins::plugin_registry_base> >
+        std::vector<std::shared_ptr<plugins::plugin_registry_base> >
             load_modules();
 
         void load_components_static(std::vector<
@@ -56,12 +58,12 @@ namespace hpx { namespace util
         agas::service_mode get_agas_service_mode() const;
 
         // initial number of localities
-        boost::uint32_t get_num_localities() const;
-        void set_num_localities(boost::uint32_t);
+        std::uint32_t get_num_localities() const;
+        void set_num_localities(std::uint32_t);
 
         // sequence number of first usable pu
-        boost::uint32_t get_first_used_core() const;
-        void set_first_used_core(boost::uint32_t);
+        std::uint32_t get_first_used_core() const;
+        void set_first_used_core(std::uint32_t);
 
         // Get the size of the ipc parcelport data buffer cache
         std::size_t get_ipc_data_buffer_cache_size() const;
@@ -122,8 +124,8 @@ namespace hpx { namespace util
         std::string get_endian_out() const;
 
         // Return maximally allowed message sizes
-        boost::uint64_t get_max_inbound_message_size() const;
-        boost::uint64_t get_max_outbound_message_size() const;
+        std::uint64_t get_max_inbound_message_size() const;
+        std::uint64_t get_max_outbound_message_size() const;
 
         std::map<std::string, hpx::util::plugin::dll> & modules()
         {
@@ -150,7 +152,7 @@ namespace hpx { namespace util
         void reconfigure();
 
     private:
-        mutable boost::uint32_t num_localities;
+        mutable std::uint32_t num_localities;
         std::ptrdiff_t small_stacksize;
         std::ptrdiff_t medium_stacksize;
         std::ptrdiff_t large_stacksize;
@@ -164,4 +166,4 @@ namespace hpx { namespace util
     };
 }}
 
-#endif
+#endif /*HPX_UTIL_RUNTIME_CONFIGURATION_HPP*/

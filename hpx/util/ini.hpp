@@ -8,12 +8,16 @@
 #if !defined(HPX_UTIL_SECTION_SEP_17_2008_022PM)
 #define HPX_UTIL_SECTION_SEP_17_2008_022PM
 
-#include <map>
-#include <iostream>
-
+#include <hpx/config.hpp>
 #include <hpx/runtime/serialization/serialization_fwd.hpp>
+#include <hpx/util_fwd.hpp> // this needs to go first
 
 #include <boost/lexical_cast.hpp>
+
+#include <iostream>
+#include <map>
+#include <string>
+#include <vector>
 
 // suppress warnings about dependent classes not being exported from the dll
 #if defined(HPX_MSVC)
@@ -60,11 +64,11 @@ namespace hpx { namespace util
         void line_msg(std::string msg, std::string const& file,
             int lnum = 0, std::string const& line = "");
 
-        section& clone_from(section const& rhs, section* root = 0);
+        section& clone_from(section const& rhs, section* root = nullptr);
 
     public:
         section();
-        explicit section(std::string const& filename, section* root = NULL);
+        explicit section(std::string const& filename, section* root = nullptr);
         section(section const& in);
         ~section() {}
 
@@ -89,7 +93,7 @@ namespace hpx { namespace util
         void dump(int ind = 0, std::ostream& strm = std::cout) const;
 
         void add_section(std::string const& sec_name, section& sec,
-            section* root = NULL);
+            section* root = nullptr);
         bool has_section(std::string const& sec_name) const;
 
         section* get_section (std::string const& sec_name);
