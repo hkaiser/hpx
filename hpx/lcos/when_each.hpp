@@ -215,6 +215,54 @@ namespace hpx { namespace lcos
 
             // Current element is a range (vector) of futures
             template <std::size_t I, typename Iter>
+            void await_range(Iter next, Iter end);
+
+            // Handle result of iterator increment operation
+            template <std::size_t I, typename IncrIter, typename Iter>
+            bool await_increment(IncrIter const& incr, Iter const& next,
+                Iter const& end)
+            {
+                return false;   // return true if waiting
+            }
+
+            template <std::size_t I, typename IncrIter, typename Iter>
+            bool await_increment(future<IncrIter> && incr, Iter next, Iter end)
+            {
+                boost::intrusive_ptr<
+                    lcos::detail::future_data<IncrIter>
+                > incr_future_data = traits::detail::get_shared_state(incr);
+
+                if (!incr_future_data->is_ready())
+                {
+                    incr_future_data->execute_deferred();
+
+                    // execute_deferred might have made the future ready
+                    if (!incr_future_data->is_ready())
+                    {
+                        void (when_each_frame::*f)(Iter, Iter) =
+                            &when_each_frame::await_range<I>;
+
+                        // Attach a continuation to this future which will
+                        // re-evaluate it and continue to the next argument
+                        // (if any).
+                        boost::intrusive_ptr<when_each_frame> this_(this);
+                        incr_future_data->set_on_completed(
+                            util::deferred_call(
+                                f, std::move(this_),
+                                std::move(next), std::move(end)));
+                        return true;
+                    }
+                }
+
+                // handle exceptions
+                if (incr_future_data->has_exception())
+                    this->set_exception(incr.get_exception_ptr());
+
+                return false;   // no waiting is required
+            }
+
+            // Current element is a range (vector) of futures
+            template <std::size_t I, typename Iter>
             void await_range(Iter next, Iter end)
             {
                 typedef typename std::iterator_traits<Iter>::value_type
@@ -225,7 +273,7 @@ namespace hpx { namespace lcos
                 void (when_each_frame::*f)(Iter, Iter) =
                     &when_each_frame::await_range<I>;
 
-                for(/**/; next != end; ++next)
+                while (next != end)
                 {
                     boost::intrusive_ptr<
                         lcos::detail::future_data<future_result_type>
@@ -263,6 +311,11 @@ namespace hpx { namespace lcos
                         do_await<I + 1>(std::true_type());
                         return;
                     }
+
+                    // possibly lazily increment the iterator
+                    auto incr = ++next;
+                    if (await_increment<I + 1>(std::move(incr), next, end))
+                        return;
                 }
 
                 do_await<I + 1>(is_end<I + 1>());

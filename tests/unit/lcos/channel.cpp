@@ -165,8 +165,9 @@ void channel_range(hpx::id_type const& loc)
     queue.set("three");
     queue.close();
 
-    for (auto const& elem : queue)
+    for (auto& elem : queue)
     {
+        elem.get();
         ++received_elements;
     }
 
@@ -183,8 +184,9 @@ void channel_range_void(hpx::id_type const& loc)
     queue.set();
     queue.close();
 
-    for (auto const& elem : queue)
+    for (auto& elem : queue)
     {
+        elem.get();
         ++received_elements;
     }
 

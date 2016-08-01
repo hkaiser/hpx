@@ -24,6 +24,7 @@
 #include <cstdlib>
 #include <iterator>
 #include <mutex>
+#include <type_traits>
 #include <utility>
 
 namespace hpx { namespace lcos { namespace local
@@ -45,7 +46,6 @@ namespace hpx { namespace lcos { namespace local
                 bool blocking = false) = 0;
             virtual bool try_get(std::size_t generation,
                 hpx::future<T>* f = nullptr) = 0;
-            virtual void set(std::size_t generation, T && t) = 0;
             virtual void close() = 0;
 
             long use_count() const { return count_; }
@@ -69,16 +69,29 @@ namespace hpx { namespace lcos { namespace local
                 delete p;
         }
 
+        template <typename T>
+        struct channel_set_base : channel_base<T>
+        {
+            virtual void set(std::size_t generation, T && t) = 0;
+        };
+
+        template <>
+        struct channel_set_base<void> : channel_base<void>
+        {
+            virtual void set(std::size_t generation) = 0;
+        };
+
         ///////////////////////////////////////////////////////////////////////
         template <typename T>
-        class unlimited_channel : public channel_base<T>
+        class unlimited_channel_base : public channel_set_base<T>
         {
+        protected:
             typedef hpx::lcos::local::spinlock mutex_type;
 
-            HPX_NON_COPYABLE(unlimited_channel);
+            HPX_NON_COPYABLE(unlimited_channel_base);
 
         public:
-            unlimited_channel()
+            unlimited_channel_base()
               : closed_(false)
             {}
 
@@ -149,23 +162,6 @@ namespace hpx { namespace lcos { namespace local
                 return true;
             }
 
-            void set(std::size_t generation, T && t)
-            {
-                std::lock_guard<mutex_type> l(mtx_);
-                if(closed_)
-                {
-                    HPX_THROW_EXCEPTION(hpx::invalid_status,
-                        "hpx::lcos::local::channel::set",
-                        "attempting to write to a closed channel");
-                }
-
-                ++set_generation_;
-                if (generation == std::size_t(-1))
-                    generation = set_generation_;
-
-                buffer_.store_received(generation, std::move(t));
-            }
-
             void close()
             {
                 std::unique_lock<mutex_type> l(mtx_);
@@ -195,47 +191,114 @@ namespace hpx { namespace lcos { namespace local
                 buffer_.cancel_waiting(e);
             }
 
-        private:
+        protected:
             mutable mutex_type mtx_;
             receive_buffer<T, no_mutex> buffer_;
             std::size_t get_generation_;
             std::size_t set_generation_;
             bool closed_;
         };
+
+        template <typename T>
+        class unlimited_channel : public unlimited_channel_base<T>
+        {
+            typedef typename unlimited_channel_base<T>::mutex_type mutex_type;
+
+            HPX_NON_COPYABLE(unlimited_channel);
+
+        public:
+            unlimited_channel() {}
+
+            void set(std::size_t generation, T && t)
+            {
+                std::lock_guard<mutex_type> l(this->mtx_);
+                if (this->closed_)
+                {
+                    HPX_THROW_EXCEPTION(hpx::invalid_status,
+                        "hpx::lcos::local::channel::set",
+                        "attempting to write to a closed channel");
+                }
+
+                ++this->set_generation_;
+                if (generation == std::size_t(-1))
+                    generation = this->set_generation_;
+
+                buffer_.store_received(generation, std::move(t));
+            }
+        };
+
+        template <>
+        class unlimited_channel<void> : public unlimited_channel_base<void>
+        {
+            typedef typename unlimited_channel_base<void>::mutex_type mutex_type;
+
+            HPX_NON_COPYABLE(unlimited_channel);
+        public:
+            unlimited_channel() {}
+
+            void set(std::size_t generation)
+            {
+                std::lock_guard<mutex_type> l(this->mtx_);
+                if (this->closed_)
+                {
+                    HPX_THROW_EXCEPTION(hpx::invalid_status,
+                        "hpx::lcos::local::channel::set",
+                        "attempting to write to a closed channel");
+                }
+
+                ++this->set_generation_;
+                if (generation == std::size_t(-1))
+                    generation = this->set_generation_;
+
+                buffer_.store_received(generation);
+            }
+        };
+
+        ///////////////////////////////////////////////////////////////////////
+        template <typename T> class channel;
+        template <typename T> class receive_channel;
+        template <typename T> class send_channel;
+
+        template <typename T>
+        std::pair<future<T>, bool> make_default_data()
+        {
+            return std::make_pair(make_ready_future(T()), false);
+        }
+
+        template <>
+        std::pair<future<void>, bool> make_default_data<void>()
+        {
+            return std::make_pair(make_ready_future(), false);
+        }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    template <typename T = void> class channel;
-    template <typename T = void> class receive_channel;
-    template <typename T = void> class send_channel;
-
-    ///////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////
     template <typename T>
     class channel_iterator
-      : public hpx::util::iterator_facade<
-            channel_iterator<T>, T const, std::input_iterator_tag>
+        : public hpx::util::iterator_facade<
+            channel_iterator<T>, future<T>,
+            std::input_iterator_tag>
     {
         typedef hpx::util::iterator_facade<
-                channel_iterator<T>, T const, std::input_iterator_tag
+                channel_iterator<T>, future<T>,
+                std::input_iterator_tag
             > base_type;
 
     public:
         channel_iterator()
-          : channel_(nullptr), data_(T(), false)
+          : channel_(nullptr), data_(detail::make_default_data<T>())
         {}
 
-        inline explicit channel_iterator(channel<T> const* c);
-        inline explicit channel_iterator(receive_channel<T> const* c);
+        inline explicit channel_iterator(detail::channel<T> const* c);
+        inline explicit channel_iterator(detail::receive_channel<T> const* c);
 
     private:
-        std::pair<T, bool> get_checked() const
+        std::pair<future<T>, bool> get_checked() const
         {
             hpx::future<T> f;
-            if (channel_->try_get(std::size_t(-1), &f))
-            {
-                return std::make_pair(f.get(), true);
-            }
-            return std::make_pair(T(), false);
+            if (!channel_->try_get(std::size_t(-1), &f))
+                return detail::make_default_data<T>();
+            return std::make_pair(std::move(f), true);
         }
 
         friend class hpx::util::iterator_core_access;
@@ -261,374 +324,209 @@ namespace hpx { namespace lcos { namespace local
 
     private:
         boost::intrusive_ptr<detail::channel_base<T> > channel_;
-        std::pair<T, bool> data_;
+        mutable std::pair<future<T>, bool> data_;
     };
 
-    template <>
-    class channel_iterator<void>
-      : public hpx::util::iterator_facade<
-            channel_iterator<void>, util::unused_type const,
-            std::input_iterator_tag>
+    ///////////////////////////////////////////////////////////////////////////
+    namespace detail
     {
-        typedef hpx::util::iterator_facade<
-                channel_iterator<void>, util::unused_type const,
-                std::input_iterator_tag
-            > base_type;
-
-    public:
-        channel_iterator()
-          : channel_(nullptr), data_(false)
-        {}
-
-        inline explicit channel_iterator(channel<void> const* c);
-        inline explicit channel_iterator(receive_channel<void> const* c);
-
-    private:
-        bool get_checked()
+        template <typename T>
+        class channel
         {
-            hpx::future<util::unused_type> f;
-            if (channel_->try_get(std::size_t(-1), &f))
+        public:
+            channel()
+              : channel_(new unlimited_channel<T>())
+            {}
+
+            hpx::future<T>
+            get(std::size_t generation = std::size_t(-1)) const
             {
-                f.get();
-                return true;
+                return channel_->get(generation);
             }
-            return false;
-        }
+            T get_sync(std::size_t generation = std::size_t(-1)) const
+            {
+                return channel_->get(generation, true).get();
+            }
 
-        friend class hpx::util::iterator_core_access;
+            std::pair<future<T>, bool>
+            get_checked(std::size_t generation = std::size_t(-1)) const
+            {
+                hpx::future<T> f;
+                if (!channel_->try_get(generation, &f))
+                    return make_default_data<T>();
+                return std::make_pair(std::move(f), true);
+            }
 
-        bool equal(channel_iterator const& rhs) const
+            template <typename U, typename U2 = T, typename Enable =
+                typename std::enable_if<!std::is_void<U2>::value>::type>
+            void set(U val, std::size_t generation = std::size_t(-1))
+            {
+                channel_->set(generation, std::move(val));
+            }
+
+            template <typename U = T, typename Enable =
+                typename std::enable_if<std::is_void<U>::value>::type>
+            void set(std::size_t generation = std::size_t(-1))
+            {
+                channel_->set(generation);
+            }
+
+            void close()
+            {
+                channel_->close();
+            }
+
+            channel_iterator<T> begin() const
+            {
+                return channel_iterator<T>(this);
+            }
+            channel_iterator<T> end() const
+            {
+                return channel_iterator<T>();
+            }
+
+            channel_iterator<T> rbegin() const
+            {
+                return channel_iterator<T>(this);
+            }
+            channel_iterator<T> rend() const
+            {
+                return channel_iterator<T>();
+            }
+
+        private:
+            friend class channel_iterator<T>;
+            friend class receive_channel<T>;
+            friend class send_channel<T>;
+
+        private:
+            boost::intrusive_ptr<channel_set_base<T> > channel_;
+        };
+
+        ///////////////////////////////////////////////////////////////////////
+        template <typename T>
+        class receive_channel
         {
-            return (channel_ == rhs.channel_ && data_ == rhs.data_) ||
-                (!data_ && rhs.channel_ == nullptr) ||
-                (channel_ == nullptr && !rhs.data_);
-        }
+        public:
+            receive_channel(channel<T> const& c)
+              : channel_(c.channel_)
+            {}
 
-        void increment()
+            hpx::future<T> get(std::size_t generation = std::size_t(-1)) const
+            {
+                return channel_->get(generation);
+            }
+            T get_sync(std::size_t generation = std::size_t(-1)) const
+            {
+                return channel_->get(generation, true).get();
+            }
+
+            std::pair<future<T>, bool>
+            get_checked(std::size_t generation = std::size_t(-1)) const
+            {
+                hpx::future<T> f;
+                if (!channel_->try_get(generation, &f))
+                    return make_default_data<T>();
+                return std::make_pair(std::move(f), true);
+            }
+
+            channel_iterator<T> begin() const
+            {
+                return channel_iterator<T>(this);
+            }
+            channel_iterator<T> end() const
+            {
+                return channel_iterator<T>();
+            }
+
+            channel_iterator<T> rbegin() const
+            {
+                return channel_iterator<T>(this);
+            }
+            channel_iterator<T> rend() const
+            {
+                return channel_iterator<T>();
+            }
+
+        private:
+            friend class channel_iterator<T>;
+
+        private:
+            boost::intrusive_ptr<channel_base<T> > channel_;
+        };
+
+        ///////////////////////////////////////////////////////////////////////////
+        template <typename T>
+        class send_channel
         {
-            if (channel_)
-                data_ = get_checked();
-        }
+        public:
+            send_channel(channel<T> const& c)
+              : channel_(c.channel_)
+            {}
 
-        typename base_type::reference dereference() const
-        {
-            HPX_ASSERT(data_);
-            return util::unused;
-        }
+            template <typename U, typename U2 = T, typename Enable =
+                typename std::enable_if<!std::is_void<U2>::value>::type>
+            void set(U val, std::size_t generation = std::size_t(-1))
+            {
+                channel_->set(generation, std::move(val));
+            }
 
-    private:
-        boost::intrusive_ptr<detail::channel_base<util::unused_type> > channel_;
-        bool data_;
-    };
+            template <typename U = T, typename Enable =
+                typename std::enable_if<std::is_void<U>::value>::type>
+            void set(std::size_t generation = std::size_t(-1))
+            {
+                channel_->set(generation);
+            }
+
+            void close()
+            {
+                channel_->close();
+            }
+
+        private:
+            friend class channel_iterator<T>;
+
+        private:
+            boost::intrusive_ptr<channel_set_base<T> > channel_;
+        };
+    }
 
     ///////////////////////////////////////////////////////////////////////////
     template <typename T>
-    class channel
-    {
-    public:
-        channel()
-          : channel_(new detail::unlimited_channel<T>())
-        {}
+    inline channel_iterator<T>::channel_iterator(detail::channel<T> const* c)
+        : channel_(c ? c->channel_ : nullptr),
+        data_(c ? get_checked() : detail::make_default_data<T>())
+    {}
 
-        hpx::future<T> get(std::size_t generation = std::size_t(-1)) const
-        {
-            return channel_->get(generation);
-        }
-        T get_sync(std::size_t generation = std::size_t(-1)) const
-        {
-            return channel_->get(generation, true).get();
-        }
-
-        std::pair<T, bool>
-        get_checked(std::size_t generation = std::size_t(-1)) const
-        {
-            hpx::future<T> f;
-            if (!channel_->try_get(generation, &f))
-                return std::make_pair(T(), false);
-            return std::make_pair(f.get(), true);
-        }
-
-        void set(T val, std::size_t generation = std::size_t(-1))
-        {
-            channel_->set(generation, std::move(val));
-        }
-
-        void close()
-        {
-            channel_->close();
-        }
-
-        channel_iterator<T> begin() const
-        {
-            return channel_iterator<T>(this);
-        }
-        channel_iterator<T> end() const
-        {
-            return channel_iterator<T>();
-        }
-
-        channel_iterator<T> rbegin() const
-        {
-            return channel_iterator<T>(this);
-        }
-        channel_iterator<T> rend() const
-        {
-            return channel_iterator<T>();
-        }
-
-    private:
-        friend class channel_iterator<T>;
-        friend class receive_channel<T>;
-        friend class send_channel<T>;
-
-    private:
-        boost::intrusive_ptr<detail::channel_base<T> > channel_;
-    };
+    template <typename T>
+    inline channel_iterator<T>::channel_iterator(
+            detail::receive_channel<T> const* c)
+        : channel_(c ? c->channel_ : nullptr),
+        data_(c ? get_checked() : detail::make_default_data<T>())
+    {}
 
     ///////////////////////////////////////////////////////////////////////////
-    template <typename T>
-    class receive_channel
+    template <typename T = void>
+    struct channel : public detail::channel<T>
     {
-    public:
+        channel() {}
+    };
+
+    template <typename T = void>
+    struct receive_channel : public detail::receive_channel<T>
+    {
         receive_channel(channel<T> const& c)
-          : channel_(c.channel_)
+          : detail::receive_channel<T>(c)
         {}
-
-        hpx::future<T> get(std::size_t generation = std::size_t(-1)) const
-        {
-            return channel_->get(generation);
-        }
-        T get_sync(std::size_t generation = std::size_t(-1)) const
-        {
-            return channel_->get(generation, true).get();
-        }
-
-        std::pair<T, bool>
-        get_checked(std::size_t generation = std::size_t(-1)) const
-        {
-            hpx::future<T> f;
-            if (!channel_->try_get(generation, &f))
-                return std::make_pair(T(), false);
-            return std::make_pair(f.get(), true);
-        }
-
-        channel_iterator<T> begin() const
-        {
-            return channel_iterator<T>(this);
-        }
-        channel_iterator<T> end() const
-        {
-            return channel_iterator<T>();
-        }
-
-        channel_iterator<T> rbegin() const
-        {
-            return channel_iterator<T>(this);
-        }
-        channel_iterator<T> rend() const
-        {
-            return channel_iterator<T>();
-        }
-
-    private:
-        friend class channel_iterator<T>;
-
-    private:
-        boost::intrusive_ptr<detail::channel_base<T> > channel_;
     };
 
-    ///////////////////////////////////////////////////////////////////////////
-    template <typename T>
-    class send_channel
+    template <typename T = void>
+    struct send_channel : public detail::send_channel<T>
     {
-    public:
         send_channel(channel<T> const& c)
-          : channel_(c.channel_)
+          : detail::send_channel<T>(c)
         {}
-
-        void set(T val, std::size_t generation = std::size_t(-1))
-        {
-            channel_->set(generation, std::move(val));
-        }
-
-        void close()
-        {
-            channel_->close();
-        }
-
-    private:
-        friend class channel_iterator<T>;
-
-    private:
-        boost::intrusive_ptr<detail::channel_base<T> > channel_;
     };
-
-    ///////////////////////////////////////////////////////////////////////////
-    template <typename T>
-    inline channel_iterator<T>::channel_iterator(channel<T> const* c)
-      : channel_(c ? c->channel_ : nullptr),
-        data_(c ? get_checked() : std::make_pair(T(), false))
-    {}
-
-    template <typename T>
-    inline channel_iterator<T>::channel_iterator(receive_channel<T> const* c)
-      : channel_(c ? c->channel_ : nullptr),
-        data_(c ? get_checked() : std::make_pair(T(), false))
-    {}
-
-    ///////////////////////////////////////////////////////////////////////////
-    template <>
-    class channel<void>
-    {
-    public:
-        channel()
-          : channel_(new detail::unlimited_channel<util::unused_type>())
-        {}
-
-        hpx::future<void> get(std::size_t generation = std::size_t(-1)) const
-        {
-            return channel_->get(generation);
-        }
-        void get_sync(std::size_t generation = std::size_t(-1)) const
-        {
-            channel_->get(generation, true).get();
-        }
-
-        bool get_checked(std::size_t generation = std::size_t(-1)) const
-        {
-            hpx::future<util::unused_type> f;
-            if (!channel_->try_get(generation, &f))
-                return false;
-
-            f.get();
-            return true;
-        }
-
-        void set(std::size_t generation = std::size_t(-1))
-        {
-            channel_->set(generation, hpx::util::unused_type());
-        }
-
-        void close()
-        {
-            channel_->close();
-        }
-
-        channel_iterator<void> begin() const
-        {
-            return channel_iterator<void>(this);
-        }
-        channel_iterator<void> end() const
-        {
-            return channel_iterator<void>();
-        }
-
-        channel_iterator<void> rbegin() const
-        {
-            return channel_iterator<void>(this);
-        }
-        channel_iterator<void> rend() const
-        {
-            return channel_iterator<void>();
-        }
-
-    private:
-        friend class channel_iterator<void>;
-        friend class receive_channel<void>;
-        friend class send_channel<void>;
-
-    private:
-        boost::intrusive_ptr<detail::channel_base<util::unused_type> > channel_;
-    };
-
-    ///////////////////////////////////////////////////////////////////////////
-    template <>
-    class receive_channel<void>
-    {
-    public:
-        receive_channel(channel<void> const& c)
-          : channel_(c.channel_)
-        {}
-
-        hpx::future<void> get(std::size_t generation = std::size_t(-1)) const
-        {
-            return channel_->get(generation);
-        }
-        void get_sync(std::size_t generation = std::size_t(-1)) const
-        {
-            channel_->get(generation, true).get();
-        }
-
-        bool get_checked(std::size_t generation = std::size_t(-1)) const
-        {
-            hpx::future<util::unused_type> f;
-            if (!channel_->try_get(generation, &f))
-                return false;
-
-            f.get();
-            return true;
-        }
-
-        channel_iterator<void> begin() const
-        {
-            return channel_iterator<void>(this);
-        }
-        channel_iterator<void> end() const
-        {
-            return channel_iterator<void>();
-        }
-
-        channel_iterator<void> rbegin() const
-        {
-            return channel_iterator<void>(this);
-        }
-        channel_iterator<void> rend() const
-        {
-            return channel_iterator<void>();
-        }
-
-    private:
-        friend class channel_iterator<void>;
-
-    private:
-        boost::intrusive_ptr<detail::channel_base<util::unused_type> > channel_;
-    };
-
-    ///////////////////////////////////////////////////////////////////////////
-    template <>
-    class send_channel<void>
-    {
-    public:
-        send_channel(channel<void> const& c)
-          : channel_(c.channel_)
-        {}
-
-        void set(std::size_t generation = std::size_t(-1))
-        {
-            channel_->set(generation, util::unused_type());
-        }
-
-        void close()
-        {
-            channel_->close();
-        }
-
-    private:
-        friend class channel_iterator<void>;
-
-    private:
-        boost::intrusive_ptr<detail::channel_base<util::unused_type> > channel_;
-    };
-
-    inline channel_iterator<void>::channel_iterator(channel<void> const* c)
-      : channel_(c ? c->channel_ : nullptr),
-        data_(c ? get_checked() : false)
-    {}
-
-    inline channel_iterator<void>::channel_iterator(receive_channel<void> const* c)
-      : channel_(c ? c->channel_ : nullptr),
-        data_(c ? get_checked() : false)
-    {}
 }}}
 
 #endif

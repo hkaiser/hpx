@@ -145,8 +145,9 @@ void channel_range()
     queue.set("three");
     queue.close();
 
-    for (auto const& elem : queue)
+    for (auto& elem : queue)
     {
+        elem.get();
         ++received_elements;
     }
 
@@ -163,8 +164,9 @@ void channel_range_void()
     queue.set();
     queue.close();
 
-    for (auto const& elem : queue)
+    for (auto& elem : queue)
     {
+        elem.get();
         ++received_elements;
     }
 
