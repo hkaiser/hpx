@@ -399,6 +399,9 @@ namespace hpx { namespace util
             tuple<Ts...>, zip_iterator<Ts...>
         >
     {
+        static_assert(sizeof...(Ts) != 0,
+            "zip_iterator must wrap at least one iterator");
+
         typedef detail::zip_iterator_base<
                 tuple<Ts...>, zip_iterator<Ts...>
             > base_type;
@@ -469,6 +472,9 @@ namespace hpx { namespace util
             tuple<Ts...>, zip_iterator<tuple<Ts...> >
         >
     {
+        static_assert(sizeof...(Ts) != 0,
+            "zip_iterator must wrap at least one iterator");
+
         typedef detail::zip_iterator_base<
                 tuple<Ts...>, zip_iterator<tuple<Ts...> >
             > base_type;
