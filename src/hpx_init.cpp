@@ -920,7 +920,7 @@ namespace hpx
                     boost::mutex, Queuing
                 > local_queue_policy;
 
-            local_queue_policy::init_parameter_type init(
+            typename local_queue_policy::init_parameter_type init(
                 cfg.num_threads_, num_high_priority_queues, 1000,
                 numa_sensitive, "core-local_priority_queue_scheduler");
             threads::policies::init_affinity_data affinity_init(
