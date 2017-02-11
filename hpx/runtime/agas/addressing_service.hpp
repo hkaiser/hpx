@@ -13,7 +13,7 @@
 
 #include <hpx/config.hpp>
 #include <hpx/exception_fwd.hpp>
-#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/lcos/local/mutex.hpp>
 #include <hpx/runtime/runtime_mode.hpp>
 #include <hpx/runtime/agas_fwd.hpp>
 #include <hpx/runtime/agas/gva.hpp>
@@ -69,7 +69,7 @@ public:
         void(std::string const&, components::component_type)
     > iterate_types_function_type;
 
-    typedef hpx::lcos::local::spinlock mutex_type;
+    typedef hpx::lcos::local::mutex mutex_type;
     // }}}
 
     // {{{ gva cache

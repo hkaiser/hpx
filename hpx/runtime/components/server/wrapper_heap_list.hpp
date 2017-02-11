@@ -6,6 +6,8 @@
 #if !defined(HPX_UTIL_WRAPPER_HEAP_LIST_JUN_14_2008_0409PM)
 #define HPX_UTIL_WRAPPER_HEAP_LIST_JUN_14_2008_0409PM
 
+#include <hpx/config.hpp>
+#include <hpx/lcos/local/mutex.hpp>
 #include <hpx/runtime/components/component_type.hpp>
 #include <hpx/runtime/naming/name.hpp>
 #include <hpx/util/generate_unique_ids.hpp>
@@ -17,7 +19,7 @@ namespace hpx { namespace components { namespace detail
 {
     ///////////////////////////////////////////////////////////////////////////
     // list of managed_component heaps
-    template <typename Heap, typename Mutex = lcos::local::spinlock>
+    template <typename Heap, typename Mutex = lcos::local::mutex>
     class wrapper_heap_list
       : public util::one_size_heap_list<Heap, Mutex>
     {

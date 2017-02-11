@@ -8,7 +8,7 @@
 #define HPX_UTIL_ONE_SIZE_HEAP_LIST_HPP
 
 #include <hpx/config.hpp>
-#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/lcos/local/mutex.hpp>
 #include <hpx/runtime/threads/thread_data_fwd.hpp>
 #include <hpx/state.hpp>
 #include <hpx/throw_exception.hpp>
@@ -30,7 +30,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace util
 {
-    template <typename Heap, typename Mutex = lcos::local::spinlock>
+    template <typename Heap, typename Mutex = lcos::local::mutex>
     class one_size_heap_list : public one_size_heap_list_base
     {
     public:

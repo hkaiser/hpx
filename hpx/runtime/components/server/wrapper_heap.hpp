@@ -8,7 +8,7 @@
 #define HPX_UTIL_WRAPPER_HEAP_JUN_12_2008_0904AM
 
 #include <hpx/config.hpp>
-#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/lcos/local/mutex.hpp>
 #include <hpx/runtime/applier/applier.hpp>
 #include <hpx/runtime/applier/bind_naming_wrappers.hpp>
 #include <hpx/runtime/naming/name.hpp>
@@ -63,7 +63,7 @@ namespace hpx { namespace components { namespace detail
 #endif
 
     ///////////////////////////////////////////////////////////////////////////////
-    template<typename T, typename Allocator, typename Mutex = hpx::lcos::local::spinlock>
+    template<typename T, typename Allocator, typename Mutex = hpx::lcos::local::mutex>
     class wrapper_heap
     {
         HPX_NON_COPYABLE(wrapper_heap);
@@ -454,7 +454,7 @@ namespace hpx { namespace components { namespace detail
 
     ///////////////////////////////////////////////////////////////////////////
     // heap using malloc and friends
-    template <typename T, typename Mutex = hpx::lcos::local::spinlock>
+    template <typename T, typename Mutex = hpx::lcos::local::mutex>
     class fixed_wrapper_heap :
         public wrapper_heap<T, one_size_heap_allocators::fixed_mallocator, Mutex>
     {

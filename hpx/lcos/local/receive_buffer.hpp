@@ -9,9 +9,9 @@
 
 #include <hpx/config.hpp>
 #include <hpx/lcos/future.hpp>
+#include <hpx/lcos/local/mutex.hpp>
 #include <hpx/lcos/local/no_mutex.hpp>
 #include <hpx/lcos/local/promise.hpp>
-#include <hpx/lcos/local/spinlock.hpp>
 #include <hpx/throw_exception.hpp>
 #include <hpx/util/assert.hpp>
 
@@ -26,7 +26,7 @@
 namespace hpx { namespace lcos { namespace local
 {
     ///////////////////////////////////////////////////////////////////////////
-    template <typename T, typename Mutex = lcos::local::spinlock>
+    template <typename T, typename Mutex = lcos::local::mutex>
     struct receive_buffer
     {
     protected:
