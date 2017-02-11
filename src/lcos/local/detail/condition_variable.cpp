@@ -8,6 +8,7 @@
 
 #include <hpx/error_code.hpp>
 #include <hpx/throw_exception.hpp>
+#include <hpx/lcos/local/mutex.hpp>
 #include <hpx/lcos/local/no_mutex.hpp>
 #include <hpx/lcos/local/spinlock.hpp>
 #include <hpx/runtime/threads/thread_data_fwd.hpp>
@@ -27,15 +28,17 @@
 namespace hpx { namespace lcos { namespace local { namespace detail
 {
     ///////////////////////////////////////////////////////////////////////////
-    condition_variable::condition_variable()
+    template <typename Mutex>
+    condition_variable_impl<Mutex>::condition_variable_impl()
     {}
 
-    condition_variable::~condition_variable()
+    template <typename Mutex>
+    condition_variable_impl<Mutex>::~condition_variable_impl()
     {
         if (!queue_.empty())
         {
             LERR_(fatal)
-                << "~condition_variable: queue is not empty, "
+                << "~condition_variable_impl<Mutex>: queue is not empty, "
                    "aborting threads";
 
             local::no_mutex no_mtx;
@@ -44,16 +47,18 @@ namespace hpx { namespace lcos { namespace local { namespace detail
         }
     }
 
-    bool condition_variable::empty(
-        std::unique_lock<mutex_type> const& lock) const
+    template <typename Mutex>
+    bool condition_variable_impl<Mutex>::empty(
+        std::unique_lock<Mutex> const& lock) const
     {
         HPX_ASSERT(lock.owns_lock());
 
         return queue_.empty();
     }
 
-    std::size_t condition_variable::size(
-        std::unique_lock<mutex_type> const& lock) const
+    template <typename Mutex>
+    std::size_t condition_variable_impl<Mutex>::size(
+        std::unique_lock<Mutex> const& lock) const
     {
         HPX_ASSERT(lock.owns_lock());
 
@@ -62,8 +67,9 @@ namespace hpx { namespace lcos { namespace local { namespace detail
 
     // Return false if no more threads are waiting (returns true if queue
     // is non-empty).
-    bool condition_variable::notify_one(
-        std::unique_lock<mutex_type> lock, threads::thread_priority priority,
+    template <typename Mutex>
+    bool condition_variable_impl<Mutex>::notify_one(
+        std::unique_lock<Mutex> lock, threads::thread_priority priority,
         error_code& ec)
     {
         HPX_ASSERT(lock.owns_lock());
@@ -81,7 +87,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
                 lock.unlock();
 
                 HPX_THROWS_IF(ec, null_thread_id,
-                    "condition_variable::notify_one",
+                    "condition_variable_impl<Mutex>::notify_one",
                     "null thread id encountered");
                 return false;
             }
@@ -102,8 +108,9 @@ namespace hpx { namespace lcos { namespace local { namespace detail
         return false;
     }
 
-    void condition_variable::notify_all(
-        std::unique_lock<mutex_type> lock, threads::thread_priority priority,
+    template <typename Mutex>
+    void condition_variable_impl<Mutex>::notify_all(
+        std::unique_lock<Mutex> lock, threads::thread_priority priority,
         error_code& ec)
     {
         HPX_ASSERT(lock.owns_lock());
@@ -131,7 +138,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
                     lock.unlock();
 
                     HPX_THROWS_IF(ec, null_thread_id,
-                        "condition_variable::notify_all",
+                        "condition_variable_impl<Mutex>::notify_all",
                         "null thread id encountered");
                     return;
                 }
@@ -165,15 +172,17 @@ namespace hpx { namespace lcos { namespace local { namespace detail
             ec = make_success_code();
     }
 
-    void condition_variable::abort_all(std::unique_lock<mutex_type> lock)
+    template <typename Mutex>
+    void condition_variable_impl<Mutex>::abort_all(std::unique_lock<Mutex> lock)
     {
         HPX_ASSERT(lock.owns_lock());
 
-        abort_all<mutex_type>(std::move(lock));
+        abort_all<Mutex>(std::move(lock));
     }
 
-    threads::thread_state_ex_enum condition_variable::wait(
-        std::unique_lock<mutex_type>& lock,
+    template <typename Mutex>
+    threads::thread_state_ex_enum condition_variable_impl<Mutex>::wait(
+        std::unique_lock<Mutex>& lock,
         char const* description, error_code& ec)
     {
         HPX_ASSERT(threads::get_self_ptr() != nullptr);
@@ -187,7 +196,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
         threads::thread_state_ex_enum reason = threads::wait_unknown;
         {
             // yield this thread
-            util::unlock_guard<std::unique_lock<mutex_type> > ul(lock);
+            util::unlock_guard<std::unique_lock<Mutex> > ul(lock);
             reason = this_thread::suspend(threads::suspended, description, ec);
             if (ec) return threads::wait_unknown;
         }
@@ -196,8 +205,9 @@ namespace hpx { namespace lcos { namespace local { namespace detail
             threads::wait_timeout : reason;
     }
 
-    threads::thread_state_ex_enum condition_variable::wait_until(
-        std::unique_lock<mutex_type>& lock,
+    template <typename Mutex>
+    threads::thread_state_ex_enum condition_variable_impl<Mutex>::wait_until(
+        std::unique_lock<Mutex>& lock,
         util::steady_time_point const& abs_time,
         char const* description, error_code& ec)
     {
@@ -212,7 +222,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
         threads::thread_state_ex_enum reason = threads::wait_unknown;
         {
             // yield this thread
-            util::unlock_guard<std::unique_lock<mutex_type> > ul(lock);
+            util::unlock_guard<std::unique_lock<Mutex> > ul(lock);
             reason = this_thread::suspend(abs_time, description, ec);
             if (ec) return threads::wait_unknown;
         }
@@ -222,7 +232,8 @@ namespace hpx { namespace lcos { namespace local { namespace detail
     }
 
     template <typename Mutex>
-    void condition_variable::abort_all(std::unique_lock<Mutex> lock)
+    template <typename Mutex_>
+    void condition_variable_impl<Mutex>::abort_all(std::unique_lock<Mutex_> lock)
     {
         // new threads might have been added while we were notifying
         while(!queue_.empty())
@@ -245,7 +256,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
                 if (HPX_UNLIKELY(id == threads::invalid_thread_id_repr))
                 {
                     LERR_(fatal)
-                        << "condition_variable::abort_all:"
+                        << "condition_variable_impl<Mutex>::abort_all:"
                         << " null thread id encountered";
                     continue;
                 }
@@ -255,7 +266,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
                     reinterpret_cast<threads::thread_data*>(id));
 
                 LERR_(fatal)
-                        << "condition_variable::abort_all:"
+                        << "condition_variable_impl<Mutex>::abort_all:"
                         << " pending thread: "
                         << get_thread_state_name(
                                 threads::get_thread_state(tid))
@@ -263,7 +274,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
                         << threads::get_thread_description(tid);
 
                 // unlock while notifying thread as this can suspend
-                util::unlock_guard<std::unique_lock<Mutex> > unlock(lock);
+                util::unlock_guard<std::unique_lock<Mutex_> > unlock(lock);
 
                 // forcefully abort thread, do not throw
                 error_code ec(lightweight);
@@ -273,7 +284,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
                 if (ec)
                 {
                     LERR_(fatal)
-                        << "condition_variable::abort_all:"
+                        << "condition_variable_impl<Mutex>::abort_all:"
                         << " could not abort thread: "
                         << get_thread_state_name(
                                 threads::get_thread_state(tid))
@@ -285,8 +296,9 @@ namespace hpx { namespace lcos { namespace local { namespace detail
     }
 
     // re-add the remaining items to the original queue
-    void condition_variable::prepend_entries(
-        std::unique_lock<mutex_type>& lock, queue_type& queue)
+    template <typename Mutex>
+    void condition_variable_impl<Mutex>::prepend_entries(
+        std::unique_lock<Mutex>& lock, queue_type& queue)
     {
         HPX_ASSERT(lock.owns_lock());
 
@@ -294,4 +306,8 @@ namespace hpx { namespace lcos { namespace local { namespace detail
         queue.splice(queue.end(), queue_);
         queue_.swap(queue);
     }
+
+    // explicitly instantiate condition_variable implementations
+    template HPX_EXPORT condition_variable_impl<lcos::local::spinlock>;
+    template HPX_EXPORT condition_variable_impl<lcos::local::mutex>;
 }}}}

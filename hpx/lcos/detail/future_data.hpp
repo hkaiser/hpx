@@ -9,7 +9,7 @@
 #include <hpx/config.hpp>
 #include <hpx/error_code.hpp>
 #include <hpx/lcos/local/detail/condition_variable.hpp>
-#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/lcos/local/mutex.hpp>
 #include <hpx/runtime/get_worker_thread_num.hpp>
 #include <hpx/runtime/launch_policy.hpp>
 #include <hpx/runtime/threads/thread_executor.hpp>
@@ -267,7 +267,7 @@ namespace detail
           : future_data_refcnt_base(no_addref), state_(empty)
         {}
 
-        typedef lcos::local::spinlock mutex_type;
+        typedef lcos::local::mutex mutex_type;
         typedef util::unused_type result_type;
         typedef typename future_data_refcnt_base::init_no_addref init_no_addref;
 
@@ -327,7 +327,6 @@ namespace detail
 
         typedef typename future_data_result<Result>::type result_type;
         typedef util::unique_function_nonser<void()> completed_callback_type;
-        typedef lcos::local::spinlock mutex_type;
         typedef typename future_data<
                 traits::detail::future_data_void
             >::init_no_addref init_no_addref;
@@ -595,9 +594,13 @@ namespace detail
             state_ = value;
 
             // handle all threads waiting for the future to become ready
-            cond_.notify_all(std::move(l), threads::thread_priority_boost, ec);
+            threads::thread_priority priority = threads::thread_priority_boost;
+            while (cond_.notify_one(std::move(l), priority, ec) && !ec)
+            {
+                l = std::unique_lock<mutex_type>(this->mtx_);
+            }
 
-            // Note: cv.notify_all() above 'consumes' the lock 'l' and leaves
+            // Note: cv.notify_one() above 'consumes' the lock 'l' and leaves
             //       it unlocked when returning.
 
             // invoke the callback (continuation) function
@@ -774,7 +777,8 @@ namespace detail
         completed_callback_type on_completed_;
 
     private:
-        local::detail::condition_variable cond_;    // threads waiting in read
+        // threads waiting in read
+        local::detail::condition_variable_impl<mutex_type> cond_;
         typename future_data_storage<Result>::type storage_;
     };
 

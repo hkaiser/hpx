@@ -80,24 +80,99 @@ namespace hpx { namespace lcos { namespace local
             }
 
         private:
+            template <typename Target>
+            void set_data(Target && data)
+            {
+                this->base_type::set_value(std::forward<Target>(data));
+            }
+
+            void set_exception(boost::exception_ptr && data)
+            {
+                this->base_type::set_exception(std::move(data));
+            }
+
             void do_run_impl(/*is_void=*/std::false_type)
             {
-                try {
-                    this->set_value(f_());
+                if (nullptr == threads::get_self_ptr())
+                {
+                    boost::intrusive_ptr<task_object> this_(this);
+
+                    // reschedule as HPX thread
+                    try {
+                        auto && result = f_();
+
+                        threads::register_thread_nullary(
+                            util::deferred_call(
+                                &task_object::set_data<Result>,
+                                std::move(this_), std::move(result)),
+                            util::thread_description(
+                                "task_object::do_run_impl::set_data"),
+                            threads::pending, true,
+                            threads::thread_priority_boost,
+                            get_worker_thread_num());
+                    }
+                    catch(...) {
+                        threads::register_thread_nullary(
+                            util::deferred_call(&task_object::set_exception,
+                                std::move(this_), boost::current_exception()),
+                            util::thread_description(
+                                "task_object::do_run_impl::set_exception"),
+                            threads::pending, false,
+                            threads::thread_priority_default,
+                            get_worker_thread_num());
+                    }
                 }
-                catch(...) {
-                    this->set_exception(boost::current_exception());
+                else
+                {
+                    // set result directly
+                    try {
+                        this->set_value(f_());
+                    }
+                    catch(...) {
+                        this->set_exception(boost::current_exception());
+                    }
                 }
             }
 
             void do_run_impl(/*is_void=*/std::true_type)
             {
-                try {
-                    f_();
-                    this->set_value(result_type());
+                if (nullptr == threads::get_self_ptr())
+                {
+                    boost::intrusive_ptr<task_object> this_(this);
+
+                    try {
+                        f_();
+
+                        threads::register_thread_nullary(
+                            util::deferred_call(
+                                &task_object::set_data<result_type>,
+                                std::move(this_), util::unused_type()),
+                            util::thread_description(
+                                "task_object::do_run_impl::set_data"),
+                            threads::pending, true,
+                            threads::thread_priority_boost,
+                            get_worker_thread_num());
+                    }
+                    catch(...) {
+                        threads::register_thread_nullary(
+                            util::deferred_call(&task_object::set_exception,
+                                std::move(this_), boost::current_exception()),
+                            util::thread_description(
+                                "task_object::do_run_impl::set_exception"),
+                            threads::pending, false,
+                            threads::thread_priority_default,
+                            get_worker_thread_num());
+                    }
                 }
-                catch(...) {
-                    this->set_exception(boost::current_exception());
+                else
+                {
+                    try {
+                        f_();
+                        this->set_value(result_type());
+                    }
+                    catch(...) {
+                        this->set_exception(boost::current_exception());
+                    }
                 }
             }
 

@@ -23,12 +23,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace lcos { namespace local { namespace detail
 {
-    class condition_variable
+    template <typename Mutex>
+    class condition_variable_impl
     {
-        HPX_NON_COPYABLE(condition_variable);
+        HPX_NON_COPYABLE(condition_variable_impl);
 
     private:
-        typedef lcos::local::spinlock mutex_type;
+        typedef Mutex mutex_type;
 
     private:
         // define data structures needed for intrusive slist container used for
@@ -49,7 +50,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
         };
 
         typedef boost::intrusive::member_hook<
-            queue_entry, queue_entry::hook_type,
+            queue_entry, typename queue_entry::hook_type,
             &queue_entry::slist_hook_
         > slist_option_type;
 
@@ -75,13 +76,13 @@ namespace hpx { namespace lcos { namespace local { namespace detail
             }
 
             queue_entry& e_;
-            queue_type::const_iterator last_;
+            typename queue_type::const_iterator last_;
         };
 
     public:
-        HPX_EXPORT condition_variable();
+        HPX_EXPORT condition_variable_impl();
 
-        HPX_EXPORT ~condition_variable();
+        HPX_EXPORT ~condition_variable_impl();
 
         HPX_EXPORT bool empty(
             std::unique_lock<mutex_type> const& lock) const;
@@ -122,7 +123,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
             std::unique_lock<mutex_type>& lock,
             error_code& ec = throws)
         {
-            return wait(lock, "condition_variable::wait", ec);
+            return wait(lock, "condition_variable_impl::wait", ec);
         }
 
         HPX_EXPORT threads::thread_state_ex_enum wait_until(
@@ -136,7 +137,7 @@ namespace hpx { namespace lcos { namespace local { namespace detail
             error_code& ec = throws)
         {
             return wait_until(lock, abs_time,
-                "condition_variable::wait_until", ec);
+                "condition_variable_impl::wait_until", ec);
         }
 
         threads::thread_state_ex_enum wait_for(
@@ -153,12 +154,12 @@ namespace hpx { namespace lcos { namespace local { namespace detail
             error_code& ec = throws)
         {
             return wait_until(lock, rel_time.from_now(),
-                "condition_variable::wait_for", ec);
+                "condition_variable_impl::wait_for", ec);
         }
 
     private:
-        template <typename Mutex>
-        void abort_all(std::unique_lock<Mutex> lock);
+        template <typename Mutex_>
+        void abort_all(std::unique_lock<Mutex_> lock);
 
         // re-add the remaining items to the original queue
         HPX_EXPORT void prepend_entries(
@@ -167,6 +168,8 @@ namespace hpx { namespace lcos { namespace local { namespace detail
     private:
         queue_type queue_;
     };
+
+    typedef condition_variable_impl<lcos::local::spinlock> condition_variable;
 
 }}}}
 
