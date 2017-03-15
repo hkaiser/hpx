@@ -320,5 +320,18 @@ namespace hpx { namespace parcelset
 #endif
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    namespace detail
+    {
+        void* std_zero_copy_allocator::allocate(std::size_t size)
+        {
+            return std::allocator<char>().allocate(size);
+        }
+
+        void std_zero_copy_allocator::deallocate(void* p, std::size_t size)
+        {
+            std::allocator<char>().deallocate(static_cast<char*>(p), size);
+        }
+    }
 }}
 

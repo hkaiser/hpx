@@ -73,12 +73,11 @@ namespace hpx { namespace parcelset
           : public parcelport_impl<connection_handler>
         {
             typedef parcelport_impl<connection_handler> base_type;
-        public:
 
+        public:
             static std::vector<std::string> runtime_configuration()
             {
                 std::vector<std::string> lines;
-
                 return lines;
             }
 
@@ -128,6 +127,15 @@ namespace hpx { namespace parcelset
             typedef std::set<boost::weak_ptr<sender> > write_connections_set;
             write_connections_set write_connections_;
 #endif
+
+        public:
+            serialization::erased_allocator& zero_copy_allocator()
+            {
+                return alloc;
+            }
+
+        private:
+            parcelset::detail::std_zero_copy_allocator alloc;
         };
     }}
 }}

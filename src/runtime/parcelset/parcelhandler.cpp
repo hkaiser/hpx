@@ -788,6 +788,22 @@ namespace hpx { namespace parcelset
         return "<unknown>";
     }
 
+    // Return default parcelport used by this locality
+    std::shared_ptr<parcelport> parcelhandler::get_default_parcelport()
+    {
+        for (pports_type::value_type const& pp : pports_)
+        {
+            if (pp.first > 0)
+            {
+                return pp.second;
+            }
+        }
+
+        HPX_THROW_EXCEPTION(invalid_status,
+            "no default parcelport available",
+            "parcelhandler::get_default_parcelport()");
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     // Performance counter data
 

@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2013 Hartmut Kaiser
+//  Copyright (c) 2007-2017 Hartmut Kaiser
 //  Copyright (c)      2014 Thomas Heller
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -18,6 +18,7 @@
 
 namespace hpx { namespace serialization
 {
+    ///////////////////////////////////////////////////////////////////////////
     struct erased_output_container
     {
         virtual ~erased_output_container() {}
@@ -37,14 +38,35 @@ namespace hpx { namespace serialization
         virtual void flush() = 0;
     };
 
+    ///////////////////////////////////////////////////////////////////////////
+    struct erased_allocator
+    {
+        virtual ~erased_allocator() {}
+
+        virtual void* allocate(std::size_t size) = 0;
+        virtual void deallocate(void* p, std::size_t size) = 0;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
     struct erased_input_container
     {
         virtual ~erased_input_container() {}
 
         virtual bool is_preprocessing() const { return false; }
         virtual void set_filter(binary_filter* filter) = 0;
+
         virtual void load_binary(void * address, std::size_t count) = 0;
         virtual void load_binary_chunk(void * address, std::size_t count) = 0;
+
+        virtual bool load_binary_chunk_direct(void *&, std::size_t)
+        {
+            return false;
+        }
+
+        virtual erased_allocator* zero_copy_allocator() const
+        {
+            return nullptr;
+        }
     };
 }}
 

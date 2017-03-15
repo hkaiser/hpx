@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2013 Hartmut Kaiser
+//  Copyright (c) 2007-2017 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -37,8 +37,7 @@ std::size_t get_archive_size(hpx::parcelset::parcel const& p,
 {
     // gather the required size for the archive
     hpx::serialization::detail::preprocess gather_size;
-    hpx::serialization::output_archive archive(
-        gather_size, flags, chunks);
+    hpx::serialization::output_archive archive(gather_size, flags, chunks);
     archive << p;
     return gather_size.size();
 }
@@ -88,42 +87,45 @@ double benchmark_serialization(std::size_t data_size, std::size_t iterations,
         }
     }
 
-    // create argument for action
-    std::vector<double> data;
-    data.resize(data_size);
-
-    hpx::serialization::serialize_buffer<double> buffer(data.data(), data.size(),
-        hpx::serialization::serialize_buffer<double>::reference);
-
-    // create a parcel with/without continuation
-    hpx::parcelset::parcel outp;
-    hpx::naming::gid_type dest = here.get_gid();
-    if (continuation) {
-        outp = hpx::parcelset::parcel(hpx::parcelset::detail::create_parcel::call(
-            std::true_type(),
-            std::move(dest), std::move(addr),
-            hpx::actions::typed_continuation<int>(here),
-            test_action(), hpx::threads::thread_priority_normal, buffer
-            ));
-    }
-    else {
-        outp = hpx::parcelset::parcel(hpx::parcelset::detail::create_parcel::call(
-            std::false_type(),
-            std::move(dest), std::move(addr),
-            test_action(), hpx::threads::thread_priority_normal, buffer));
-    }
-
-    outp.set_source_id(here);
-
-    std::vector<hpx::serialization::serialization_chunk>* chunks = nullptr;
-    if (zerocopy)
-        chunks = new std::vector<hpx::serialization::serialization_chunk>();
-
-    std::uint32_t dest_locality_id = outp.destination_locality_id();
-    hpx::util::high_resolution_timer t;
+    double elapsed = 0;
 
     for (std::size_t i = 0; i != iterations; ++i)
     {
+        // create argument for action
+        std::vector<double> data;
+        data.resize(data_size);
+
+        hpx::serialization::serialize_buffer<double> buffer(data.data(), data.size(),
+            hpx::serialization::serialize_buffer<double>::reference);
+
+        // create a parcel with/without continuation
+        hpx::parcelset::parcel outp;
+        hpx::naming::gid_type dest = here.get_gid();
+        if (continuation) {
+            outp = hpx::parcelset::detail::create_parcel::call(
+                    std::true_type(),
+                    std::move(dest), std::move(addr),
+                    hpx::actions::typed_continuation<int>(here),
+                    test_action(), hpx::threads::thread_priority_normal, buffer
+                );
+        }
+        else {
+            outp = hpx::parcelset::detail::create_parcel::call(
+                    std::false_type(),
+                    std::move(dest), std::move(addr),
+                    test_action(), hpx::threads::thread_priority_normal, buffer
+                );
+        }
+
+        outp.set_source_id(here);
+
+        std::vector<hpx::serialization::serialization_chunk>* chunks = nullptr;
+        if (zerocopy)
+            chunks = new std::vector<hpx::serialization::serialization_chunk>();
+
+        std::uint32_t dest_locality_id = outp.destination_locality_id();
+        hpx::util::high_resolution_timer t;
+
         std::size_t arg_size = get_archive_size(outp, out_archive_flags, chunks);
         std::vector<char> out_buffer;
 
@@ -140,18 +142,23 @@ double benchmark_serialization(std::size_t data_size, std::size_t iterations,
         hpx::parcelset::parcel inp;
 
         {
-            // create an input archive and deserialize the parcel
+            std::shared_ptr<hpx::parcelset::parcelport> pp =
+                hpx::get_runtime().get_parcel_handler().get_default_parcelport();
+
+            // create an input archive and de-serialize the parcel
             hpx::serialization::input_archive archive(
-                out_buffer, arg_size, chunks);
+                out_buffer, *pp, arg_size, chunks);
 
             archive >> inp;
         }
 
         if (chunks)
             chunks->clear();
+
+        elapsed += t.elapsed();
     }
 
-    return t.elapsed();
+    return elapsed / iterations;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

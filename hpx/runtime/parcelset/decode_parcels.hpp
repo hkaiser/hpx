@@ -76,6 +76,7 @@ namespace hpx { namespace parcelset
                 chunks[index] = serialization::create_index_chunk(first, second);
                 ++index;
             }
+
 #if defined(HPX_DEBUG)
             // make sure that all spots have been populated
             for (std::size_t i = 0;
@@ -97,8 +98,7 @@ namespace hpx { namespace parcelset
       , Buffer buffer
       , std::size_t parcel_count
       , std::vector<serialization::serialization_chunk> &chunks
-      , std::size_t num_thread = -1
-    )
+      , std::size_t num_thread = -1)
     {
         std::uint64_t inbound_data_size = buffer.data_size_;
 
@@ -113,8 +113,9 @@ namespace hpx { namespace parcelset
 
                 {
                     std::vector<parcel> deferred_parcels;
+
                     // De-serialize the parcel data
-                    serialization::input_archive archive(buffer.data_,
+                    serialization::input_archive archive(buffer.data_, pp,
                         inbound_data_size, &chunks);
 
                     if(parcel_count == 0)

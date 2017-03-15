@@ -14,7 +14,8 @@
 #include <string>
 #include <vector>
 
-namespace hpx { namespace parcelset {
+namespace hpx { namespace parcelset
+{
     class parcelport;
 }}
 

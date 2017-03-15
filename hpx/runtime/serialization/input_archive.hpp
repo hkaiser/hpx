@@ -1,5 +1,6 @@
 //  Copyright (c) 2014 Thomas Heller
 //  Copyright (c) 2015 Anton Bikineev
+//  Copyright (c) 2017 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -15,6 +16,7 @@
 #include <hpx/runtime/serialization/detail/raw_ptr.hpp>
 #include <hpx/runtime/serialization/input_container.hpp>
 #include <hpx/traits/is_bitwise_serializable.hpp>
+#include <hpx/util/assert.hpp>
 
 #include <boost/cstdint.hpp>
 
@@ -33,18 +35,8 @@ namespace hpx { namespace serialization
     struct HPX_EXPORT input_archive
       : basic_archive<input_archive>
     {
-        typedef basic_archive<input_archive> base_type;
-
-        typedef
-            std::map<std::uint64_t, detail::ptr_helper_ptr>
-            pointer_tracker;
-
-        template <typename Container>
-        input_archive(Container & buffer,
-            std::size_t inbound_data_size = 0,
-            const std::vector<serialization_chunk>* chunks = nullptr)
-          : base_type(0U)
-          , buffer_(new input_container<Container>(buffer, chunks, inbound_data_size))
+    private:
+        void init()
         {
             // endianness needs to be saves separately as it is needed to
             // properly interpret the flags
@@ -70,6 +62,35 @@ namespace hpx { namespace serialization
                 *this >> detail::raw_ptr(filter);
                 buffer_->set_filter(filter);
             }
+        }
+
+    public:
+        typedef basic_archive<input_archive> base_type;
+
+        typedef
+            std::map<std::uint64_t, detail::ptr_helper_ptr>
+            pointer_tracker;
+
+        template <typename Container>
+        input_archive(Container & buffer,
+                std::size_t inbound_data_size = 0,
+                std::vector<serialization_chunk>* chunks = nullptr)
+          : base_type(0U)
+          , buffer_(new input_container<Container>(
+                buffer, chunks, inbound_data_size))
+        {
+            init();
+        }
+
+        template <typename Container, typename ParcelPort>
+        input_archive(Container & buffer, ParcelPort & pp,
+                std::size_t inbound_data_size = 0,
+                std::vector<serialization_chunk>* chunks = nullptr)
+          : base_type(0U)
+          , buffer_(new zero_copy_input_container<Container, ParcelPort>(
+                buffer, pp, chunks, inbound_data_size))
+        {
+            init();
         }
 
         template <typename T>
@@ -130,10 +151,15 @@ namespace hpx { namespace serialization
             return basic_archive<input_archive>::current_pos();
         }
 
+        erased_allocator* zero_copy_allocator() const
+        {
+            return buffer_->zero_copy_allocator();
+        }
+
     private:
         friend struct basic_archive<input_archive>;
-        template <class T>
-        friend class array;
+        template <class T> friend class array;
+        template <class T> friend class zero_copy_array;
 
         template <typename T>
         void load_bitwise(T & t, std::false_type)
@@ -249,12 +275,24 @@ namespace hpx { namespace serialization
         {
             if (0 == count) return;
 
-            if(disable_data_chunking())
+            if (disable_data_chunking())
                 buffer_->load_binary(address, count);
             else
                 buffer_->load_binary_chunk(address, count);
 
             size_ += count;
+        }
+
+        bool load_binary_chunk_direct(void *& address, std::size_t count)
+        {
+            if (0 == count) return true;
+
+            HPX_ASSERT(!disable_data_chunking());
+            if (!buffer_->load_binary_chunk_direct(address, count))
+                return false;
+
+            size_ += count;
+            return true;
         }
 
         // make functions visible through adl

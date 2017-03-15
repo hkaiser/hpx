@@ -1,4 +1,4 @@
-//  Copyright (c) 2013-2014 Hartmut Kaiser
+//  Copyright (c) 2013-2017 Hartmut Kaiser
 //  Copyright (c) 2015 Andreas Schaefer
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -36,6 +36,16 @@ namespace hpx { namespace serialization
         {
             dealloc.deallocate(p, size);
         }
+
+        static void erased_deleter(T* p, erased_allocator* dealloc, std::size_t size)
+        {
+            dealloc->deallocate(p, size * sizeof(T));
+        }
+
+        // The allocation scheme used relies on not calling any
+        // constructors/destructors on the elements of the allocated arrays
+        static_assert(std::is_arithmetic<T>::value,
+            "std::is_arithmetic<T>::value");
 
     public:
         enum init_mode
@@ -241,8 +251,7 @@ namespace hpx { namespace serialization
         friend class hpx::serialization::access;
 
         ///////////////////////////////////////////////////////////////////////
-        template <typename Archive>
-        void save(Archive& ar, const unsigned int version) const
+        void save(output_archive& ar, const unsigned int version) const
         {
             ar << size_ << alloc_; //-V128
 
@@ -253,19 +262,21 @@ namespace hpx { namespace serialization
         }
 
         ///////////////////////////////////////////////////////////////////////
-        template <typename Archive>
-        void load(Archive& ar, const unsigned int version)
+        void load(input_archive& ar, const unsigned int version)
         {
             using util::placeholders::_1;
             ar >> size_ >> alloc_; //-V128
 
-            data_.reset(alloc_.allocate(size_),
-                util::bind(&serialize_buffer::deleter<allocator_type>, _1,
-                    alloc_, size_));
+            data_.reset();
 
             if (size_ != 0)
             {
-                ar >> hpx::serialization::make_array(data_.get(), size_);
+                hpx::serialization::zero_copy_array<T> data(size_);
+                ar >> data;
+
+                data_.reset(data.address(),
+                    util::bind(&serialize_buffer::erased_deleter, _1,
+                    ar.zero_copy_allocator(), size_));
             }
         }
 

@@ -263,6 +263,9 @@ namespace hpx { namespace parcelset
             return find_parcelport(name)->create_locality();
         }
 
+        /// Return default parcelport used by this locality
+        std::shared_ptr<parcelport> get_default_parcelport();
+
         /// Return the name of this locality as retrieved from the active
         /// parcelport
         std::string get_locality_name() const;

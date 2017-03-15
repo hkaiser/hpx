@@ -238,6 +238,14 @@ namespace hpx { namespace parcelset
                 }
             }
 
+        public:
+            serialization::erased_allocator& zero_copy_allocator()
+            {
+                return alloc;
+            }
+
+        private:
+            parcelset::detail::std_zero_copy_allocator alloc;
         };
     }}
 }}

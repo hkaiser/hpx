@@ -51,6 +51,16 @@ namespace hpx { namespace agas
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace parcelset
 {
+    namespace detail
+    {
+        struct HPX_EXPORT std_zero_copy_allocator
+          : serialization::erased_allocator
+        {
+            void* allocate(std::size_t size);
+            void deallocate(void* p, std::size_t size);
+        };
+    }
+
     /// The parcelport is the lowest possible representation of the parcelset
     /// inside a locality. It provides the minimal functionality to send and
     /// to receive parcels.
@@ -199,6 +209,9 @@ namespace hpx { namespace parcelset
 
         virtual locality agas_locality(util::runtime_configuration const& ini)
             const = 0;
+
+        /// Return allocator which is used for zero-copy chunks
+        virtual serialization::erased_allocator& zero_copy_allocator() = 0;
 
         /// Performance counter data
 

@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2013 Hartmut Kaiser
+//  Copyright (c) 2007-2017 Hartmut Kaiser
 //  Copyright (c)      2014 Thomas Heller
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -23,7 +23,7 @@
 namespace hpx { namespace serialization
 {
     template <typename Container>
-    struct input_container: erased_input_container
+    struct input_container : erased_input_container
     {
     private:
         std::size_t get_chunk_size(std::size_t chunk) const
@@ -36,7 +36,12 @@ namespace hpx { namespace serialization
             return (*chunks_)[chunk].type_;
         }
 
-        chunk_data get_chunk_data(std::size_t chunk) const
+        chunk_data& get_chunk_data(std::size_t chunk)
+        {
+            return (*chunks_)[chunk].data_;
+        }
+
+        chunk_data const& get_chunk_data(std::size_t chunk) const
         {
             return (*chunks_)[chunk].data_;
         }
@@ -54,7 +59,7 @@ namespace hpx { namespace serialization
         {}
 
         input_container(Container const& cont,
-                std::vector<serialization_chunk> const* chunks,
+                std::vector<serialization_chunk>* chunks,
                 std::size_t inbound_data_size)
           : cont_(cont), current_(0), filter_(),
             decompressed_size_(inbound_data_size),
@@ -131,7 +136,8 @@ namespace hpx { namespace serialization
             HPX_ASSERT((std::int64_t)count >= 0);
 
             if (filter_.get() || chunks_ == nullptr ||
-                count < HPX_ZERO_COPY_SERIALIZATION_THRESHOLD) {
+                count < HPX_ZERO_COPY_SERIALIZATION_THRESHOLD)
+            {
                 // fall back to serialization_chunk-less archive
                 this->input_container::load_binary(address, count);
             }
@@ -155,14 +161,62 @@ namespace hpx { namespace serialization
             }
         }
 
+        bool load_binary_chunk_direct(void *& address, std::size_t count) // override
+        {
+            HPX_ASSERT((std::int64_t)count >= 0);
+
+            if (filter_.get() || chunks_ == nullptr ||
+                count < HPX_ZERO_COPY_SERIALIZATION_THRESHOLD)
+            {
+                // fall back to serialization_chunk-less archive
+                return false;
+            }
+
+            HPX_ASSERT(current_chunk_ != std::size_t(-1));
+            HPX_ASSERT(get_chunk_type(current_chunk_) == chunk_type_pointer);
+
+            if (get_chunk_size(current_chunk_) != count)
+            {
+                HPX_THROW_EXCEPTION(serialization_error
+                    , "input_container::load_binary_chunk_direct"
+                    , "archive data bstream data chunk size mismatch");
+                return true;
+            }
+
+            address = get_chunk_data(current_chunk_).pos_;
+            get_chunk_data(current_chunk_).pos_ = nullptr; // avoid double delete
+
+            ++current_chunk_;
+
+            return true;
+        }
+
         Container const& cont_;
         std::size_t current_;
         std::unique_ptr<binary_filter> filter_;
         std::size_t decompressed_size_;
 
-        std::vector<serialization_chunk> const* chunks_;
+        std::vector<serialization_chunk>* chunks_;
         std::size_t current_chunk_;
         std::size_t current_chunk_size_;
+    };
+
+    template <typename Container, typename ParcelPort>
+    struct zero_copy_input_container : input_container<Container>
+    {
+        zero_copy_input_container(Container const& cont, ParcelPort& pp,
+                std::vector<serialization_chunk>* chunks,
+                std::size_t inbound_data_size)
+          : input_container<Container>(cont, chunks, inbound_data_size),
+            pp_(pp)
+        {}
+
+        erased_allocator* zero_copy_allocator() const
+        {
+            return &pp_.zero_copy_allocator();
+        }
+
+        ParcelPort & pp_;
     };
 }}
 
