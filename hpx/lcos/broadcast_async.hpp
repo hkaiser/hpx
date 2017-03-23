@@ -102,7 +102,7 @@ namespace hpx { namespace lcos
 
         ///////////////////////////////////////////////////////////////////////
         template <typename T>
-        hpx::future<void> broadcast_there_invoke(std::string const& name,
+        hpx::future<void> broadcast_send_invoke(std::string const& name,
             std::size_t site, T && t)
         {
             // this should be always executed on the locality responsible for
@@ -124,16 +124,19 @@ namespace hpx { namespace lcos
         }
 
         template <typename T>
-        struct broadcast_there
+        struct broadcast_send
         {
             static hpx::future<void> call(std::string const& name,
                 std::vector<std::size_t> const& sites, T && t)
             {
+                if (sites.empty())
+                    return hpx::make_ready_future();
+
                 // apply actual broadcast operation to set of sites managed
                 // on this locality
                 if (sites.size() == 1)
                 {
-                    return detail::broadcast_there_invoke(
+                    return detail::broadcast_send_invoke(
                         name, sites[0], std::move(t));
                 }
 
@@ -141,17 +144,127 @@ namespace hpx { namespace lcos
                 futures.reserve(sites.size());
                 for(std::size_t i : sites)
                 {
-                    futures.push_back(detail::broadcast_there_invoke(name, i, t));
+                    futures.push_back(detail::broadcast_send_invoke(name, i, t));
                 }
                 return hpx::when_all(futures);
             }
         };
 
         template <typename T>
-        struct make_broadcast_there_action
+        struct broadcast_send_invoke_action
         {
-            typedef typename HPX_MAKE_ACTION(broadcast_there<T>::call)::type type;
+            typedef typename HPX_MAKE_ACTION(broadcast_send<T>::call)::type type;
         };
+
+        ///////////////////////////////////////////////////////////////////////
+        template <typename T>
+        hpx::future<void> broadcast_send(std::string const& name, T && t,
+            std::map<std::uint32_t, std::vector<std::size_t> > const& sites,
+            std::size_t global_idx);
+
+        template <typename T>
+        struct broadcast_tree_send
+        {
+            static hpx::future<void> call(std::string const& name, T && t,
+                std::map<std::uint32_t, std::vector<std::size_t> > const& sites,
+                std::size_t global_idx)
+            {
+                return broadcast_send(name, std::forward<T>(t), sites, global_idx);
+            }
+        };
+
+        template <typename T>
+        struct broadcast_tree_send_invoke_action
+        {
+            typedef typename HPX_MAKE_ACTION(broadcast_tree_send<T>::call)::type type;
+        };
+
+        ///////////////////////////////////////////////////////////////////////
+        std::map<std::uint32_t, std::vector<std::size_t> >
+        get_next_locality_slice(
+            std::map<std::uint32_t, std::vector<std::size_t> >::iterator it,
+            std::size_t slice)
+        {
+            typedef std::map<std::uint32_t, std::vector<std::size_t> > indices_type;
+
+            indices_type next_localities;
+            while (slice-- != 0)
+            {
+                next_localities.insert(std::move(*it));
+                ++it;
+            }
+            return next_localities;
+        }
+
+        template <typename T>
+        hpx::future<void> broadcast_send(std::string const& name, T && t,
+            std::map<std::uint32_t, std::vector<std::size_t> > const& sites,
+            std::size_t global_idx)
+        {
+            typedef typename lcos::detail::broadcast_send_invoke_action<
+                    typename std::decay<T>::type
+                >::type broadcast_send_action;
+
+            std::size size = sites.size();
+            if (size == 1)
+            {
+                return hpx::async(broadcast_send_action(),
+                    hpx::naming::get_id_from_locality_id(
+                        sites.begin()->first),
+                    std::move(name),
+                    std::move(sites.begin()->second),
+                    std::forward<T>(t));
+            }
+
+            std::size_t const local_fanout = HPX_BROADCAST_FANOUT;
+            std::size_t local_size = (std::min)(size, local_fanout);
+            std::size_t fanout = util::calculate_fanout(size, local_fanout);
+
+            std::vector<hpx::future<void> > futures;
+            futures.reserve(local_size + (size / fanout) + 1);
+
+            // the first HPX_BROADCAST_FANOUT targets are handled directly
+            for(std::size_t i = 0; i != local_size; ++i)
+            {
+                futures.push_back(hpx::async(broadcast_send_action(),
+                    hpx::naming::get_id_from_locality_id(sites[i].first),
+                    name, std:move(p.second), t));
+            }
+
+            // the remaining targets are triggered using a tree-style broadcast
+            typedef typename lcos::detail::broadcast_tree_invoke_action<
+                    typename std::decay<T>::type
+                >::type broadcast_tree_action;
+
+            if (local_size > local_fanout)
+            {
+                std::size_t applied = local_fanout;
+                typename indices_type::const_iterator it = sites.begin();
+                std::advance(it, local_fanout);
+
+                while(it != sites.end())
+                {
+                    HPX_ASSERT(size >= applied);
+
+                    std::size_t next_fan = (std::min)(fanout, size - applied);
+                    indices_type next_sites =
+                        detail::get_next_locality_slice(it, next_fan);
+
+                    hpx::id_type id();
+
+                    futures.push_back(hpx::async(broadcast_tree_action(),
+                        hpx::naming::get_id_from_locality_id(next_sites.begin()->first),
+                        std::move(next_sites), global_idx + applied, t)
+                    );
+
+                    applied += next_fan;
+                    it += next_fan;
+                }
+
+            }
+
+            return hpx::when_all(futures);
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -169,42 +282,23 @@ namespace hpx { namespace lcos
 
         // generate mapping of which sites are managed by what symbol namespace
         // instances
-        std::map<std::uint32_t, std::vector<std::size_t> > locality_indices =
+        typedef std::map<std::uint32_t, std::vector<std::size_t> > indices_type;
+        indices_type locality_indices =
             detail::generate_locality_indices(name, num_sites);
 
-        typedef typename lcos::detail::make_broadcast_there_action<
-                typename std::decay<T>::type
-            >::type broadcast_there_action;
-
-        if (locality_indices.size() == 1)
-        {
-            return hpx::async(broadcast_there_action(),
-                hpx::naming::get_id_from_locality_id(
-                    locality_indices.begin()->first
-                ), std::move(name), std::move(locality_indices.begin()->second),
-                std::forward<T>(t));
-        }
-
-        std::vector<hpx::future<void> > futures;
-        futures.resize(locality_indices.size());
-        for (auto& p : locality_indices)
-        {
-            futures.push_back(hpx::async(broadcast_there_action(),
-                hpx::naming::get_id_from_locality_id(p.first), name,
-                std::move(p.second), t));
-        }
-        return hpx::when_all(futures);
+        return detail::broadcast_send(std::move(locality_indices),
+            std::move(name));
     }
 }}
 
 #define HPX_BROADCAST_ASYNC_DECLARATION(Type)                                 \
     HPX_REGISTER_ACTION_DECLARATION(                                          \
-        hpx::lcos::detail::make_broadcast_there_action<Type>::type,           \
+        hpx::lcos::detail::broadcast_send_invoke_action< Type>::type,         \
         BOOST_PP_CAT(broadcast_async_, Type))                                 \
 /**/
 #define HPX_BROADCAST_ASYNC(Type)                                             \
     HPX_REGISTER_ACTION(                                                      \
-        hpx::lcos::detail::make_broadcast_there_action<Type>::type,           \
+        hpx::lcos::detail::broadcast_send_invoke_action< Type>::type,         \
         BOOST_PP_CAT(broadcast_async_, Type))                                 \
 /**/
 
