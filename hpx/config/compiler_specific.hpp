@@ -6,6 +6,8 @@
 #if !defined(HPX_COMPILER_SPECIFIC_201204261048)
 #define HPX_COMPILER_SPECIFIC_201204261048
 
+#include <hpx/config/defines.hpp>
+
 #if defined(__GNUC__)
 
 // macros to facilitate handling of compiler-specific issues
@@ -70,9 +72,10 @@
 
 #if defined(__MINGW32__)
 #   define HPX_WINDOWS
+#   define HPX_MINGW
 #endif
 
-#if (defined(__NVCC__) || defined(__CUDACC__)) && defined(HPX_WITH_CUDA)
+#if (defined(__NVCC__) || defined(__CUDACC__)) && defined(HPX_HAVE_CUDA)
 #define HPX_DEVICE __device__
 #define HPX_HOST __host__
 #define HPX_CONSTANT __constant__

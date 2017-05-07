@@ -4,10 +4,9 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-// hpxinspect:nodeprecatedname:boost::unique_lock
-
 #include <hpx/config.hpp>
 #include <hpx/config/defaults.hpp>
+#include <hpx/compat/mutex.hpp>
 #include <hpx/runtime.hpp>
 #include <hpx/exception.hpp>
 #include <hpx/apply.hpp>
@@ -1036,7 +1035,7 @@ namespace hpx { namespace components { namespace server
     ///////////////////////////////////////////////////////////////////////////
     void runtime_support::run()
     {
-        std::unique_lock<mutex_type> l(mtx_);
+        std::unique_lock<compat::mutex> l(mtx_);
         stopped_ = false;
         terminated_ = false;
         shutdown_all_invoked_.store(false);
@@ -1044,7 +1043,7 @@ namespace hpx { namespace components { namespace server
 
     void runtime_support::wait()
     {
-        boost::unique_lock<mutex_type> l(mtx_);
+        std::unique_lock<compat::mutex> l(mtx_);
         while (!stopped_) {
             LRT_(info) << "runtime_support: about to enter wait state";
             wait_condition_.wait(l);
@@ -1075,7 +1074,7 @@ namespace hpx { namespace components { namespace server
     void runtime_support::stop(double timeout,
         naming::id_type const& respond_to, bool remove_from_remote_caches)
     {
-        boost::unique_lock<mutex_type> l(mtx_);
+        std::unique_lock<compat::mutex> l(mtx_);
         if (!stopped_) {
             // push pending logs
             components::cleanup_logging();
@@ -1138,7 +1137,6 @@ namespace hpx { namespace components { namespace server
 
             // Drop the locality from the partition table.
             naming::gid_type here = agas_client.get_local_locality();
-            agas_client.unregister_locality(here, ec);
 
             // unregister fixed components
             agas_client.unbind_local(appl.get_runtime_support_raw_gid(), ec);
@@ -1146,6 +1144,11 @@ namespace hpx { namespace components { namespace server
 
             if (remove_from_remote_caches)
                 remove_here_from_connection_cache();
+
+            agas_client.unregister_locality(here, ec);
+
+            if (remove_from_remote_caches)
+                remove_here_from_console_connection_cache();
 
             if (respond_to) {
                 // respond synchronously
@@ -1171,7 +1174,7 @@ namespace hpx { namespace components { namespace server
 
     void runtime_support::notify_waiting_main()
     {
-        boost::unique_lock<mutex_type> l(mtx_);
+        std::unique_lock<compat::mutex> l(mtx_);
         if (!stopped_) {
             stopped_ = true;
             wait_condition_.notify_all();
@@ -1182,7 +1185,7 @@ namespace hpx { namespace components { namespace server
     // this will be called after the thread manager has exited
     void runtime_support::stopped()
     {
-        std::lock_guard<mutex_type> l(mtx_);
+        std::lock_guard<compat::mutex> l(mtx_);
         if (!terminated_) {
             terminated_ = true;
             stop_condition_.notify_all();   // finished cleanup/termination
@@ -1416,12 +1419,36 @@ namespace hpx { namespace components { namespace server
         action_type act;
         for (naming::id_type const& id : locality_ids)
         {
+            // console is handled separately
+            if (naming::get_locality_id_from_id(id) == 0)
+                continue;
+
             indirect_packaged_task ipt;
             callbacks.push_back(ipt.get_future());
             apply_cb(act, id, std::move(ipt), hpx::get_locality(), rt->endpoints());
         }
 
         wait_all(callbacks);
+    }
+
+    void runtime_support::remove_here_from_console_connection_cache()
+    {
+        runtime* rt = get_runtime_ptr();
+        if (rt == nullptr)
+            return;
+
+        typedef server::runtime_support::remove_from_connection_cache_action
+            action_type;
+
+        action_type act;
+        indirect_packaged_task ipt;
+        future<void> callback = ipt.get_future();
+
+        // handle console separately
+        id_type id = naming::get_id_from_locality_id(0);
+        apply_cb(act, id, std::move(ipt), hpx::get_locality(), rt->endpoints());
+
+        callback.wait();
     }
 
     ///////////////////////////////////////////////////////////////////////////

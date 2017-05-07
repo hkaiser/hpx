@@ -10,6 +10,7 @@
 #include <hpx/hpx_user_main_config.hpp>
 #include <hpx/apply.hpp>
 #include <hpx/async.hpp>
+#include <hpx/compat/mutex.hpp>
 #include <hpx/runtime_impl.hpp>
 #include <hpx/runtime/agas/addressing_service.hpp>
 #include <hpx/runtime/actions/plain_action.hpp>
@@ -333,7 +334,8 @@ namespace hpx
 
         ///////////////////////////////////////////////////////////////////////
         void handle_list_and_print_options(hpx::runtime& rt,
-            boost::program_options::variables_map& vm)
+            boost::program_options::variables_map& vm,
+            bool print_counters_locally)
         {
             if (vm.count("hpx:list-counters")) {
                 // Print the names of all registered performance counters.
@@ -430,7 +432,8 @@ namespace hpx
                 std::shared_ptr<util::query_counters> qc =
                     std::make_shared<util::query_counters>(
                         std::ref(counters), std::ref(reset_counters), interval,
-                        destination, counter_format, counter_shortnames, csv_header);
+                        destination, counter_format, counter_shortnames, csv_header,
+                        print_counters_locally);
 
                 // schedule to print counters at shutdown, if requested
                 if (get_config_entry("hpx.print_counter.shutdown", "0") == "1")
@@ -491,8 +494,10 @@ namespace hpx
 
             // Add startup function related to listing counter names or counter
             // infos (on console only).
-            if (mode == runtime_mode_console)
-                handle_list_and_print_options(rt, vm);
+            bool print_counters_locally =
+                vm.count("hpx:print-counters-locally") != 0;
+            if (mode == runtime_mode_console || print_counters_locally)
+                handle_list_and_print_options(rt, vm, print_counters_locally);
 
             // Dump the configuration before all components have been loaded.
             if (vm.count("hpx:dump-config-initial")) {
@@ -947,7 +952,7 @@ namespace hpx
 
             // scheduling policy
             typedef hpx::threads::policies::local_priority_queue_scheduler<
-                    boost::mutex, Queuing
+                    compat::mutex, Queuing
                 > local_queue_policy;
 
             typename local_queue_policy::init_parameter_type init(
@@ -984,7 +989,7 @@ namespace hpx
 
             // scheduling policy
             typedef hpx::threads::policies::local_priority_queue_scheduler<
-                    boost::mutex, hpx::threads::policies::lockfree_fifo
+                    compat::mutex, hpx::threads::policies::lockfree_fifo
                 > abp_priority_queue_policy;
 
             abp_priority_queue_policy::init_parameter_type init(

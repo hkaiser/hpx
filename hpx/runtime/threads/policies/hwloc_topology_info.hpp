@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-//  Copyright (c) 2007-2015 Hartmut Kaiser
+//  Copyright (c) 2007-2017 Hartmut Kaiser
 //  Copyright (c) 2008-2009 Chirag Dekate, Anshul Tandon
 //  Copyright (c) 2012-2013 Thomas Heller
 //
@@ -7,14 +7,15 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef HPX_RUNTIME_THREADS_POLICIES_HWLOC_TOPOLOGY_HPP
-#define HPX_RUNTIME_THREADS_POLICIES_HWLOC_TOPOLOGY_HPP
+#ifndef HPX_RUNTIME_THREADS_POLICIES_HWLOC_TOPOLOGY_INFO_HPP
+#define HPX_RUNTIME_THREADS_POLICIES_HWLOC_TOPOLOGY_INFO_HPP
 
 #include <hpx/config.hpp>
 
 #if defined(HPX_HAVE_HWLOC)
 #include <hwloc.h>
 
+#include <hpx/compat/thread.hpp>
 #include <hpx/error_code.hpp>
 #include <hpx/runtime/naming_fwd.hpp>
 #include <hpx/runtime/threads/topology.hpp>
@@ -22,24 +23,22 @@
 #include <hpx/util/spinlock.hpp>
 #include <hpx/util/static.hpp>
 
-#include <boost/thread/thread.hpp>
-
 #include <cstddef>
 #include <iosfwd>
 #include <vector>
 
 #if defined(HPX_NATIVE_MIC) && HWLOC_API_VERSION < 0x00010600
-#error On Intel Xeon/Phi coprosessors HPX cannot be use with a HWLOC version earlier than V1.6.
+#error On Intel Xeon/Phi coprocessors HPX cannot be use with a HWLOC version earlier than V1.6.
 #endif
 
 #include <hpx/config/warnings_prefix.hpp>
 
 namespace hpx { namespace threads
 {
-    struct HPX_EXPORT hwloc_topology : topology
+    struct HPX_EXPORT hwloc_topology_info : topology
     {
-        hwloc_topology();
-        ~hwloc_topology();
+        hwloc_topology_info();
+        ~hwloc_topology_info();
 
         std::size_t get_socket_number(
             std::size_t num_thread
@@ -107,7 +106,7 @@ namespace hpx { namespace threads
             ) const;
 
         void set_thread_affinity_mask(
-            boost::thread&
+            compat::thread&
           , mask_cref_type //mask
           , error_code& ec = throws
             ) const;
@@ -139,7 +138,7 @@ namespace hpx { namespace threads
             ) const;
 
         mask_type get_cpubind_mask(error_code& ec = throws) const;
-        mask_type get_cpubind_mask(boost::thread & handle,
+        mask_type get_cpubind_mask(compat::thread & handle,
             error_code& ec = throws) const;
 
         ///////////////////////////////////////////////////////////////////////
@@ -263,9 +262,11 @@ namespace hpx { namespace threads
     };
 
     ///////////////////////////////////////////////////////////////////////////
-    inline hwloc_topology& create_topology()
+    inline hwloc_topology_info& create_topology()
     {
-        util::static_<hwloc_topology, hwloc_topology::hwloc_topology_tag> topo;
+        util::static_<
+                hwloc_topology_info, hwloc_topology_info::hwloc_topology_tag
+            > topo;
         return topo.get();
     }
 }}

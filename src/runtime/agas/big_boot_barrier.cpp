@@ -7,11 +7,8 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 ////////////////////////////////////////////////////////////////////////////////
 
-// hpxinspect:nodeprecatedinclude:boost/chrono/chrono.hpp
-// hpxinspect:nodeprecatedname:boost::chrono
-// hpxinspect:nodeprecatedname:boost::unique_lock
-
 #include <hpx/config.hpp>
+#include <hpx/compat/mutex.hpp>
 #include <hpx/runtime.hpp>
 #include <hpx/runtime/actions/plain_action.hpp>
 #include <hpx/runtime/components/server/managed_component_base.hpp>
@@ -40,11 +37,7 @@
 #include <hpx/runtime/serialization/detail/polymorphic_id_factory.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
 
-#include <boost/chrono/chrono.hpp>
 #include <boost/format.hpp>
-#include <boost/thread/locks.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/thread.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -605,106 +598,6 @@ void notify_worker(notification_header const& header)
 }
 // }}}
 
-#if defined(HPX_HAVE_SECURITY)
-// remote call to AGAS (initiate second round trip)
-void register_worker_security(registration_header_security const& header)
-{
-    // This lock acquires the bbb mutex on creation. When it goes out of scope,
-    // it's dtor calls big_boot_barrier::notify().
-    big_boot_barrier::scoped_lock lock(get_big_boot_barrier());
-
-    runtime& rt = get_runtime();
-    naming::resolver_client& agas_client = rt.get_agas_client();
-
-    if (HPX_UNLIKELY(agas_client.is_connecting()))
-    {
-        HPX_THROW_EXCEPTION(
-            internal_server_error
-          , "agas::register_worker"
-          , "runtime_mode_connect can't find running application.");
-    }
-
-    if (HPX_UNLIKELY(!agas_client.is_bootstrap()))
-    {
-        HPX_THROW_EXCEPTION(
-            internal_server_error
-          , "agas::register_worker"
-          , "registration parcel received by non-bootstrap locality.");
-    }
-
-    notification_header_security hdr(
-        rt.get_certificate()
-      , rt.sign_certificate_signing_request(header.csr));
-
-    parcelset::locality dest;
-    parcelset::locality here = bbb.here();
-    for (parcelset::locality const& loc : header.endpoints)
-    {
-        if(loc.get_type() == here.get_type())
-        {
-            dest = loc;
-            break;
-        }
-    }
-
-    // TODO: Handle cases where localities try to connect to AGAS while it's
-    // shutting down.
-    if (agas_client.get_status() != starting)
-    {
-        // We can just send the parcel now, the connecting locality isn't a part
-        // of startup synchronization.
-        get_big_boot_barrier().apply(
-            0
-          , naming::get_locality_id_from_gid(header.prefix)
-          , dest
-          , notify_worker_security_action()
-          , std::move(hdr));
-    }
-
-    else
-    {
-        // AGAS is starting up; this locality is participating in startup
-        // synchronization.
-        util::unique_function_nonser<void()>* thunk =
-                new util::unique_function_nonser<void()>(
-            util::bind(
-                util::one_shot(&big_boot_barrier::apply)
-              , std::ref(get_big_boot_barrier())
-              , 0
-              , naming::get_locality_id_from_gid(header.prefix)
-              , notify_worker_security_action()
-              , std::move(hdr)));
-        get_big_boot_barrier().add_thunk(thunk);
-    }
-}
-
-// AGAS callback to client
-void notify_worker_security(notification_header_security const& header)
-{
-    // This lock acquires the bbb mutex on creation. When it goes out of scope,
-    // it's dtor calls big_boot_barrier::notify().
-    big_boot_barrier::scoped_lock lock(get_big_boot_barrier());
-
-    runtime& rt = get_runtime();
-    naming::resolver_client& agas_client = rt.get_agas_client();
-
-    if (HPX_UNLIKELY(agas_client.get_status() != starting))
-    {
-        std::ostringstream strm;
-        strm << "locality " << rt.here() << " has launched early";
-        HPX_THROW_EXCEPTION(internal_server_error,
-            "agas::notify_worker",
-            strm.str());
-    }
-
-    // finish initializing the certificate store
-    rt.store_subordinate_certificate(
-        header.root_subca_certificate
-      , header.subca_certificate);
-}
-// }}}
-#endif
-
 void big_boot_barrier::apply_notification(
     std::uint32_t source_locality_id
     , std::uint32_t target_locality_id
@@ -719,16 +612,25 @@ void big_boot_barrier::apply_notification(
 void big_boot_barrier::add_locality_endpoints(std::uint32_t locality_id,
     parcelset::endpoints_type const& endpoints)
 {
-    localities.resize(locality_id + 1);
+    if (localities.size() < locality_id + 1)
+        localities.resize(locality_id + 1);
+
     localities[locality_id] = endpoints;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 void big_boot_barrier::spin()
 {
-    boost::unique_lock<boost::mutex> lock(mtx);
+    std::unique_lock<compat::mutex> lock(mtx);
     while (connected)
         cond.wait(lock);
+
+    // pre-cache all known locality endpoints in local AGAS on locality 0 as well
+    if (service_mode_bootstrap == service_type)
+    {
+        naming::resolver_client& agas_client = get_runtime().get_agas_client();
+        agas_client.pre_cache_endpoints(localities);
+    }
 }
 
 inline std::size_t get_number_of_bootstrap_connections(
@@ -763,15 +665,16 @@ big_boot_barrier::big_boot_barrier(
 {
     // register all not registered typenames
     if (service_type == service_mode_bootstrap)
+    {
         detail::register_unassigned_typenames();
+        // store endpoints of root locality for later
+        add_locality_endpoints(0, get_endpoints());
+    }
 }
 
 void big_boot_barrier::wait_bootstrap()
 { // {{{
     HPX_ASSERT(service_mode_bootstrap == service_type);
-
-    // store endpoints of root locality for later
-    add_locality_endpoints(0, get_runtime().endpoints());
 
     // the root just waits until all localities have connected
     spin();
@@ -859,7 +762,7 @@ void big_boot_barrier::notify()
 
     bool notify = false;
     {
-        std::lock_guard<boost::mutex> lk(mtx, std::adopt_lock);
+        std::lock_guard<compat::mutex> lk(mtx, std::adopt_lock);
         if (agas_client.get_status() == state_starting)
         {
             --connected;

@@ -16,9 +16,9 @@
 #include <cstddef>
 #include <type_traits>
 
-#include <Vc/version.h>
+#include <Vc/global.h>
 
-#if Vc_IS_VERSION_1
+#if defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1
 
 #include <Vc/Vc>
 
@@ -124,14 +124,14 @@ namespace hpx { namespace serialization
     {
         std::array<T, Vc::datapar<T, Abi>::size()> data;
         ar & data;
-        v.copy_from(data.data(), Vc::vector_aligned);
+        v.memload(data.data(), Vc::flags::vector_aligned);
     }
 
     template <typename T, typename Abi>
     void serialize(output_archive & ar, Vc::datapar<T, Abi> const& v, unsigned)
     {
         std::array<T, Vc::datapar<T, Abi>::size()> data;
-        v.copy_to(data.data(), Vc::vector_aligned);
+        v.memstore(data.data(), Vc::flags::vector_aligned);
         ar & data;
     }
 }}
