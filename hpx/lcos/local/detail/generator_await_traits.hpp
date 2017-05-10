@@ -62,9 +62,13 @@ namespace hpx { namespace lcos { namespace local { namespace detail
                 !this->base_type::requires_delete()};
         }
 
-        hpx::future<void> yield_value(T t)
+        std::experimental::suspend_never yield_value(T t)
         {
-            return base_type::set(std::size_t(-1), std::move(t));
+            // We suspend inside future::get, if required. Otherwise all sub-
+            // sequent 'invocations' of the co-routine will happen on the
+            // thread executing the receiving end of the channel.
+            base_type::set(std::size_t(-1), std::move(t)).get();
+            return std::experimental::suspend_never{};
         }
 
         void destroy()

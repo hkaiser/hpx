@@ -69,12 +69,10 @@ namespace hpx
     template <typename T, typename F>
     hpx::generator<T> make_generator(F && f)
     {
-        hpx::generator<T> gen;
         hpx::apply(
-            [&, gen]() mutable -> void
+            [&]() mutable -> void
             {
-                f(gen);
-                gen.close();
+                f();
             });
         return gen;
     }
@@ -125,9 +123,7 @@ hpx::generator<int> await_wrapped_generator()
 
 void await_wrapped_consumer()
 {
-    hpx::future<hpx::generator<int> > f = hpx::async(&await_wrapped_generator);
-
-    for (int val : f.get())
+    for (int val : await_wrapped_generator())
     {
         hpx::cout << "2: " << val << ", " << hpx::threads::get_self_id() << '\n';
         hpx::cout << val << '\n';
