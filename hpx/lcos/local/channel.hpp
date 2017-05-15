@@ -1077,4 +1077,16 @@ namespace hpx { namespace lcos { namespace local
     {}
 }}}
 
+namespace hpx
+{
+    // We use the local one-element-channel as the return value for
+    // co_yield-based generators
+    template <typename T>
+    using generator = hpx::lcos::local::one_element_channel<T>;
+}
+
+#if defined(HPX_HAVE_AWAIT)
+#include <hpx/lcos/local/detail/generator_await_traits.hpp>
+#endif
+
 #endif

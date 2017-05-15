@@ -49,6 +49,11 @@ set(example_programs
     zerocopy_rdma
    )
 
+if(HPX_WITH_AWAIT)
+  set(example_programs ${example_programs} generator)
+  set(generator_FLAGS COMPONENT_DEPENDENCIES iostreams)
+endif()
+
 set(allow_unknown_options_FLAGS COMPONENT_DEPENDENCIES iostreams)
 set(command_line_handling_FLAGS COMPONENT_DEPENDENCIES iostreams)
 set(component_in_executable_FLAGS COMPONENT_DEPENDENCIES iostreams)

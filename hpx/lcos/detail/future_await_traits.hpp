@@ -47,7 +47,7 @@ namespace hpx { namespace lcos { namespace detail
             {
                 if (st->has_exception())
                     rh.promise().set_exception(st->get_exception_ptr());
-                rh();
+                rh.resume();
             });
     }
 
@@ -89,7 +89,7 @@ namespace hpx { namespace lcos { namespace detail
             {
                 if (st->has_exception())
                     rh.promise().set_exception(st->get_exception_ptr());
-                rh();
+                rh.resume();
             });
     }
 
