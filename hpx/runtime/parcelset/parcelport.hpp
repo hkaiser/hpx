@@ -26,8 +26,6 @@
 #include <hpx/util/function.hpp>
 #include <hpx/datastructures/tuple.hpp>
 #include <hpx/util_fwd.hpp>
-#include <plugins/parcelport/rma_memory_region_base.hpp>
-
 
 #include <atomic>
 #include <cstddef>
