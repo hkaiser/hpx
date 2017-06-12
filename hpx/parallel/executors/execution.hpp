@@ -339,6 +339,12 @@ namespace hpx { namespace parallel { namespace execution
         HPX_FORCEINLINE
         auto customization_point<async_execute_tag>::operator()(
             Executor && exec, F && f, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                async_execute(std::forward<Executor>(exec), std::forward<F>(f),
+                    std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return async_execute(std::forward<Executor>(exec),
                 std::forward<F>(f), std::forward<Ts>(ts)...);
@@ -482,6 +488,12 @@ namespace hpx { namespace parallel { namespace execution
         HPX_FORCEINLINE
         auto customization_point<sync_execute_tag>::operator()(
             Executor && exec, F && f, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                sync_execute(std::forward<Executor>(exec), std::forward<F>(f),
+                    std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return sync_execute(std::forward<Executor>(exec),
                 std::forward<F>(f), std::forward<Ts>(ts)...);
@@ -577,6 +589,12 @@ namespace hpx { namespace parallel { namespace execution
         HPX_FORCEINLINE
         auto customization_point<then_execute_tag>::operator()(
             Executor && exec, F && f, Future& predecessor, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                then_execute(std::forward<Executor>(exec), std::forward<F>(f),
+                    predecessor, std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return then_execute(std::forward<Executor>(exec),
                 std::forward<F>(f), predecessor, std::forward<Ts>(ts)...);
@@ -702,6 +720,12 @@ namespace hpx { namespace parallel { namespace execution
         HPX_FORCEINLINE
         auto customization_point<post_tag>::operator()(
             Executor && exec, F && f, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                post(std::forward<Executor>(exec), std::forward<F>(f),
+                    std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return post(std::forward<Executor>(exec), std::forward<F>(f),
                 std::forward<Ts>(ts)...);
@@ -881,6 +905,12 @@ namespace hpx { namespace parallel { namespace execution
         HPX_FORCEINLINE
         auto customization_point<bulk_async_execute_tag>::operator()(
             Executor && exec, F && f, Shape const& shape, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                bulk_async_execute(std::forward<Executor>(exec),
+                    std::forward<F>(f), shape, std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return bulk_async_execute(std::forward<Executor>(exec),
                 std::forward<F>(f), shape, std::forward<Ts>(ts)...);
@@ -1234,6 +1264,12 @@ namespace hpx { namespace parallel { namespace execution
         HPX_FORCEINLINE
         auto customization_point<bulk_sync_execute_tag>::operator()(
             Executor && exec, F && f, Shape const& shape, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                bulk_sync_execute(std::forward<Executor>(exec),
+                    std::forward<F>(f), shape, std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return bulk_sync_execute(std::forward<Executor>(exec),
                 std::forward<F>(f), shape, std::forward<Ts>(ts)...);
@@ -1577,6 +1613,13 @@ namespace hpx { namespace parallel { namespace execution
         auto customization_point<bulk_then_execute_tag>::operator()(
             Executor && exec, F && f, Shape const& shape, Future& predecessor,
             Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                bulk_then_execute(std::forward<Executor>(exec),
+                    std::forward<F>(f), shape, predecessor,
+                    std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return bulk_then_execute(std::forward<Executor>(exec),
                 std::forward<F>(f), shape, predecessor,

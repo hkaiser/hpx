@@ -103,6 +103,12 @@ namespace hpx { namespace parallel { namespace execution
         auto customization_point<post_at_tag>::operator()(
             Executor && exec, hpx::util::steady_time_point const& abs_time,
             F && f, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                post_at(std::forward<Executor>(exec), abs_time,
+                    std::forward<F>(f), std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return post_at(std::forward<Executor>(exec),
                 abs_time, std::forward<F>(f), std::forward<Ts>(ts)...);
@@ -131,6 +137,12 @@ namespace hpx { namespace parallel { namespace execution
         auto customization_point<post_after_tag>::operator()(
             Executor && exec, hpx::util::steady_duration const& rel_time,
             F && f, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                post_after(std::forward<Executor>(exec), rel_time,
+                    std::forward<F>(f), std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return post_after(std::forward<Executor>(exec),
                 rel_time, std::forward<F>(f), std::forward<Ts>(ts)...);
@@ -198,6 +210,12 @@ namespace hpx { namespace parallel { namespace execution
         auto customization_point<async_execute_at_tag>::operator()(
             Executor && exec, hpx::util::steady_time_point const& abs_time,
             F && f, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                async_execute_at(std::forward<Executor>(exec), abs_time,
+                    std::forward<F>(f), std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return async_execute_at(std::forward<Executor>(exec),
                 abs_time, std::forward<F>(f), std::forward<Ts>(ts)...);
@@ -226,6 +244,12 @@ namespace hpx { namespace parallel { namespace execution
         auto customization_point<async_execute_after_tag>::operator()(
             Executor && exec, hpx::util::steady_duration const& rel_time,
             F && f, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                async_execute_after(std::forward<Executor>(exec), rel_time,
+                    std::forward<F>(f), std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return async_execute_after(std::forward<Executor>(exec),
                 rel_time, std::forward<F>(f), std::forward<Ts>(ts)...);
@@ -294,6 +318,12 @@ namespace hpx { namespace parallel { namespace execution
         auto customization_point<sync_execute_at_tag>::operator()(
             Executor && exec, hpx::util::steady_time_point const& abs_time,
             F && f, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                sync_execute_at(std::forward<Executor>(exec), abs_time,
+                    std::forward<F>(f), std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return sync_execute_at(std::forward<Executor>(exec),
                 abs_time, std::forward<F>(f), std::forward<Ts>(ts)...);
@@ -322,6 +352,12 @@ namespace hpx { namespace parallel { namespace execution
         auto customization_point<sync_execute_after_tag>::operator()(
             Executor && exec, hpx::util::steady_duration const& rel_time,
             F && f, Ts &&... ts) const
+#if defined(__NVCC__)
+        ->  decltype(
+                sync_execute_after(std::forward<Executor>(exec), rel_time,
+                    std::forward<F>(f), std::forward<Ts>(ts)...)
+            )
+#endif
         {
             return sync_execute_after(std::forward<Executor>(exec),
                 rel_time, std::forward<F>(f), std::forward<Ts>(ts)...);
