@@ -33,6 +33,14 @@
 
 namespace hpx { namespace parallel { namespace execution
 {
+    /// \cond NOINTERNAL
+    // forward declarations only
+    struct parallel_executor;
+
+    bool operator==(parallel_executor const&, parallel_executor const&) noexcept;
+    bool operator!=(parallel_executor const&, parallel_executor const&) noexcept;
+    /// \endcond
+
     ///////////////////////////////////////////////////////////////////////////
     /// A \a parallel_executor creates groups of parallel execution agents
     /// which execute in threads implicitly created by the executor. This
@@ -59,16 +67,26 @@ namespace hpx { namespace parallel { namespace execution
         {}
 
         /// \cond NOINTERNAL
-        bool operator==(parallel_executor const& rhs) const noexcept
+
+        // BaseExecutor requirements
+        parallel_executor(parallel_executor const&) = default;
+        parallel_executor(parallel_executor &&) = default;
+
+        parallel_executor& operator=(parallel_executor const&) = default;
+        parallel_executor& operator=(parallel_executor &&) = default;
+
+        friend bool operator==(parallel_executor const& rhs,
+            parallel_executor const& lhs) noexcept
         {
-            return l_ == rhs.l_ &&
-                num_spread_ == rhs.num_spread_ &&
-                num_tasks_ == rhs.num_tasks_;
+            return lhs.l_ == rhs.l_ &&
+                lhs.num_spread_ == rhs.num_spread_ &&
+                lhs.num_tasks_ == rhs.num_tasks_;
         }
 
-        bool operator!=(parallel_executor const& rhs) const noexcept
+        friend bool operator!=(parallel_executor const& rhs,
+            parallel_executor const& lhs) noexcept
         {
-            return !(*this == rhs);
+            return !(lhs == rhs);
         }
 
         parallel_executor const& context() const noexcept
@@ -89,7 +107,7 @@ namespace hpx { namespace parallel { namespace execution
             return hpx::async(l_, std::forward<F>(f), std::forward<Ts>(ts)...);
         }
 
-        // NonBlockingOneWayExecutor (adapted) interface
+        // NonBlockingOneWayExecutor interface
         template <typename F, typename ... Ts>
         static void post(F && f, Ts &&... ts)
         {
