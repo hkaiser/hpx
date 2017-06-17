@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2016 Hartmut Kaiser
+# Copyright (c) 2014-2017 Hartmut Kaiser
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -7,12 +7,16 @@ set(tests
     for_each_annotated_function
     for_loop_2281
     minimal_findend
+    partitioned_vector_localities
     scan_different_inits
     scan_non_commutative
     scan_shortlength
     search_zerolength
     static_chunker_2282
    )
+
+set(partitioned_vector_localities_PARAMETERS LOCALITIES 2)
+set(partitioned_vector_localities_FLAGS COMPONENT_DEPENDENCIES iostreams)
 
 foreach(test ${tests})
   set(sources
