@@ -29,10 +29,6 @@
 namespace hpx { namespace lcos { namespace server
 {
     ///////////////////////////////////////////////////////////////////////////
-    template <typename T, bool Migratable = false, typename RemoteType =
-        typename traits::promise_remote_result<T>::type>
-    class channel;
-
     namespace detail
     {
         ///////////////////////////////////////////////////////////////////////
@@ -100,83 +96,154 @@ namespace hpx { namespace lcos { namespace server
         protected:
             lcos::local::channel<result_type> channel_;
         };
+
+        ///////////////////////////////////////////////////////////////////////////
+        template <typename T, bool Migratable = false, typename RemoteType =
+            typename traits::promise_remote_result<T>::type>
+        class channel;
+
+        template <typename T, typename RemoteType>
+        class channel<T, false, RemoteType>
+          : public detail::channel_base<T, RemoteType>
+          , public components::simple_component_base<channel<T, false, RemoteType> >
+        {
+        private:
+            typedef detail::channel_base<T, RemoteType> channel_base;
+            typedef components::simple_component_base<channel> base_type;
+
+        public:
+            channel() = default;
+
+            // disambiguate base classes
+            using base_type::finalize;
+
+            typedef typename base_type::wrapping_type wrapping_type;
+            typedef typename channel_base::base_type_holder base_type_holder;
+
+            static components::component_type get_component_type()
+            {
+                return components::get_component_type<channel>();
+            }
+            static void set_component_type(components::component_type type)
+            {
+                components::set_component_type<channel>(type);
+            }
+
+            using channel_base::get_generation_action;
+            using channel_base::set_generation_action;
+            using channel_base::close_action;
+        };
     }
 
+    template <typename T, typename RemoteType>
+    using channel = detail::channel<T, false, RemoteType>;
+
     ///////////////////////////////////////////////////////////////////////////
-    template <typename T, typename RemoteType>
-    class channel<T, false, RemoteType>
-      : public detail::channel_base<T, RemoteType>
-      , public components::component_base<channel<T, false, RemoteType> >
+    namespace detail
     {
-    private:
-        typedef detail::channel_base<T, RemoteType> channel_base;
-        typedef components::component_base<channel> base_type;
-
-    public:
-        channel() = default;
-
-        // disambiguate base classes
-        using base_type::finalize;
-
-        typedef typename base_type::wrapping_type wrapping_type;
-        typedef typename channel_base::base_type_holder base_type_holder;
-
-        static components::component_type get_component_type()
+        template <typename T, typename RemoteType>
+        class channel<T, true, RemoteType>
+          : public lcos::base_lco_with_value<
+                T, RemoteType, traits::detail::simple_component_tag>
+          , public components::migration_support<
+                components::simple_component_base<channel<T, true, RemoteType> > >
         {
-            return components::get_component_type<channel>();
-        }
-        static void set_component_type(components::component_type type)
-        {
-            components::set_component_type<channel>(type);
-        }
+        private:
+            typedef typename std::conditional<
+                    std::is_void<T>::value, util::unused_type, T
+                >::type result_type;
 
-        using channel_base::get_generation_action;
-        using channel_base::set_generation_action;
-        using channel_base::close_action;
-    };
+            typedef lcos::base_lco_with_value<
+                    T, RemoteType, traits::detail::simple_component_tag
+                > channel_base;
+            typedef components::migration_support<
+                    components::simple_component_base<channel>
+                > base_type;
+
+        public:
+            channel() = default;
+
+            // disambiguate base classes
+            using base_type::finalize;
+            typedef typename base_type::wrapping_type wrapping_type;
+            typedef typename channel_base::base_type_holder base_type_holder;
+
+            static components::component_type get_component_type()
+            {
+                return components::get_component_type<channel>();
+            }
+            static void set_component_type(components::component_type type)
+            {
+                components::set_component_type<channel>(type);
+            }
+
+        public:
+            // standard LCO action implementations
+
+            // Push a value to the channel.
+            void set_value (RemoteType && result)
+            {
+                channel_.set(std::size_t(-1), std::move(result)).get();
+            }
+
+            // Close the channel
+            void set_exception(std::exception_ptr const& /*e*/)
+            {
+                channel_.close();
+            }
+
+            // Retrieve the next value from the channel
+            result_type get_value()
+            {
+                return channel_.get(std::size_t(-1), true).get();
+            }
+            result_type get_value(error_code& ec)
+            {
+                try {
+                    return get_value();
+                }
+                catch (hpx::exception const& e) {
+                    HPX_RETHROWS_IF(ec, e,
+                        "channel<T, true, RemoteType>::get_value");
+                }
+                return result_type{};
+            }
+
+            // Additional functionality exposed by the channel component
+            hpx::future<T> get_generation(std::size_t generation)
+            {
+                return channel_.get(generation, false);
+            }
+            HPX_DEFINE_COMPONENT_ACTION(channel, get_generation);
+
+            void set_generation(RemoteType && value, std::size_t generation)
+            {
+                channel_.set(generation, std::move(value)).get();
+            }
+            HPX_DEFINE_COMPONENT_ACTION(channel, set_generation);
+
+            void close()
+            {
+                channel_.close();
+            }
+            HPX_DEFINE_COMPONENT_ACTION(channel, close);
+
+        private:
+            friend class serialization::access;
+
+            template <typename Archive>
+            void serialize(Archive& ar, const unsigned int)
+            {
+                ar & channel_;
+            }
+
+        protected:
+            lcos::local::detail::unlimited_channel<result_type> channel_;
+        };
+    }
 
     template <typename T, typename RemoteType>
-    class channel<T, true, RemoteType>
-      : public detail::channel_base<T, RemoteType>
-      , public components::migration_support<
-            components::component_base<channel<T, true, RemoteType> > >
-    {
-    private:
-        typedef detail::channel_base<T, RemoteType> channel_base;
-        typedef components::migration_support<
-                components::component_base<channel>
-            > base_type;
-
-    public:
-        channel() = default;
-
-        // disambiguate base classes
-        using base_type::finalize;
-        typedef typename base_type::wrapping_type wrapping_type;
-        typedef typename channel_base::base_type_holder base_type_holder;
-
-        static components::component_type get_component_type()
-        {
-            return components::get_component_type<channel>();
-        }
-        static void set_component_type(components::component_type type)
-        {
-            components::set_component_type<channel>(type);
-        }
-
-        using channel_base::get_generation_action;
-        using channel_base::set_generation_action;
-        using channel_base::close_action;
-
-    private:
-        friend class serialization::access;
-
-        template <typename Archive>
-        void serialize(Archive& ar, const unsigned int)
-        {
-            ar & channel_;
-        }
-    };
+    using migratable_channel = detail::channel<T, true, RemoteType>;
 }}}
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -206,7 +273,7 @@ namespace hpx { namespace lcos { namespace server
     HPX_REGISTER_CHANNEL_DECLARATION_3(type, name, false)                     \
 /**/
 #define HPX_REGISTER_CHANNEL_DECLARATION_3(type, name, migratable)            \
-    typedef ::hpx::lcos::server::channel< type, migratable>                   \
+    typedef ::hpx::lcos::server::detail::channel< type, migratable>           \
         BOOST_PP_CAT(__channel_, BOOST_PP_CAT(type, name));                   \
     HPX_REGISTER_ACTION_DECLARATION(                                          \
         BOOST_PP_CAT(__channel_, BOOST_PP_CAT(type, name))::get_generation_action,\
@@ -257,7 +324,7 @@ namespace hpx { namespace lcos { namespace server
     HPX_REGISTER_CHANNEL_3(type, name, false)                                 \
 /**/
 #define HPX_REGISTER_CHANNEL_3(type, name, migratable)                        \
-    typedef ::hpx::lcos::server::channel< type, migratable>                   \
+    typedef ::hpx::lcos::server::detail::channel< type, migratable>           \
         BOOST_PP_CAT(__channel_, BOOST_PP_CAT(type, name));                   \
     typedef ::hpx::components::component<                                     \
             BOOST_PP_CAT(__channel_, BOOST_PP_CAT(type, name))                \

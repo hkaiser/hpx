@@ -44,6 +44,7 @@ set(tests
     local_mutex
     local_promise_allocator
     make_future
+    migratable_channel
     packaged_action
     promise
     promise_allocator

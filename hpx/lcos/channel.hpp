@@ -25,6 +25,10 @@ namespace hpx { namespace lcos
     template <typename T = void> class receive_channel;
     template <typename T = void> class send_channel;
 
+    template <typename T = void> class migratable_channel;
+    template <typename T = void> class migratable_receive_channel;
+    template <typename T = void> class migratable_send_channel;
+
     ///////////////////////////////////////////////////////////////////////////
     template <typename T, typename Channel>
     class channel_iterator
@@ -153,11 +157,11 @@ namespace hpx { namespace lcos
         class channel_base
           : public components::client_base<
                 channel_base<T, Migratable>,
-                lcos::server::channel<T, Migratable> >
+                lcos::server::detail::channel<T, Migratable> >
         {
         protected:
             typedef components::client_base<
-                    channel_base, lcos::server::channel<T, Migratable>
+                    channel_base, lcos::server::detail::channel<T, Migratable>
                 > base_type;
 
             HPX_CONSTEXPR_OR_CONST
@@ -174,7 +178,8 @@ namespace hpx { namespace lcos
 
             // create a new instance of a channel component
             explicit channel_base(naming::id_type const& loc)
-              : base_type(hpx::new_<lcos::server::channel<T, Migratable> >(loc))
+              : base_type(
+                    hpx::new_<lcos::server::detail::channel<T, Migratable> >(loc))
             {}
 
             explicit channel_base(hpx::future<naming::id_type>&& id)
@@ -194,7 +199,7 @@ namespace hpx { namespace lcos
             get(launch::async_policy,
                 std::size_t generation = default_generation) const
             {
-                typedef typename lcos::server::channel<
+                typedef typename lcos::server::detail::channel<
                         T, Migratable
                     >::get_generation_action action_type;
                 return hpx::async(action_type(), this->get_id(), generation);
@@ -221,7 +226,7 @@ namespace hpx { namespace lcos
             set(launch::apply_policy, U val,
                 std::size_t generation = default_generation)
             {
-                typedef typename lcos::server::channel<
+                typedef typename lcos::server::detail::channel<
                         T, Migratable
                     >::set_generation_action action_type;
                 return hpx::apply(action_type(), this->get_id(), std::move(val),
@@ -234,8 +239,9 @@ namespace hpx { namespace lcos
             set(launch::async_policy, U val,
                 std::size_t generation = default_generation)
             {
-                typedef typename lcos::server::channel<T>::set_generation_action
-                    action_type;
+                typedef typename lcos::server::detail::channel<
+                        T, Migratable
+                    >::set_generation_action action_type;
                 return hpx::async(action_type(), this->get_id(), std::move(val),
                     generation);
             }
@@ -244,7 +250,7 @@ namespace hpx { namespace lcos
             set(launch::sync_policy, U val,
                 std::size_t generation = default_generation)
             {
-                typedef typename lcos::server::channel<
+                typedef typename lcos::server::detail::channel<
                         T, Migratable
                     >::set_generation_action action_type;
                 action_type()(this->get_id(), std::move(val), generation);
@@ -263,7 +269,7 @@ namespace hpx { namespace lcos
             typename std::enable_if<std::is_void<U>::value, bool>::type
             set(launch::apply_policy, std::size_t generation = default_generation)
             {
-                typedef typename lcos::server::channel<
+                typedef typename lcos::server::detail::channel<
                         void, Migratable
                     >::set_generation_action action_type;
                 return hpx::apply(action_type(), this->get_id(), util::unused,
@@ -275,7 +281,7 @@ namespace hpx { namespace lcos
             >::type
             set(launch::async_policy, std::size_t generation = default_generation)
             {
-                typedef typename lcos::server::channel<
+                typedef typename lcos::server::detail::channel<
                         void, Migratable
                     >::set_generation_action action_type;
                 return hpx::async(action_type(), this->get_id(), util::unused,
@@ -285,7 +291,7 @@ namespace hpx { namespace lcos
             typename std::enable_if<std::is_void<U>::value>::type
             set(launch::sync_policy, std::size_t generation = default_generation)
             {
-                typedef typename lcos::server::channel<
+                typedef typename lcos::server::detail::channel<
                         void, Migratable
                     >::set_generation_action action_type;
                 return action_type()(this->get_id(), util::unused, generation);
@@ -300,21 +306,21 @@ namespace hpx { namespace lcos
             ///////////////////////////////////////////////////////////////////
             void close(launch::apply_policy)
             {
-                typedef typename lcos::server::channel<
+                typedef typename lcos::server::detail::channel<
                         T, Migratable
                     >::close_action action_type;
                 hpx::apply(action_type(), this->get_id());
             }
             hpx::future<void> close(launch::async_policy)
             {
-                typedef typename lcos::server::channel<
+                typedef typename lcos::server::detail::channel<
                         T, Migratable
                     >::close_action action_type;
                 return hpx::async(action_type(), this->get_id());
             }
             void close(launch::sync_policy)
             {
-                typedef typename lcos::server::channel<
+                typedef typename lcos::server::detail::channel<
                         T, Migratable
                     >::close_action action_type;
                 action_type()(this->get_id());
@@ -387,7 +393,8 @@ namespace hpx { namespace lcos
     };
 
     template <typename T>
-    class receive_channel : public detail::channel_base<T, false>
+    class receive_channel
+      : public detail::channel_base<T, false>
     {
     private:
         typedef detail::channel_base<T, false> base_type;
@@ -457,6 +464,142 @@ namespace hpx { namespace lcos
 
         explicit send_channel(hpx::shared_future<naming::id_type> const& id)
           : base_type(id)
+        {}
+
+        typedef typename base_type::value_type value_type;
+
+        using base_type::get_id;
+
+        using base_type::set;
+        using base_type::close;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
+    template <typename T>
+    class migratable_channel : public detail::channel_base<T, true>
+    {
+    private:
+        typedef detail::channel_base<T, true> base_type;
+
+    public:
+        migratable_channel() = default;
+
+        // create a new instance of a channel component
+        explicit migratable_channel(naming::id_type const& loc)
+          : base_type(loc)
+        {}
+
+        explicit migratable_channel(hpx::future<naming::id_type>&& id)
+          : base_type(std::move(id))
+        {}
+
+        explicit migratable_channel(hpx::shared_future<naming::id_type>&& id)
+          : base_type(std::move(id))
+        {}
+
+        explicit migratable_channel(hpx::shared_future<naming::id_type> const& id)
+          : base_type(id)
+        {}
+
+        explicit migratable_channel(base_type && base)
+          : base_type(std::move(base))
+        {}
+
+        typedef typename base_type::value_type value_type;
+
+        using base_type::get_id;
+
+        using base_type::get;
+        using base_type::set;
+        using base_type::close;
+
+        using base_type::begin;
+        using base_type::end;
+        using base_type::rbegin;
+        using base_type::rend;
+    };
+
+    template <typename T>
+    class migratable_receive_channel : public detail::channel_base<T, true>
+    {
+    private:
+        typedef detail::channel_base<T, true> base_type;
+
+        using base_type::set;
+        using base_type::close;
+
+    public:
+        migratable_receive_channel() = default;
+
+        migratable_receive_channel(migratable_channel<T> const& c)
+          : base_type(c)
+        {}
+
+        explicit migratable_receive_channel(hpx::future<naming::id_type>&& id)
+          : base_type(std::move(id))
+        {}
+
+        explicit migratable_receive_channel(hpx::shared_future<naming::id_type>&& id)
+          : base_type(std::move(id))
+        {}
+
+        explicit migratable_receive_channel(
+                hpx::shared_future<naming::id_type> const& id)
+          : base_type(id)
+        {}
+
+        explicit migratable_receive_channel(base_type && base)
+          : base_type(std::move(base))
+        {}
+
+        typedef typename base_type::value_type value_type;
+
+        using base_type::get_id;
+
+        using base_type::get;
+
+        using base_type::begin;
+        using base_type::end;
+        using base_type::rbegin;
+        using base_type::rend;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
+    template <typename T>
+    class migratable_send_channel : public detail::channel_base<T, true>
+    {
+    private:
+        typedef detail::channel_base<T, true> base_type;
+
+        using base_type::get;
+
+        using base_type::begin;
+        using base_type::end;
+        using base_type::rbegin;
+        using base_type::rend;
+
+    public:
+        migratable_send_channel() = default;
+
+        migratable_send_channel(migratable_channel<T> const& c)
+          : base_type(c)
+        {}
+
+        explicit migratable_send_channel(hpx::future<naming::id_type>&& id)
+          : base_type(std::move(id))
+        {}
+
+        explicit migratable_send_channel(hpx::shared_future<naming::id_type>&& id)
+          : base_type(std::move(id))
+        {}
+
+        explicit migratable_send_channel(
+                hpx::shared_future<naming::id_type> const& id)
+          : base_type(id)
+        {}
+
+        explicit migratable_send_channel(base_type && base)
+          : base_type(std::move(base))
         {}
 
         typedef typename base_type::value_type value_type;

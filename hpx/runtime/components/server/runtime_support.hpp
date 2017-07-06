@@ -800,7 +800,12 @@ namespace hpx { namespace components { namespace server
 
         typedef typename Component::wrapping_type wrapping_type;
         naming::gid_type id = factory->create_with_args(migrated_id,
-            detail::construct_function<wrapping_type>(std::move(*p)));
+//             detail::construct_function<wrapping_type>(std::move(*p)));
+            util::bind(
+                util::one_shot(
+                    util::functional::placement_new<
+                        typename wrapping_type::derived_type>()),
+                util::placeholders::_1, std::move(*p)));
 
         // sanity checks
         if (!id)

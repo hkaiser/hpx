@@ -14,7 +14,9 @@
 #include <hpx/lcos/local/receive_buffer.hpp>
 #include <hpx/lcos/local/spinlock.hpp>
 #include <hpx/runtime/launch_policy.hpp>
-#include <hpx/runtime/serialization/serialization_fwd.hpp>
+#include <hpx/runtime/serialization/base_object.hpp>
+#include <hpx/runtime/serialization/serialize.hpp>
+#include <hpx/traits/polymorphic_traits.hpp>
 #include <hpx/util/assert.hpp>
 #include <hpx/util/assert_owns_lock.hpp>
 #include <hpx/util/atomic_count.hpp>
@@ -92,14 +94,11 @@ namespace hpx { namespace lcos { namespace local
             typedef hpx::lcos::local::spinlock mutex_type;
 
         public:
-            HPX_NON_COPYABLE(unlimited_channel);
-
-        public:
             unlimited_channel()
               : get_generation_(0), set_generation_(0), closed_(false)
             {}
 
-        protected:
+        public:
             hpx::future<T> get(std::size_t generation, bool blocking)
             {
                 std::unique_lock<mutex_type> l(mtx_);
@@ -216,6 +215,16 @@ namespace hpx { namespace lcos { namespace local
                 // all pending requests which can't be satisfied have to be
                 // canceled at this point
                 buffer_.cancel_waiting(e);
+            }
+
+        private:
+            // serialization support
+            friend class hpx::serialization::access;
+
+            template <typename Archive>
+            void serialize(Archive & ar, unsigned)
+            {
+                ar & buffer_ & set_generation_ & get_generation_ & closed_;
             }
 
         private:
