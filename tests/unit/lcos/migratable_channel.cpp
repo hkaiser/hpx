@@ -274,36 +274,35 @@ void trigger_send(hpx::lcos::migratable_send_channel<hpx::id_type> c)
 }
 HPX_PLAIN_ACTION(trigger_send);
 
-// void test_migrate_channel(hpx::id_type source, hpx::id_type target)
-// {
-//     // create channel on given locality
-//     hpx::lcos::migratable_channel<hpx::id_type> t1(source);
-//     HPX_TEST_NEQ(hpx::naming::invalid_id, t1.get_id());
-//
-//     // get to receive end
-//     hpx::lcos::migratable_receive_channel<hpx::id_type> rc(t1);
-//
-//     // make sure this channel was created on source
-//     hpx::future<void> f1 = hpx::async<trigger_send_action>(source, t1);
-//     HPX_TEST_EQ(rc.get(hpx::launch::sync), source);
-//     f1.get();
-//
-//     // migrate t1 to the target
-//     hpx::lcos::migratable_channel<hpx::id_type> t2(
-//         hpx::components::migrate(t1, target));
-//
-//     // wait for migration to be done
-//     HPX_TEST_NEQ(hpx::naming::invalid_id, t2.get_id());
-//
-//     // the migrated object should have the same id as before
-//     HPX_TEST_EQ(t1.get_id(), t2.get_id());
-//
-//     // tell the migrated object
-//     hpx::future<void> f2 = hpx::async<trigger_send_action>(target, t1);
-//     HPX_TEST_EQ(rc.get(hpx::launch::sync), target);
-//     f2.get();
-// }
+void test_migrate_channel(hpx::id_type source, hpx::id_type target)
+{
+    // create channel on given locality
+    hpx::lcos::migratable_channel<hpx::id_type> t1(source);
+    HPX_TEST_NEQ(hpx::naming::invalid_id, t1.get_id());
 
+    // get to receive end
+    hpx::lcos::migratable_receive_channel<hpx::id_type> rc(t1);
+
+    // make sure this channel was created on source
+    hpx::future<void> f1 = hpx::async<trigger_send_action>(source, t1);
+    HPX_TEST_EQ(rc.get(hpx::launch::sync), source);
+    f1.get();
+
+    // migrate t1 to the target
+    hpx::lcos::migratable_channel<hpx::id_type> t2(
+        hpx::components::migrate(t1, target));
+
+    // wait for migration to be done
+    HPX_TEST_NEQ(hpx::naming::invalid_id, t2.get_id());
+
+    // the migrated object should have the same id as before
+    HPX_TEST_EQ(t1.get_id(), t2.get_id());
+
+    // tell the migrated object
+    hpx::future<void> f2 = hpx::async<trigger_send_action>(target, t1);
+    HPX_TEST_EQ(rc.get(hpx::launch::sync), target);
+    f2.get();
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char* argv[])
@@ -334,7 +333,7 @@ int main(int argc, char* argv[])
         channel_as_lco(id, here);
         channel_as_lco(here, id);
 
-//         test_migrate_channel(here, id);
+        test_migrate_channel(here, id);
 //         test_migrate_channel(id, here);
     }
 
