@@ -85,7 +85,7 @@ static std::chrono::high_resolution_clock::time_point log_t_start =
 #define LOG_CUSTOM_MSG2(x)
 #endif
 
-#define EXTRA_DEBUG
+//#define EXTRA_DEBUG
 
 #if defined(HPX_MSVC)
 #undef EXTRA_DEBUG
