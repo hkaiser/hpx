@@ -99,12 +99,12 @@ namespace hpx { namespace threads { namespace detail
         {
             // For critical priority threads, create the thread immediately.
             scheduler->create_thread(data, nullptr, initial_state, true, ec,
-                data.num_os_thread);
+                data.num_os_thread); //JB_EDIT
         }
         else {
             // Create a task description for the new thread.
             scheduler->create_thread(data, nullptr, initial_state, false, ec,
-                data.num_os_thread);
+                data.num_os_thread); //JB_EDIT
         }
     }
 }}}

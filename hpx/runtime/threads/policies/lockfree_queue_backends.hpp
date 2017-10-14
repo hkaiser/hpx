@@ -83,7 +83,7 @@ struct lockfree_lifo
 
 ///////////////////////////////////////////////////////////////////////////////
 // FIFO + stealing at opposite end.
-#if defined(HPX_HAVE_ABP_SCHEDULER)
+//#if defined(HPX_HAVE_ABP_SCHEDULER)
 struct lockfree_abp_fifo;
 struct lockfree_abp_lifo;
 
@@ -185,7 +185,7 @@ struct lockfree_abp_lifo
     };
 };
 
-#endif // HPX_HAVE_ABP_SCHEDULER
+//#endif // HPX_HAVE_ABP_SCHEDULER
 
 }}}
 

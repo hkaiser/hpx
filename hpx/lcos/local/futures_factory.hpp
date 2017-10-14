@@ -105,7 +105,9 @@ namespace hpx { namespace lcos { namespace local
             // run in a separate thread
             threads::thread_id_type apply(launch policy,
                 threads::thread_priority priority,
-                threads::thread_stacksize stacksize, error_code& ec)
+                threads::thread_stacksize stacksize,
+                threads::thread_schedule_hint schedulehint, // JB_EDIT
+                error_code& ec)
             {
                 this->check_started();
 
@@ -116,7 +118,7 @@ namespace hpx { namespace lcos { namespace local
                     this->sched_->add(
                         util::deferred_call(&base_type::run_impl, std::move(this_)),
                         util::thread_description(f_, "task_object::apply"),
-                        threads::pending, false, stacksize, ec);
+                        threads::pending, false, stacksize, schedulehint, ec);
                     return threads::invalid_thread_id;
                 }
                 else if (policy == launch::fork) {
@@ -131,7 +133,7 @@ namespace hpx { namespace lcos { namespace local
                     threads::register_thread_nullary(
                         util::deferred_call(&base_type::run_impl, std::move(this_)),
                         util::thread_description(f_, "task_object::apply"),
-                        threads::pending, false, priority, std::size_t(-1),
+                        threads::pending, false, priority, schedulehint,
                         stacksize, ec);
                     return threads::invalid_thread_id;
                 }
@@ -365,6 +367,7 @@ namespace hpx { namespace lcos { namespace local
             launch policy = launch::async,
             threads::thread_priority priority = threads::thread_priority_default,
             threads::thread_stacksize stacksize = threads::thread_stacksize_default,
+            threads::thread_schedule_hint schedulehint = threads::thread_schedule_hint_none,
             error_code& ec = throws) const
         {
             if (!task_) {
@@ -373,7 +376,7 @@ namespace hpx { namespace lcos { namespace local
                     "futures_factory invalid (has it been moved?)");
                 return threads::invalid_thread_id;
             }
-            return task_->apply(policy, priority, stacksize, ec);
+            return task_->apply(policy, priority, stacksize, schedulehint, ec);
         }
 
         // This is the same as get_future, except that it moves the

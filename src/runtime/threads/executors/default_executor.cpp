@@ -40,7 +40,9 @@ namespace hpx { namespace threads { namespace executors { namespace detail
     void default_executor::add(closure_type&& f,
         util::thread_description const& desc,
         threads::thread_state_enum initial_state,
-        bool run_now, threads::thread_stacksize stacksize, error_code& ec)
+        bool run_now, threads::thread_stacksize stacksize,
+        threads::thread_schedule_hint schedulehint,
+        error_code& ec)
     {
         if (stacksize == threads::thread_stacksize_default)
             stacksize = stacksize_;
