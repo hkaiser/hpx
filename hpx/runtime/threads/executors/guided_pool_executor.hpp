@@ -68,6 +68,29 @@ namespace hpx { namespace threads { namespace executors
     };
 
     // --------------------------------------------------------------------
+    struct HPX_EXPORT guided_pool_executor_base {
+    public:
+        guided_pool_executor_base(const std::string& pool_name)
+            : pool_executor_(pool_name)
+        {}
+
+        guided_pool_executor_base(const std::string& pool_name,
+                             thread_stacksize stacksize)
+            : pool_executor_(pool_name, stacksize)
+        {}
+
+        guided_pool_executor_base(const std::string& pool_name,
+                             thread_priority priority,
+                             thread_stacksize stacksize = thread_stacksize_default)
+            : pool_executor_(pool_name, priority, stacksize)
+        {}
+
+    protected:
+        pool_executor pool_executor_;
+    };
+
+
+    // --------------------------------------------------------------------
     template <typename... Args>
     struct HPX_EXPORT guided_pool_executor {};
 
@@ -75,8 +98,10 @@ namespace hpx { namespace threads { namespace executors
     template <>
     template <typename R, typename...Args>
     struct HPX_EXPORT guided_pool_executor<pool_numa_hint<R(*)(Args...)>>
+        : guided_pool_executor_base
     {
     public:
+        using guided_pool_executor_base::guided_pool_executor_base;
 
         template <typename F, typename ... Ts>
         hpx::future<
@@ -96,60 +121,8 @@ namespace hpx { namespace threads { namespace executors
                 std::forward<F>(f), std::forward<Ts>(ts)...);
         };
 
-
-//        template <typename F, typename ... Ts>
-//        void post(F && f, Ts &&... ts)
-//        {
-//            parallel::execution::post(executors_[current_],
-//                std::forward<F>(f), std::forward<Ts>(ts)...);
-//        }
-
-//        template <typename F, typename ... Ts>
-//        typename hpx::util::detail::invoke_deferred_result<F, Ts...>::type
-//        sync_execute(F && f, Ts &&... ts)
-//        {
-//            std::size_t current = ++current_ % executors_.size();
-//            return parallel::execution::sync_execute(executors_[current],
-//                std::forward<F>(f), std::forward<Ts>(ts)...);
-//        }
-
-//        template <typename F, typename Shape, typename ... Ts>
-//        std::vector<hpx::future<
-//            typename hpx::parallel::v3::detail::bulk_async_execute_result<
-//                F, Shape, Ts...
-//            >::type>
-//        >
-//        bulk_async_execute(F && f, Shape const& shape, Ts &&... ts)
-//        {
-//        }
-
-//        template <typename F, typename Shape, typename ... Ts>
-//        typename hpx::parallel::v3::detail::bulk_execute_result<
-//            F, Shape, Ts...
-//        >::type
-//        bulk_sync_execute(F && f, Shape const& shape, Ts &&... ts)
-//        {
-//        }
-
-    public:
-        guided_pool_executor(const std::string& pool_name)
-            : pool_executor_(pool_name)
-        {}
-
-        guided_pool_executor(const std::string& pool_name,
-                             thread_stacksize stacksize)
-            : pool_executor_(pool_name, stacksize)
-        {}
-
-        guided_pool_executor(const std::string& pool_name,
-                             thread_priority priority,
-                             thread_stacksize stacksize = thread_stacksize_default)
-            : pool_executor_(pool_name, priority, stacksize)
-        {}
-
     private:
         pool_numa_hint<R(*)(Args...)>   hint_;
-        pool_executor                   pool_executor_;
     };
 }}}
 
