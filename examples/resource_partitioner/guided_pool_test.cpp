@@ -63,31 +63,40 @@ void async_guided(std::size_t n, bool printout, const std::string &message)
     }
 }
 
-// ------------------------------------------------------------------------
-// specialize the hint template for our function type
 namespace hpx { namespace threads { namespace executors
 {
+    // ------------------------------------------------------------------------
+    // specialize the hint template for our function type
     template <>
     template <typename R, typename...Args>
     struct HPX_EXPORT pool_numa_hint<R(*)(Args...)>
     {
         int operator ()(Args ...args) const {
+            std::cout << "Function type numa hint invoked " << std::endl;
             return 56;
         }
     };
-}}}
 
-// ------------------------------------------------------------------------
-// specialize the hint template for lambda args
-namespace hpx { namespace threads { namespace executors
-{
+    // ------------------------------------------------------------------------
+    // specialize the hint template for lambda args
     template <>
     struct HPX_EXPORT pool_numa_hint<int, double, const std::string &>
     {
         int operator ()(int, double, const std::string &) const {
+            std::cout << "Lambda arg type numa hint invoked " << std::endl;
             return 42;
         }
     };
+
+    template <>
+    struct HPX_EXPORT pool_numa_hint<double>
+    {
+        int operator ()(double) const {
+            std::cout << "Lambda continuation numa hint invoked " << std::endl;
+            return 27;
+        }
+    };
+
 }}}
 
 using namespace hpx::threads::executors;
@@ -107,24 +116,40 @@ int hpx_main(boost::program_options::variables_map& vm)
     std::size_t num_threads = hpx::get_num_worker_threads();
     std::cout << "HPX using threads = " << num_threads << std::endl;
 
+    // we must specialize the numa callback hint for the function type we are invoking
     using hint_type1 = pool_numa_hint<decltype(&async_guided)>;
-
+    // create an executor using that hint type
     hpx::threads::executors::guided_pool_executor<hint_type1> guided_exec(CUSTOM_POOL_NAME);
+    // invoke an asyn function using our numa hint executor
     hpx::future<void> gf1 = hpx::async(guided_exec, &async_guided, 5, true, "Guided function");
 
+    // specialize the numa hint callback for a lambda type invocation
+    // the args of the async lambda must match the args of the hint type
     using hint_type2 = pool_numa_hint<int, double, const std::string &>;
-
-    hpx::threads::executors::guided_pool_executor<hint_type2> guided_exec2(CUSTOM_POOL_NAME);
-    hpx::future<void> gf2 = hpx::async(guided_exec2,
-        [](int a, double x, const std::string &msg) {
+    // create an executor using the numa hint type
+    hpx::threads::executors::guided_pool_executor<hint_type2> guided_lambda_exec(CUSTOM_POOL_NAME);
+    // invoke the lambda asynchronously and use the numa executor
+    hpx::future<double> gf2 = hpx::async(guided_lambda_exec,
+        [](int a, double x, const std::string &msg) mutable -> double {
             std::cout << "inside async lambda " << msg << std::endl;
+            // return a double as an example
+            return 3.1415;
         },
-        5, 3.14, "Guided function 2");
+        5, 2.718, "Guided function 2");
 
-//    hpx::future<void> gf2 = gf1.then(
-//        guided_exec, [](hpx::future<void>&& f) { async_guided(5, true, "guided continuation"); });
+    // specialize the numa hint callback for another lambda type invocation
+    // the args of the async lambda must match the args of the hint type
+    using hint_type3 = pool_numa_hint<double>;
+    // create an executor using the numa hint type
+    hpx::threads::executors::guided_pool_executor<hint_type3> guided_cont_exec(CUSTOM_POOL_NAME);
+    // invoke the lambda asynchronously and use the numa executor
+    auto new_future = gf2.then(guided_cont_exec, [](hpx::future<double> &&df) {
+        double d = df.get();
+        std::cout << "received a double of value " << d << std::endl;
+        return d*2;
+    });
 
-    gf1.get();
+    new_future.get();
 
     return hpx::finalize();
 }

@@ -42,8 +42,8 @@ namespace hpx { namespace threads { namespace executors
     template <typename Executor, typename NumaFunction>
     struct pre_execution_domain_schedule
     {
-        Executor     &executor_;
-        NumaFunction &numa_function_;
+        Executor     executor_;
+        NumaFunction numa_function_;
         //
         template <typename F, typename ... Ts>
         auto operator()(F && f, Ts &&... ts) const
@@ -56,13 +56,15 @@ namespace hpx { namespace threads { namespace executors
                 result_type;
 
             lcos::local::futures_factory<result_type()> p(
-                executor_,
+                const_cast<Executor&>(executor_),
                 util::deferred_call(std::forward<F>(f), std::forward<Ts>(ts)...));
+
             p.apply(
                 launch::async,
                 threads::thread_priority_default,
                 threads::thread_stacksize_default,
                 threads::thread_schedule_hint(domain));
+
             return p.get_future();
         }
     };
@@ -143,7 +145,7 @@ namespace hpx { namespace threads { namespace executors
         template <typename F, typename ... Ts>
         hpx::future<
             typename hpx::util::detail::invoke_deferred_result<F, Ts...>::type>
-        async_execute(F && f, Ts &&... ts)
+        async_execute(F && f, Ts &&... ts) const
         {
             // hold onto the function until all futures have become ready
             // by using a dataflow operation, then call the scheduling hint
@@ -176,7 +178,7 @@ namespace hpx { namespace parallel { namespace execution
     template <typename Executor>
     struct is_one_way_executor<
             threads::executors::guided_pool_executor<Executor> >
-      : std::true_type
+      : std::false_type
     {};
 
     template <typename Executor>
