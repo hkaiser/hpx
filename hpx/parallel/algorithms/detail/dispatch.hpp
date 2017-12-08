@@ -100,33 +100,23 @@ namespace hpx { namespace parallel { inline namespace v1 { namespace detail
         >::type
         operator()(ExPolicy && policy, Args&&... args) const
         {
-#if !defined(__CUDA_ARCH__)
-            try {
-#endif
-                typedef typename
-                    hpx::util::decay<ExPolicy>::type::executor_parameters_type
-                    parameters_type;
-                typedef typename
-                    hpx::util::decay<ExPolicy>::type::executor_type
-                    executor_type;
+            typedef typename
+                hpx::util::decay<ExPolicy>::type::executor_parameters_type
+                parameters_type;
+            typedef typename
+                hpx::util::decay<ExPolicy>::type::executor_type
+                executor_type;
 
-                parallel::util::detail::scoped_executor_parameters_ref<
-                        parameters_type, executor_type
-                    > scoped_param(policy.parameters(), policy.executor());
+            parallel::util::detail::scoped_executor_parameters_ref<
+                    parameters_type, executor_type
+                > scoped_param(policy.parameters(), policy.executor());
 
-                return parallel::util::detail::algorithm_result<
-                        ExPolicy, local_result_type
-                    >::get(
-                        Derived::sequential(std::forward<ExPolicy>(policy),
-                            std::forward<Args>(args)...)
-                    );
-#if !defined(__CUDA_ARCH__)
-            }
-            catch(...) {
-                // this does not return
-                return detail::handle_exception<ExPolicy, local_result_type>::call();
-            }
-#endif
+            return parallel::util::detail::algorithm_result<
+                    ExPolicy, local_result_type
+                >::get(
+                    Derived::sequential(std::forward<ExPolicy>(policy),
+                        std::forward<Args>(args)...)
+                );
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -163,6 +153,9 @@ namespace hpx { namespace parallel { inline namespace v1 { namespace detail
                 return call_execute(std::forward<ExPolicy>(policy),
                     is_void(), std::forward<Args>(args)...);
             }
+            catch (std::bad_alloc const& ba) {
+                throw ba;
+            }
             catch (...) {
                 return detail::handle_exception<ExPolicy, local_result_type>::
                     call();
@@ -186,6 +179,9 @@ namespace hpx { namespace parallel { inline namespace v1 { namespace detail
                 return parallel::util::detail::algorithm_result<
                         ExPolicy, local_result_type
                     >::get(std::move(result));
+            }
+            catch (std::bad_alloc const& ba) {
+                throw ba;
             }
             catch (...) {
                 return detail::handle_exception<ExPolicy, local_result_type>::
