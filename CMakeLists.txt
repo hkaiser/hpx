@@ -1,4 +1,4 @@
-# Copyright (c) 2007-2017 Hartmut Kaiser
+# Copyright (c) 2007-2018 Hartmut Kaiser
 # Copyright (c) 2011-2014 Thomas Heller
 # Copyright (c) 2007-2008 Chirag Dekate
 # Copyright (c)      2011 Bryce Lelbach
@@ -1000,6 +1000,15 @@ hpx_option(HPX_WITH_UNWRAPPED_COMPATIBILITY BOOL
     ON ADVANCED)
 if(HPX_WITH_UNWRAPPED_COMPATIBILITY)
   hpx_add_config_define(HPX_HAVE_UNWRAPPED_COMPATIBILITY)
+endif()
+
+################################################################################
+# Experimental: HPX_WITH_SPINLOCK_MCS
+hpx_option(HPX_WITH_SPINLOCK_MCS BOOL
+    "Enable using a MCS implementation of spinlock (default: OFF)"
+    OFF ADVANCED)
+if(HPX_WITH_SPINLOCK_MCS)
+  hpx_add_config_define(HPX_HAVE_SPINLOCK_MCS)
 endif()
 
 ################################################################################
