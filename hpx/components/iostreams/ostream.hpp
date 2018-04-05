@@ -122,7 +122,7 @@ namespace hpx { namespace iostreams
         }
 
         ///////////////////////////////////////////////////////////////////////
-        hpx::future<naming::id_type>
+        HPX_IOSTREAMS_EXPORT hpx::future<naming::id_type>
         create_ostream(char const* name, std::ostream& strm);
 
         template <typename Tag>
@@ -264,10 +264,8 @@ namespace hpx { namespace iostreams
             return true;
         }
 
+    public:
         ///////////////////////////////////////////////////////////////////////
-        friend void detail::register_ostreams();
-        friend void detail::unregister_ostreams();
-
         // late initialization during runtime system startup
         template <typename Tag>
         void initialize(Tag tag)
