@@ -797,6 +797,21 @@ namespace hpx { namespace lcos { namespace detail
     unwrap(Future && future, error_code& ec)
     {
         typedef typename future_unwrap_result<Future>::result_type result_type;
+        if (future.is_ready())
+        {
+            typedef typename traits::future_traits<Future>::type inner_type;
+            inner_type&& f = future.get();
+
+            // move the reference count into the returned intrusive_ptr
+            typedef
+                typename traits::detail::shared_state_ptr_for<inner_type>::type
+                    inner_shared_ptr_type;
+            return inner_shared_ptr_type(
+                traits::future_access<inner_type>::detach_shared_state(
+                    std::move(f)),
+                false);
+        }
+
         typedef detail::unwrap_continuation<result_type> shared_state;
         typedef typename shared_state::init_no_addref init_no_addref;
 
