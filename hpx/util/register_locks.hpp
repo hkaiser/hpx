@@ -70,9 +70,29 @@ namespace hpx { namespace util
             ignore_lock(mtx_);
         }
 
+        ignore_while_checking(ignore_while_checking const& rhs) = delete;
+
+        ignore_while_checking(ignore_while_checking && rhs)
+          : mtx_(rhs.mtx_)
+        {
+            rhs.mtx_ = nullptr;
+        }
+
         ~ignore_while_checking()
         {
-            reset_ignored(mtx_);
+            if (mtx_ != nullptr)
+            {
+                reset_ignored(mtx_);
+            }
+        }
+
+        ignore_while_checking operator=(ignore_while_checking const& rhs) = delete;
+
+        ignore_while_checking operator=(ignore_while_checking && rhs)
+        {
+            mtx_ = rhs.mtx_;
+            rhs.mtx_ = nullptr;
+            return *this;
         }
 
         void const* mtx_;
