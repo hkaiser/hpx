@@ -115,6 +115,10 @@ HPX_IS_BITWISE_SERIALIZABLE(hpx::naming::detail::gid_serialization_data)
 
 namespace hpx { namespace naming
 {
+    ///////////////////////////////////////////////////////////////////////////
+    util::internal_allocator<detail::id_type_impl> id_type::alloc_;
+
+    ///////////////////////////////////////////////////////////////////////////
     namespace detail
     {
         void decrement_refcnt(detail::id_type_impl* p)
@@ -122,7 +126,8 @@ namespace hpx { namespace naming
             // do nothing if it's too late in the game
             if (!get_runtime_ptr())
             {
-                delete p;   // delete local gid representation in any case
+                // delete local gid representation in any case
+                id_type::deallocate(p);
                 return;
             }
 
@@ -154,7 +159,8 @@ namespace hpx { namespace naming
                         << e.what();
                 }
             }
-            else {
+            else
+            {
                 // If the gid was not split at any point in time we can assume
                 // that the referenced object is fully local.
                 HPX_ASSERT(addr.type_ != components::component_invalid);
@@ -178,7 +184,7 @@ namespace hpx { namespace naming
                     }
                 }
             }
-            delete p;   // delete local gid representation in any case
+            id_type::deallocate(p);   // delete local gid representation in any case
         }
 
         // custom deleter for managed gid_types, will be called when the last
@@ -187,12 +193,15 @@ namespace hpx { namespace naming
         {
             // a credit of zero means the component is not (globally) reference
             // counted
-            if (detail::has_credits(*p)) {
+            if (detail::has_credits(*p))
+            {
                 // execute the deleter directly
                 decrement_refcnt(p);
             }
-            else {
-                delete p;   // delete local gid representation if needed
+            else
+            {
+                // delete local gid representation if needed
+                id_type::deallocate(p);
             }
         }
 
@@ -200,11 +209,12 @@ namespace hpx { namespace naming
         // copy of the corresponding naming::id_type goes out of scope
         void gid_unmanaged_deleter (id_type_impl* p)
         {
-            delete p;   // delete local gid representation only
+            id_type::deallocate(p);   // delete local gid representation only
         }
 
         ///////////////////////////////////////////////////////////////////////
-        id_type_impl::deleter_type id_type_impl::get_deleter(id_type_management t)
+        id_type_impl::deleter_type id_type_impl::get_deleter(
+            id_type_management t) noexcept
         {
             switch (t) {
             case unmanaged:
