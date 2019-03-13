@@ -29,6 +29,8 @@ namespace policies {
 namespace libfabric
 {
     struct parcelport;
+    class controller;
+
     // The receiver is responsible for handling incoming messages. For that purpose,
     // it posts receive buffers. Incoming messages can be of two kinds:
     //      1) An ACK message which has been sent from an rma_receiver, to signal
@@ -59,6 +61,9 @@ namespace libfabric
         ~receiver();
 
         // --------------------------------------------------------------------
+        bool handle_new_connection(controller *controller, std::uint64_t len);
+
+        // --------------------------------------------------------------------
         // A received message is routed by the controller into this function.
         // it might be an incoming message or just an ack sent to inform that
         // all rdma reads are complete from a previous send operation.
@@ -82,7 +87,7 @@ namespace libfabric
         region_type                       *header_region_ ;
         rma::memory_pool<region_provider> *memory_pool_;
         //
-        friend class libfabric_controller;
+        friend class controller;
         //
         performance_counter<unsigned int> messages_handled_;
         performance_counter<unsigned int> acks_received_;
