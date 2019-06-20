@@ -63,7 +63,8 @@ namespace hpx { namespace parallel { namespace util
 
             std::vector<hpx::future<Result>> workitems =
                 execution::bulk_async_execute(
-                    policy.executor(),
+                    execution::inject_executor(
+                        policy.parameters(), policy.executor()),
                     partitioner_iteration<Result, F>{std::forward<F>(f)},
                     std::move(shape));
             return std::make_pair(std::move(inititems), std::move(workitems));
@@ -75,13 +76,6 @@ namespace hpx { namespace parallel { namespace util
         template <typename ExPolicy, typename Result>
         struct foreach_static_partitioner
         {
-            using parameters_type = typename ExPolicy::executor_parameters_type;
-            using executor_type = typename ExPolicy::executor_type;
-
-            using scoped_executor_parameters =
-                detail::scoped_executor_parameters_ref<
-                    parameters_type, executor_type>;
-
             using handle_local_exceptions = detail::handle_local_exceptions<ExPolicy>;
 
             template <
@@ -92,7 +86,7 @@ namespace hpx { namespace parallel { namespace util
                 FwdIter first, std::size_t count, F1 && f1, F2 && f2)
             {
                 // inform parameter traits
-                scoped_executor_parameters scoped_params(
+                auto scoped_params = make_scoped_executor_parameters(
                     policy.parameters(), policy.executor());
 
                 FwdIter last = parallel::v1::detail::next(first, count);
@@ -148,13 +142,6 @@ namespace hpx { namespace parallel { namespace util
         template <typename ExPolicy, typename Result>
         struct foreach_task_static_partitioner
         {
-            using parameters_type = typename ExPolicy::executor_parameters_type;
-            using executor_type = typename ExPolicy::executor_type;
-
-            using scoped_executor_parameters =
-                detail::scoped_executor_parameters<
-                    parameters_type, executor_type>;
-
             using handle_local_exceptions = detail::handle_local_exceptions<ExPolicy>;
 
             template <
@@ -165,9 +152,8 @@ namespace hpx { namespace parallel { namespace util
                 FwdIter first, std::size_t count, F1 && f1, F2 && f2)
             {
                 // inform parameter traits
-                std::shared_ptr<scoped_executor_parameters> scoped_params =
-                    std::make_shared<scoped_executor_parameters>(
-                        policy.parameters(), policy.executor());
+                auto scoped_params = make_scoped_executor_parameters_ref(
+                    policy.parameters(), policy.executor());
 
                 FwdIter last = parallel::v1::detail::next(first, count);
 
@@ -197,13 +183,13 @@ namespace hpx { namespace parallel { namespace util
             }
 
         private:
-            template <typename F, typename FwdIter>
+            template <typename ScopedExecutorParameters, typename F,
+                typename FwdIter>
             static hpx::future<FwdIter> reduce(
-                std::shared_ptr<scoped_executor_parameters>&& scoped_params,
+                std::shared_ptr<ScopedExecutorParameters>&& scoped_params,
                 std::vector<hpx::future<Result>>&& inititems,
                 std::vector<hpx::future<Result>>&& workitems,
-                std::list<std::exception_ptr>&& errors,
-                F && f, FwdIter last)
+                std::list<std::exception_ptr>&& errors, F&& f, FwdIter last)
             {
 #if defined(HPX_COMPUTE_DEVICE_CODE)
                 HPX_ASSERT(false);

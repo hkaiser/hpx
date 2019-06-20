@@ -18,7 +18,8 @@
 #include <type_traits>
 #include <utility>
 
-namespace hpx { namespace parallel { namespace execution {
+namespace hpx { namespace parallel { namespace execution
+{
     ///////////////////////////////////////////////////////////////////////////
     /// This executor parameter represents the default loop schedule for bulk
     /// execution. Loop scheduling means 1. the chunking and 2. the placement of
@@ -29,7 +30,7 @@ namespace hpx { namespace parallel { namespace execution {
     struct default_schedule
     {
         /// Construct a \a default_schedule executor parameters object.
-        HPX_CONSTEXPR default_schedule() {}
+        HPX_CONSTEXPR default_schedule() = default;
 
         /// Construct a \a default_schedule executor parameters object.
         ///

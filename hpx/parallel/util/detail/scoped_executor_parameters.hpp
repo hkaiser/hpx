@@ -9,6 +9,9 @@
 #include <hpx/config.hpp>
 #include <hpx/parallel/executors/execution_parameters.hpp>
 
+#include <memory>
+#include <utility>
+
 namespace hpx { namespace parallel { namespace util { namespace detail
 {
     ///////////////////////////////////////////////////////////////////////////
@@ -38,6 +41,17 @@ namespace hpx { namespace parallel { namespace util { namespace detail
         Executor exec_;
     };
 
+    template <typename Parameters, typename Executor>
+    scoped_executor_parameters<
+        typename std::decay<Parameters>::type,
+        typename std::decay<Executor>::type>
+    make_scoped_executor_parameters(Parameters&& params, Executor&& exec)
+    {
+        return scoped_executor_parameters<typename std::decay<Parameters>::type,
+            typename std::decay<Executor>::type>(
+            std::forward<Parameters>(params), std::forward<Executor>(exec));
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     template <typename Parameters, typename Executor>
     struct scoped_executor_parameters_ref
@@ -64,6 +78,18 @@ namespace hpx { namespace parallel { namespace util { namespace detail
         Parameters const& params_;
         Executor const& exec_;
     };
+
+    template <typename Parameters, typename Executor>
+    std::shared_ptr<
+        scoped_executor_parameters<typename std::decay<Parameters>::type,
+            typename std::decay<Executor>::type>>
+    make_scoped_executor_parameters_ref(Parameters&& params, Executor&& exec)
+    {
+        return std::make_shared<
+            scoped_executor_parameters<typename std::decay<Parameters>::type,
+                typename std::decay<Executor>::type>>(
+            std::forward<Parameters>(params), std::forward<Executor>(exec));
+    }
 }}}}
 
 #endif

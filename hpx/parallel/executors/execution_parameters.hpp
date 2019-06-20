@@ -496,6 +496,57 @@ namespace hpx { namespace parallel { namespace execution
 
         HPX_HAS_MEMBER_XXX_TRAIT_DEF(mark_end_execution)
 
+        ///////////////////////////////////////////////////////////////////////
+        // customization point for interface inject_executor()
+        template <typename Parameters, typename Executor_>
+        struct inject_executor_fn_helper<Parameters, Executor_,
+            typename std::enable_if<
+                hpx::traits::is_executor_any<Executor_>::value ||
+                    hpx::traits::is_threads_executor<Executor_>::value
+            >::type>
+        {
+            template <typename AnyParameters, typename Executor>
+            HPX_FORCEINLINE static Executor&& call(
+                hpx::traits::detail::wrap_int, AnyParameters&&, Executor&& exec)
+            {
+                return std::forward<Executor>(exec);
+            }
+
+            template <typename AnyParameters, typename Executor>
+            HPX_FORCEINLINE static auto call(
+                int, AnyParameters&& params, Executor&& exec)
+            -> decltype(params.inject_executor(std::forward<Executor>(exec)))
+            {
+                return params.inject_executor(std::forward<Executor>(exec));
+            }
+
+            template <typename Executor>
+            HPX_FORCEINLINE static auto call(Parameters& params,
+                Executor&& exec)
+            {
+                return call(0, params, std::forward<Executor>(exec));
+            }
+
+            template <typename AnyParameters, typename Executor>
+            HPX_FORCEINLINE static auto call(AnyParameters params,
+                Executor&& exec)
+            {
+                return call(static_cast<Parameters&>(params),
+                    std::forward<Executor>(exec));
+            }
+
+            template <typename AnyParameters, typename Executor>
+            struct result
+            {
+                using type = decltype(call(
+                    std::declval<AnyParameters>(),
+                    std::declval<Executor>()
+                ));
+            };
+        };
+
+        HPX_HAS_MEMBER_XXX_TRAIT_DEF(inject_executor)
+
         /// \endcond
     }
 
@@ -630,7 +681,7 @@ namespace hpx { namespace parallel { namespace execution
 
         template <typename T, typename Wrapper>
         struct mark_end_of_scheduling_call_helper<T, Wrapper,
-            typename std::enable_if<has_mark_begin_execution<T>::value>::type>
+            typename std::enable_if<has_mark_end_of_scheduling<T>::value>::type>
         {
             template <typename Executor>
             HPX_FORCEINLINE void mark_end_of_scheduling(Executor && exec)
@@ -649,7 +700,7 @@ namespace hpx { namespace parallel { namespace execution
 
         template <typename T, typename Wrapper>
         struct mark_end_execution_call_helper<T, Wrapper,
-            typename std::enable_if<has_mark_begin_execution<T>::value>::type>
+            typename std::enable_if<has_mark_end_execution<T>::value>::type>
         {
             template <typename Executor>
             HPX_FORCEINLINE void mark_end_execution(Executor && exec)
@@ -705,6 +756,25 @@ namespace hpx { namespace parallel { namespace execution
         };
 
         ///////////////////////////////////////////////////////////////////////
+        template <typename T, typename Wrapper, typename Enable = void>
+        struct inject_executor_call_helper
+        {
+        };
+
+        template <typename T, typename Wrapper>
+        struct inject_executor_call_helper<T, Wrapper,
+            typename std::enable_if<has_inject_executor<T>::value>::type>
+        {
+            template <typename Executor>
+            HPX_FORCEINLINE void inject_executor(Executor && exec)
+            {
+                auto& wrapped =
+                    static_cast<unwrapper<Wrapper>*>(this)->member_.get();
+                wrapped.inject_executor(std::forward<Executor>(exec));
+            }
+        };
+
+        ///////////////////////////////////////////////////////////////////////
         template <typename T>
         struct base_member_helper
         {
@@ -726,10 +796,10 @@ namespace hpx { namespace parallel { namespace execution
           , mark_end_of_scheduling_call_helper<T, boost::reference_wrapper<T>>
           , mark_end_execution_call_helper<T, boost::reference_wrapper<T>>
           , processing_units_count_call_helper<T, boost::reference_wrapper<T>>
-          , reset_thread_distribution_call_helper<T,
-                boost::reference_wrapper<T>>
+          , reset_thread_distribution_call_helper<T, boost::reference_wrapper<T>>
+          , inject_executor_call_helper<T, boost::reference_wrapper<T>>
         {
-            typedef boost::reference_wrapper<T> wrapper_type;
+            using wrapper_type = boost::reference_wrapper<T>;
 
             unwrapper(wrapper_type wrapped_param)
               : base_member_helper<wrapper_type>(wrapped_param)
@@ -747,8 +817,9 @@ namespace hpx { namespace parallel { namespace execution
           , mark_end_execution_call_helper<T, std::reference_wrapper<T>>
           , processing_units_count_call_helper<T, std::reference_wrapper<T>>
           , reset_thread_distribution_call_helper<T, std::reference_wrapper<T>>
+          , inject_executor_call_helper<T, std::reference_wrapper<T>>
         {
-            typedef std::reference_wrapper<T> wrapper_type;
+            using wrapper_type = std::reference_wrapper<T>;
 
             unwrapper(wrapper_type wrapped_param)
               : base_member_helper<wrapper_type>(wrapped_param)
@@ -790,6 +861,7 @@ namespace hpx { namespace parallel { namespace execution
             HPX_STATIC_ASSERT_ON_PARAMETERS_AMBIGUITY(count_processing_units);
             HPX_STATIC_ASSERT_ON_PARAMETERS_AMBIGUITY(maximal_number_of_chunks);
             HPX_STATIC_ASSERT_ON_PARAMETERS_AMBIGUITY(reset_thread_distribution);
+            HPX_STATIC_ASSERT_ON_PARAMETERS_AMBIGUITY(inject_executor);
 
             template <typename Dependent = void, typename Enable =
                 typename std::enable_if<
@@ -832,9 +904,9 @@ namespace hpx { namespace parallel { namespace execution
     template <typename ... Params>
     struct executor_parameters_join
     {
-        typedef detail::executor_parameters<
+        using type = detail::executor_parameters<
                 typename hpx::util::decay<Params>::type...
-            > type;
+            >;
     };
 
     template <typename ... Params>
@@ -842,9 +914,8 @@ namespace hpx { namespace parallel { namespace execution
     typename executor_parameters_join<Params...>::type
     join_executor_parameters(Params &&... params)
     {
-        typedef
-            typename executor_parameters_join<Params...>::type
-            joined_params;
+        using joined_params =
+            typename executor_parameters_join<Params...>::type;
         return joined_params(std::forward<Params>(params)...);
     }
 

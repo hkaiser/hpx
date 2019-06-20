@@ -61,7 +61,9 @@ namespace hpx { namespace parallel { namespace util
                 inititems, f, first, count, 1);
 
             std::vector<hpx::future<Result>> workitems =
-                execution::bulk_async_execute(policy.executor(),
+                execution::bulk_async_execute(
+                    execution::inject_executor(
+                        policy.parameters(), policy.executor()),
                     partitioner_iteration<Result, F>{std::forward<F>(f)},
                     std::move(shape));
 
@@ -96,9 +98,12 @@ namespace hpx { namespace parallel { namespace util
                 std::forward<ExPolicy>(policy),
                 inititems, f, first, count, stride);
 
+            auto wrapped_exec = execution::inject_executor(
+                policy.parameters(), policy.executor());
+
             std::vector<hpx::future<Result>> workitems =
                 execution::bulk_async_execute(
-                    policy.executor(),
+                    std::move(wrapped_exec),
                     partitioner_iteration<Result, F>{std::forward<F>(f)},
                     std::move(shape));
 
@@ -124,15 +129,15 @@ namespace hpx { namespace parallel { namespace util
         {
             HPX_ASSERT(hpx::util::size(data) >= hpx::util::size(chunk_sizes));
 
-            typedef typename std::decay<Data>::type data_type;
+            using data_type = typename std::decay<Data>::type;
 
             typename data_type::const_iterator data_it = hpx::util::begin(data);
             typename std::vector<std::size_t>::const_iterator chunk_size_it =
                 hpx::util::begin(chunk_sizes);
 
-            typedef typename hpx::util::tuple<
+            using tuple_type = typename hpx::util::tuple<
                     typename data_type::value_type, FwdIter, std::size_t
-                > tuple_type;
+                >;
 
             // schedule every chunk on a separate thread
             std::vector<tuple_type> shape;
@@ -154,7 +159,9 @@ namespace hpx { namespace parallel { namespace util
             }
             HPX_ASSERT(chunk_size_it == chunk_sizes.end());
 
-            return execution::bulk_async_execute(policy.executor(),
+            return execution::bulk_async_execute(
+                execution::inject_executor(
+                    policy.parameters(), policy.executor()),
                 partitioner_iteration<Result, F>{std::forward<F>(f)},
                 std::move(shape));
         }
@@ -165,13 +172,6 @@ namespace hpx { namespace parallel { namespace util
         template <typename ExPolicy, typename R, typename Result>
         struct static_partitioner
         {
-            using parameters_type = typename ExPolicy::executor_parameters_type;
-            using executor_type = typename ExPolicy::executor_type;
-
-            using scoped_executor_parameters =
-                detail::scoped_executor_parameters_ref<
-                    parameters_type, executor_type>;
-
             using handle_local_exceptions =
                 detail::handle_local_exceptions<ExPolicy>;
 
@@ -184,7 +184,7 @@ namespace hpx { namespace parallel { namespace util
                 F1 && f1, F2 && f2)
             {
                 // inform parameter traits
-                scoped_executor_parameters scoped_params(
+                auto scoped_params = make_scoped_executor_parameters(
                     policy.parameters(), policy.executor());
 
                 std::vector<hpx::future<Result>> workitems;
@@ -216,7 +216,7 @@ namespace hpx { namespace parallel { namespace util
                 F1 && f1, F2 && f2)
             {
                 // inform parameter traits
-                scoped_executor_parameters scoped_params(
+                auto scoped_params = make_scoped_executor_parameters(
                     policy.parameters(), policy.executor());
 
                 std::vector<hpx::future<Result>> workitems;
@@ -250,7 +250,7 @@ namespace hpx { namespace parallel { namespace util
                 std::vector<std::size_t> const& chunk_sizes, Data && data)
             {
                 // inform parameter traits
-                scoped_executor_parameters scoped_params(
+                auto scoped_params = make_scoped_executor_parameters(
                     policy.parameters(), policy.executor());
 
                 std::vector<hpx::future<Result>> workitems;
@@ -300,13 +300,6 @@ namespace hpx { namespace parallel { namespace util
         template <typename ExPolicy, typename R, typename Result>
         struct task_static_partitioner
         {
-            using parameters_type = typename ExPolicy::executor_parameters_type;
-            using executor_type = typename ExPolicy::executor_type;
-
-            using scoped_executor_parameters =
-                detail::scoped_executor_parameters<
-                    parameters_type, executor_type>;
-
             using handle_local_exceptions =
                 detail::handle_local_exceptions<ExPolicy>;
 
@@ -318,9 +311,8 @@ namespace hpx { namespace parallel { namespace util
                 F1 && f1, F2 && f2)
             {
                 // inform parameter traits
-                std::shared_ptr<scoped_executor_parameters> scoped_params =
-                    std::make_shared<scoped_executor_parameters>(
-                        policy.parameters(), policy.executor());
+                auto scoped_params = make_scoped_executor_parameters_ref(
+                    policy.parameters(), policy.executor());
 
                 std::vector<hpx::future<Result>> workitems;
                 std::list<std::exception_ptr> errors;
@@ -355,9 +347,8 @@ namespace hpx { namespace parallel { namespace util
                 F1 && f1, F2 && f2)
             {
                 // inform parameter traits
-                std::shared_ptr<scoped_executor_parameters> scoped_params =
-                    std::make_shared<scoped_executor_parameters>(
-                        policy.parameters(), policy.executor());
+                auto scoped_params = make_scoped_executor_parameters_ref(
+                    policy.parameters(), policy.executor());
 
                 std::vector<hpx::future<Result>> workitems;
                 std::list<std::exception_ptr> errors;
@@ -394,9 +385,8 @@ namespace hpx { namespace parallel { namespace util
                 std::vector<std::size_t> const& chunk_sizes, Data && data)
             {
                 // inform parameter traits
-                std::shared_ptr<scoped_executor_parameters> scoped_params =
-                    std::make_shared<scoped_executor_parameters>(
-                        policy.parameters(), policy.executor());
+                auto scoped_params = make_scoped_executor_parameters_ref(
+                    policy.parameters(), policy.executor());
 
                 std::vector<hpx::future<Result>> workitems;
                 std::list<std::exception_ptr> errors;
@@ -423,9 +413,9 @@ namespace hpx { namespace parallel { namespace util
             }
 
         private:
-            template <typename F>
+            template <typename ScopedExecutorParameters, typename F>
             static hpx::future<R> reduce(
-                std::shared_ptr<scoped_executor_parameters>&& scoped_params,
+                std::shared_ptr<ScopedExecutorParameters>&& scoped_params,
                 std::vector<hpx::future<Result>>&& workitems,
                 std::list<std::exception_ptr>&& errors,
                 F && f)

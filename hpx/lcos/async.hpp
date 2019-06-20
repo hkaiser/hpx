@@ -91,11 +91,11 @@ namespace hpx { namespace detail
             components::client_base<Client, Stub> c, Ts&&... ts)
         {
             // make sure the action is compatible with the component type
-            typedef typename components::client_base<
+            using component_type = typename components::client_base<
                     Client, Stub
-                >::server_component_type component_type;
+                >::server_component_type;
 
-            typedef traits::is_valid_action<Action, component_type> is_valid;
+            using is_valid = traits::is_valid_action<Action, component_type>;
             static_assert(is_valid::value,
                 "The action to invoke is not supported by the target");
 
@@ -197,11 +197,11 @@ namespace hpx { namespace detail
             traits::is_action<Action>::value
         >::type>
     {
-        typedef typename traits::promise_local_result<
+        using result_type = typename traits::promise_local_result<
                 typename hpx::traits::extract_action<
                     Action
                 >::remote_result_type
-            >::type result_type;
+            >::type;
 
         template <typename Policy, typename... Ts>
         HPX_FORCEINLINE static auto call(
@@ -273,11 +273,11 @@ namespace hpx { namespace detail
         call(hpx::actions::basic_action<Component, Signature, Derived> const&,
             components::client_base<Client, Stub> const& c, Ts&&... vs)
         {
-            typedef typename components::client_base<
+            using component_type = typename components::client_base<
                     Client, Stub
-                >::server_component_type component_type;
+                >::server_component_type;
 
-            typedef traits::is_valid_action<Derived, component_type> is_valid;
+            using is_valid = traits::is_valid_action<Derived, component_type>;
             static_assert(is_valid::value,
                 "The action to invoke is not supported by the target");
 
@@ -310,13 +310,11 @@ namespace hpx { namespace detail
             -> decltype(
                 detail::async_launch_policy_dispatch<typename util::decay<
                     F>::type>::call(std::forward<Policy_>(launch_policy),
-                    threads::thread_schedule_hint(), std::forward<F>(f),
-                    std::forward<Ts>(ts)...))
+                    std::forward<F>(f), std::forward<Ts>(ts)...))
         {
             return detail::async_launch_policy_dispatch<typename util::decay<
                 F>::type>::call(std::forward<Policy_>(launch_policy),
-                threads::thread_schedule_hint(), std::forward<F>(f),
-                std::forward<Ts>(ts)...);
+                std::forward<F>(f), std::forward<Ts>(ts)...);
         }
 
         template <typename Policy_, typename Component, typename Signature,
@@ -332,11 +330,11 @@ namespace hpx { namespace detail
             hpx::actions::basic_action<Component, Signature, Derived> const&,
             components::client_base<Client, Stub> const& c, Ts&&... ts)
         {
-            typedef typename components::client_base<
+            using component_type = typename components::client_base<
                     Client, Stub
-                >::server_component_type component_type;
+                >::server_component_type;
 
-            typedef traits::is_valid_action<Derived, component_type> is_valid;
+            using is_valid = traits::is_valid_action<Derived, component_type>;
             static_assert(is_valid::value,
                 "The action to invoke is not supported by the target");
 

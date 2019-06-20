@@ -30,8 +30,8 @@ int hpx_main(int argc, char* argv[])
     using hpx::parallel::execution::static_chunk_size;
     using hpx::threads::thread_schedule_hint;
 
-    std::size_t const num_tasks = 10;
-    std::size_t const num_threads = hpx::get_num_worker_threads();
+    std::size_t num_tasks = 10;
+    std::size_t num_threads = hpx::get_num_worker_threads();
 
     // Disable stealing to ensure that tasks stay where they are scheduled.
     hpx::threads::remove_scheduler_mode(
@@ -40,7 +40,7 @@ int hpx_main(int argc, char* argv[])
     round_robin_placement check_round_robin_placement;
     for_loop(par.with(static_chunk_size(1), round_robin_placement()),
         std::size_t(0), num_tasks,
-        [&check_round_robin_placement, num_threads](std::size_t i) {
+        [&check_round_robin_placement, num_tasks, num_threads](std::size_t i) {
             void* dummy_executor = nullptr;
             thread_schedule_hint const hint =
                 check_round_robin_placement.get_schedule_hint(
@@ -54,7 +54,7 @@ int hpx_main(int argc, char* argv[])
     chunked_placement check_chunked_placement;
     for_loop(par.with(static_chunk_size(1), chunked_placement()),
         std::size_t(0), num_tasks,
-        [&check_chunked_placement, num_threads](std::size_t i) {
+        [&check_chunked_placement, num_tasks, num_threads](std::size_t i) {
             void* dummy_executor = nullptr;
             thread_schedule_hint const hint =
                 check_chunked_placement.get_schedule_hint(
@@ -67,7 +67,8 @@ int hpx_main(int argc, char* argv[])
 
     default_schedule check_default_schedule;
     for_loop(par.with(default_schedule(1)), std::size_t(0),
-        num_tasks, [&check_default_schedule, num_threads](std::size_t i) {
+        num_tasks,
+        [&check_default_schedule, num_tasks, num_threads](std::size_t i) {
             void* dummy_executor = nullptr;
             thread_schedule_hint const hint =
                 check_default_schedule.get_schedule_hint(

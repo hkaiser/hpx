@@ -16,9 +16,10 @@
 #include <cstddef>
 #include <iterator>
 
-///////////////////////////////////////////////////////////////////////////////
-namespace hpx { namespace parallel { namespace util { namespace detail {
-    ///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+namespace hpx { namespace parallel { namespace util { namespace detail
+{
+    ////////////////////////////////////////////////////////////////////////////
     struct schedule_hint_iterator
       : public hpx::util::iterator_facade<schedule_hint_iterator,
             threads::thread_schedule_hint const,
@@ -26,11 +27,10 @@ namespace hpx { namespace parallel { namespace util { namespace detail {
             threads::thread_schedule_hint>
     {
     private:
-        typedef hpx::util::iterator_facade<schedule_hint_iterator,
+        using base_type = hpx::util::iterator_facade<schedule_hint_iterator,
             threads::thread_schedule_hint const,
             std::input_iterator_tag,
-            threads::thread_schedule_hint>
-            base_type;
+            threads::thread_schedule_hint>;
 
     public:
         using schedule_hint_fn_type =

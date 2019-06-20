@@ -25,13 +25,11 @@ namespace hpx { namespace parallel { namespace execution { namespace detail
     template <typename F, typename Shape, typename Future, typename ... Ts>
     struct then_bulk_function_result
     {
-        typedef typename hpx::traits::range_traits<Shape>::value_type
-            value_type;
-        typedef typename
+        using value_type = typename hpx::traits::range_traits<Shape>::value_type;
+        using type = typename
                 hpx::util::detail::invoke_deferred_result<
                     F, value_type, Future, Ts...
-                >::type
-            type;
+                >::type;
     };
 
     template <typename F, typename Shape, typename Future, bool IsVoid,
@@ -41,17 +39,17 @@ namespace hpx { namespace parallel { namespace execution { namespace detail
     template <typename F, typename Shape, typename Future, typename ... Ts>
     struct bulk_then_execute_result_impl<F, Shape, Future, false, Ts...>
     {
-        typedef std::vector<
+        using type = std::vector<
                 typename then_bulk_function_result<
                     F, Shape, Future, Ts...
                 >::type
-            > type;
+            >;
     };
 
     template <typename F, typename Shape, typename Future, typename ... Ts>
     struct bulk_then_execute_result_impl<F, Shape, Future, true, Ts...>
     {
-        typedef void type;
+        using type = void;
     };
 
     template <typename F, typename Shape, typename Future, typename ... Ts>

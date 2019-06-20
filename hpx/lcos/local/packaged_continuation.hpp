@@ -104,9 +104,9 @@ namespace hpx { namespace lcos { namespace detail
     >::type
     invoke_continuation(Func& func, Future && future, Continuation& cont)
     {
-        typedef std::is_void<
+        using is_void = std::is_void<
             typename util::invoke_result<Func, Future>::type
-        > is_void;
+        >;
 
         hpx::util::annotate_function annotate(func);
         invoke_continuation_nounwrap(
@@ -122,12 +122,10 @@ namespace hpx { namespace lcos { namespace detail
     invoke_continuation(Func& func, Future && future, Continuation& cont)
     {
         try {
-            typedef
-                typename util::invoke_result<Func, Future>::type
-                inner_future;
-            typedef
-                typename traits::detail::shared_state_ptr_for<inner_future>::type
-                inner_shared_state_ptr;
+            using inner_future =
+                typename util::invoke_result<Func, Future>::type;
+            using inner_shared_state_ptr =
+                typename traits::detail::shared_state_ptr_for<inner_future>::type;
 
             // take by value, as the future may go away immediately
             inner_shared_state_ptr inner_state =
@@ -163,13 +161,13 @@ namespace hpx { namespace lcos { namespace detail
     template <typename ContResult>
     struct continuation_result
     {
-        typedef ContResult type;
+        using type = ContResult;
     };
 
     template <typename ContResult>
     struct continuation_result<future<ContResult> >
     {
-        typedef ContResult type;
+        using type = ContResult;
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -177,10 +175,10 @@ namespace hpx { namespace lcos { namespace detail
     class continuation : public detail::future_data<ContResult>
     {
     private:
-        typedef future_data<ContResult> base_type;
+        using base_type = future_data<ContResult>;
 
-        typedef typename base_type::mutex_type mutex_type;
-        typedef typename base_type::result_type result_type;
+        using mutex_type = typename base_type::mutex_type;
+        using result_type = typename base_type::result_type;
 
     protected:
         threads::thread_id_type get_id() const
@@ -210,7 +208,7 @@ namespace hpx { namespace lcos { namespace detail
         };
 
     public:
-        typedef typename base_type::init_no_addref init_no_addref;
+        using init_no_addref = typename base_type::init_no_addref;
 
         template <typename Func, typename Enable = typename
             std::enable_if<
@@ -390,12 +388,13 @@ namespace hpx { namespace lcos { namespace detail
                 "hpx::parallel::execution::parallel_executor::post");
 
             parallel::execution::detail::post_policy_dispatch<
-                hpx::launch::async_policy>::call(desc, hpx::launch::async,
-                threads::thread_schedule_hint(),
-                [HPX_CAPTURE_MOVE(this_), HPX_CAPTURE_MOVE(f)]() mutable
-                -> threads::thread_result_type {
-                    return this_->async_impl(std::move(f));
-                });
+                    hpx::launch::async_policy
+                >::call(desc, hpx::launch::async,
+                    [HPX_CAPTURE_MOVE(this_),
+                        HPX_CAPTURE_MOVE(f)
+                    ]() mutable -> threads::thread_result_type {
+                        return this_->async_impl(std::move(f));
+                    });
 
             if (&ec != &throws)
                 ec = make_success_code();
@@ -435,12 +434,13 @@ namespace hpx { namespace lcos { namespace detail
                 "hpx::parallel::execution::parallel_executor::post");
 
             parallel::execution::detail::post_policy_dispatch<
-                hpx::launch::async_policy>::call(desc, hpx::launch::async,
-                threads::thread_schedule_hint(),
-                [HPX_CAPTURE_MOVE(this_), HPX_CAPTURE_MOVE(f)]() mutable
-                -> threads::thread_result_type {
-                    return this_->async_impl_nounwrap(std::move(f));
-                });
+                    hpx::launch::async_policy
+                >::call(desc, hpx::launch::async,
+                    [HPX_CAPTURE_MOVE(this_),
+                        HPX_CAPTURE_MOVE(f)
+                    ]() mutable -> threads::thread_result_type {
+                        return this_->async_impl_nounwrap(std::move(f));
+                    });
 
             if (&ec != &throws)
                 ec = make_success_code();
@@ -544,9 +544,8 @@ namespace hpx { namespace lcos { namespace detail
         template <typename Policy>
         void attach(Future const& future, Policy && policy)
         {
-            typedef
-                typename traits::detail::shared_state_ptr_for<Future>::type
-                shared_state_ptr;
+            using shared_state_ptr =
+                typename traits::detail::shared_state_ptr_for<Future>::type;
 
             // bind an on_completed handler to this future which will invoke
             // the continuation
@@ -579,9 +578,8 @@ namespace hpx { namespace lcos { namespace detail
         template <typename Policy>
         void attach_nounwrap(Future const& future, Policy && policy)
         {
-            typedef
-                typename traits::detail::shared_state_ptr_for<Future>::type
-                shared_state_ptr;
+            using shared_state_ptr =
+                typename traits::detail::shared_state_ptr_for<Future>::type;
 
             // bind an on_completed handler to this future which will invoke
             // the continuation
@@ -615,9 +613,8 @@ namespace hpx { namespace lcos { namespace detail
         void attach_exec(Future const& future,
             typename std::remove_reference<Executor>::type& exec)
         {
-            typedef
-                typename traits::detail::shared_state_ptr_for<Future>::type
-                shared_state_ptr;
+            using shared_state_ptr =
+                typename traits::detail::shared_state_ptr_for<Future>::type;
 
             // bind an on_completed handler to this future which will invoke
             // the continuation
@@ -646,9 +643,8 @@ namespace hpx { namespace lcos { namespace detail
         void attach_exec(Future const& future,
             typename std::remove_reference<Executor>::type&& exec)
         {
-            typedef
-                typename traits::detail::shared_state_ptr_for<Future>::type
-                shared_state_ptr;
+            using shared_state_ptr =
+                typename traits::detail::shared_state_ptr_for<Future>::type;
 
             // bind an on_completed handler to this future which will invoke
             // the continuation
@@ -683,15 +679,14 @@ namespace hpx { namespace lcos { namespace detail
         typename ContResult>
     class continuation_allocator : public continuation<Future, F, ContResult>
     {
-        typedef continuation<Future, F, ContResult> base_type;
+        using base_type = continuation<Future, F, ContResult>;
 
-        typedef typename
+        using other_allocator = typename
                 std::allocator_traits<Allocator>::template
-                    rebind_alloc<continuation_allocator>
-            other_allocator;
+                    rebind_alloc<continuation_allocator>;
 
     public:
-        typedef typename base_type::init_no_addref init_no_addref;
+        using init_no_addref = typename base_type::init_no_addref;
 
         template <typename Func>
         continuation_allocator(other_allocator const& alloc, Func && f)
@@ -709,7 +704,7 @@ namespace hpx { namespace lcos { namespace detail
     private:
         void destroy() override
         {
-            typedef std::allocator_traits<other_allocator> traits;
+            using traits = std::allocator_traits<other_allocator>;
 
             other_allocator alloc(alloc_);
             traits::destroy(alloc, this);
@@ -727,8 +722,8 @@ namespace hpx { namespace traits { namespace detail
     struct shared_state_allocator<
         lcos::detail::continuation<Future, F, ContResult>, Allocator>
     {
-        typedef lcos::detail::continuation_allocator<
-            Allocator, Future, F, ContResult> type;
+        using type = lcos::detail::continuation_allocator<
+            Allocator, Future, F, ContResult>;
     };
 }}}
 
@@ -741,9 +736,9 @@ namespace hpx { namespace lcos { namespace detail
     >::type
     make_continuation(Future const& future, Policy && policy, F && f)
     {
-        typedef typename continuation_result<ContResult>::type result_type;
-        typedef detail::continuation<Future, F, result_type> shared_state;
-        typedef typename shared_state::init_no_addref init_no_addref;
+        using result_type = typename continuation_result<ContResult>::type;
+        using shared_state = detail::continuation<Future, F, result_type>;
+        using init_no_addref = typename shared_state::init_no_addref;
 
         // create a continuation
         typename traits::detail::shared_state_ptr<result_type>::type p(
@@ -839,8 +834,8 @@ namespace hpx { namespace lcos { namespace detail
     inline typename traits::detail::shared_state_ptr<ContResult>::type
     make_continuation_exec(Future const& future, Executor && exec, F && f)
     {
-        typedef detail::continuation<Future, F, ContResult> shared_state;
-        typedef typename shared_state::init_no_addref init_no_addref;
+        using shared_state = detail::continuation<Future, F, ContResult>;
+        using init_no_addref = typename shared_state::init_no_addref;
 
         // create a continuation
         typename traits::detail::shared_state_ptr<ContResult>::type p(
@@ -890,10 +885,9 @@ namespace hpx { namespace lcos { namespace detail
                 Outer
             >::type && outer_state)
         {
-            typedef typename traits::future_traits<Outer>::type inner_future;
-            typedef
-                typename traits::detail::shared_state_ptr_for<inner_future>::type
-                inner_shared_state_ptr;
+            using inner_future = typename traits::future_traits<Outer>::type;
+            using inner_shared_state_ptr =
+                typename traits::detail::shared_state_ptr_for<inner_future>::type;
 
             // Bind an on_completed handler to this future which will transfer
             // its result to the new future.
@@ -931,7 +925,7 @@ namespace hpx { namespace lcos { namespace detail
         }
 
     public:
-        typedef typename future_data<ContResult>::init_no_addref init_no_addref;
+        using init_no_addref = typename future_data<ContResult>::init_no_addref;
 
         unwrap_continuation() {}
 
@@ -942,9 +936,8 @@ namespace hpx { namespace lcos { namespace detail
         template <typename Future>
         void attach(Future && future)
         {
-            typedef
-                typename traits::detail::shared_state_ptr_for<Future>::type
-                outer_shared_state_ptr;
+            using outer_shared_state_ptr =
+                typename traits::detail::shared_state_ptr_for<Future>::type;
 
             // Bind an on_completed handler to this future which will wait for
             // the inner future and will transfer its result to the new future.
@@ -997,7 +990,7 @@ namespace hpx { namespace lcos { namespace detail
     private:
         void destroy() override
         {
-            typedef std::allocator_traits<other_allocator> traits;
+            using traits = std::allocator_traits<other_allocator>;
 
             other_allocator alloc(alloc_);
             traits::destroy(alloc, this);
@@ -1112,9 +1105,9 @@ namespace hpx { namespace lcos { namespace detail
     inline typename traits::detail::shared_state_ptr<void>::type
     downcast_to_void(Future& future, bool addref)
     {
-        typedef typename traits::detail::shared_state_ptr<void>::type
-            shared_state_type;
-        typedef typename shared_state_type::element_type element_type;
+        using shared_state_type =
+            typename traits::detail::shared_state_ptr<void>::type;
+        using element_type = typename shared_state_type::element_type;
 
         // same as static_pointer_cast, but with addref option
         return shared_state_type(static_cast<element_type*>(

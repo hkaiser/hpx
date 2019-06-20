@@ -8,43 +8,34 @@
 
 #include <hpx/config.hpp>
 #include <hpx/parallel/executors/execution_parameters_fwd.hpp>
-#include <hpx/runtime/serialization/serialize.hpp>
 #include <hpx/runtime/threads/thread_enums.hpp>
 #include <hpx/traits/is_executor_parameters.hpp>
 
 #include <cstddef>
 #include <type_traits>
 
-namespace hpx { namespace parallel { namespace execution {
+namespace hpx { namespace parallel { namespace execution
+{
     ///////////////////////////////////////////////////////////////////////////
     /// Lets the scheduler decide the task placement during bulk execution.
     struct scheduler_placement
     {
         /// Construct a \a scheduler_placement executor parameters object
-        HPX_CONSTEXPR scheduler_placement() {}
+        HPX_CONSTEXPR scheduler_placement() = default;
 
         /// \cond NOINTERNAL
         template <typename Executor>
-        hpx::threads::thread_schedule_hint get_schedule_hint(Executor&,
+        static hpx::threads::thread_schedule_hint get_schedule_hint(Executor&&,
             std::size_t task_idx, std::size_t num_tasks, std::size_t cores)
         {
-            return hpx::threads::thread_schedule_hint();
-        }
-        /// \endcond
-
-    private:
-        /// \cond NOINTERNAL
-        friend class hpx::serialization::access;
-
-        template <typename Archive>
-        void serialize(Archive& ar, const unsigned int version)
-        {
+            return hpx::threads::thread_schedule_hint{};
         }
         /// \endcond
     };
 }}}
 
-namespace hpx { namespace parallel { namespace execution {
+namespace hpx { namespace parallel { namespace execution
+{
     /// \cond NOINTERNAL
     template <>
     struct is_executor_parameters<parallel::execution::scheduler_placement>

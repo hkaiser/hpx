@@ -85,11 +85,11 @@ namespace hpx { namespace parallel { namespace execution
     {
         /// Associate the parallel_execution_tag executor tag type as a default
         /// with this executor.
-        typedef parallel_execution_tag execution_category;
+        using execution_category = parallel_execution_tag;
 
         /// Associate the default_schedule executor parameters type as a default
         /// with this executor.
-        typedef default_schedule executor_parameters_type;
+        using executor_parameters_type = default_schedule;
 
         /// Create a new parallel executor
         HPX_CONSTEXPR explicit parallel_policy_executor(
@@ -118,26 +118,20 @@ namespace hpx { namespace parallel { namespace execution
 
         /// \cond NOINTERNAL
 
+        ////////////////////////////////////////////////////////////////////////
         // TwoWayExecutor interface
         template <typename F, typename ... Ts>
-        hpx::future<
-            typename hpx::util::detail::invoke_deferred_result<F, Ts...>::type
-        >
-        async_execute(F && f, Ts &&... ts) const
+        auto async_execute(F && f, Ts &&... ts) const
         {
             return hpx::detail::async_launch_policy_dispatch<Policy>::call(
-                policy_, threads::thread_schedule_hint(), std::forward<F>(f),
-                std::forward<Ts>(ts)...);
+                policy_, std::forward<F>(f), std::forward<Ts>(ts)...);
         }
 
+        ////////////////////////////////////////////////////////////////////////
         template <typename F, typename Future, typename ... Ts>
         HPX_FORCEINLINE
-        hpx::future<
-            typename hpx::util::detail::invoke_deferred_result<
-                F, Future, Ts...
-            >::type
-        >
-        then_execute(F && f, Future&& predecessor, Ts &&... ts)
+        auto then_execute(F && f, Future&& predecessor,
+            threads::thread_schedule_hint /*hint*/, Ts &&... ts)
         {
             using result_type =
                 typename hpx::util::detail::invoke_deferred_result<
@@ -155,6 +149,16 @@ namespace hpx { namespace parallel { namespace execution
                 std::move(p));
         }
 
+        template <typename F, typename Future, typename ... Ts>
+        HPX_FORCEINLINE
+        auto then_execute(F && f, Future&& predecessor, Ts &&... ts)
+        {
+            return then_execute(std::forward<F>(f),
+                std::forward<Future>(predecessor),
+                threads::thread_schedule_hint{}, std::forward<Ts>(ts)...);
+        }
+
+        ////////////////////////////////////////////////////////////////////////
         // NonBlockingOneWayExecutor (adapted) interface
         template <typename F, typename ... Ts>
         void post(F && f, Ts &&... ts) const
@@ -163,16 +167,14 @@ namespace hpx { namespace parallel { namespace execution
                 "hpx::parallel::execution::parallel_executor::post");
 
             detail::post_policy_dispatch<Policy>::call(desc, policy_,
-                threads::thread_schedule_hint(), std::forward<F>(f),
-                std::forward<Ts>(ts)...);
+                std::forward<F>(f), std::forward<Ts>(ts)...);
         }
 
+        ////////////////////////////////////////////////////////////////////////
         // BulkTwoWayExecutor interface
         template <typename F, typename S, typename ... Ts>
-        std::vector<hpx::future<
-            typename detail::bulk_function_result<F, S, Ts...>::type
-        > >
-        bulk_async_execute(F && f, S const& shape, Ts &&... ts) const
+        auto bulk_async_execute(F && f, S const& shape,
+            threads::thread_schedule_hint hint, Ts &&... ts) const
         {
             // lazily initialize once
             static std::size_t global_num_tasks =
@@ -181,11 +183,11 @@ namespace hpx { namespace parallel { namespace execution
             std::size_t num_tasks =
                 (num_tasks_ == std::size_t(-1)) ? global_num_tasks : num_tasks_;
 
-            typedef std::vector<hpx::future<
+            using result_type = std::vector<hpx::future<
                     typename detail::bulk_function_result<
                         F, S, Ts...
                     >::type
-                > > result_type;
+                > >;
 
             result_type results;
             std::size_t size = hpx::util::size(shape);
@@ -195,22 +197,41 @@ namespace hpx { namespace parallel { namespace execution
             if (hpx::detail::has_async_policy(policy_))
             {
                 spawn_hierarchical(results, l, 0, size, num_tasks, f,
-                    hpx::util::begin(shape), ts...);
+                    hpx::util::begin(shape), hint, ts...);
             } else {
                 spawn_sequential(results, l, 0, size, f,
-                    hpx::util::begin(shape), ts...);
+                    hpx::util::begin(shape), hint, ts...);
             }
             l.wait();
 
             return results;
         }
 
+        template <typename F, typename S, typename T, typename ... Ts,
+            typename Enable = typename std::enable_if<
+                   !std::is_same<
+                        typename std::decay<T>::type,
+                        threads::thread_schedule_hint
+                    >::value
+                >::type>
+        auto bulk_async_execute(F&& f, S const& shape, T&& t, Ts&&... ts) const
+        {
+            return bulk_async_execute(std::forward<F>(f), shape,
+                threads::thread_schedule_hint{}, std::forward<T>(t),
+                std::forward<Ts>(ts)...);
+        }
+
+        template <typename F, typename S>
+        auto bulk_async_execute(F && f, S const& shape) const
+        {
+            return bulk_async_execute(std::forward<F>(f), shape,
+                threads::thread_schedule_hint{});
+        }
+
+        ////////////////////////////////////////////////////////////////////////
         template <typename F, typename S, typename Future, typename... Ts>
-        hpx::future<
-            typename detail::bulk_then_execute_result<F, S, Future, Ts...>::type
-        >
-        bulk_then_execute(
-            F&& f, S const& shape, Future&& predecessor, Ts&&... ts)
+        auto bulk_then_execute(F&& f, S const& shape, Future&& predecessor,
+            threads::thread_schedule_hint hint, Ts&&... ts) const
         {
             using func_result_type =
                 typename detail::then_bulk_function_result<F, S, Future,
@@ -254,6 +275,31 @@ namespace hpx { namespace parallel { namespace execution
             return hpx::traits::future_access<result_future_type>::create(
                 std::move(p));
         }
+
+        template <typename F, typename S, typename Future, typename T,
+            typename ... Ts,
+            typename Enable = typename std::enable_if<
+                   !std::is_same<
+                        typename std::decay<T>::type,
+                        threads::thread_schedule_hint
+                    >::value
+                >::type>
+        auto bulk_then_execute(F&& f, S const& shape, Future&& predecessor,
+            T&& t, Ts&&... ts) const
+        {
+            return bulk_then_execute(std::forward<F>(f), shape,
+                std::forward<Future>(predecessor),
+                threads::thread_schedule_hint{},
+                std::forward<T>(t), std::forward<Ts>(ts)...);
+        }
+
+        template <typename F, typename S, typename Future>
+        auto bulk_then_execute(F && f, S const& shape, Future&& predecessor) const
+        {
+            return bulk_then_execute(std::forward<F>(f), shape,
+                std::forward<Future>(predecessor),
+                threads::thread_schedule_hint{});
+        }
         /// \endcond
 
     protected:
@@ -261,18 +307,15 @@ namespace hpx { namespace parallel { namespace execution
         template <typename Result, typename F, typename Iter, typename ... Ts>
         void spawn_sequential(std::vector<hpx::future<Result> >& results,
             lcos::local::latch& l, std::size_t base, std::size_t size,
-            F const& func, Iter it, Ts const&... ts) const
+            F const& func, Iter it, threads::thread_schedule_hint hint,
+            Ts const&... ts) const
         {
             // spawn tasks sequentially
             HPX_ASSERT(base + size <= results.size());
 
             for (std::size_t i = 0; i != size; ++i, ++it)
             {
-                auto s = *it;
-                results[base + i] =
-                    hpx::detail::async_launch_policy_dispatch<Policy>::call(
-                        policy_, hpx::util::get<0>(s), func,
-                        hpx::util::get<1>(s), ts...);
+                results[base + i] = async_execute(func, hint, *it, ts...);
             }
 
             l.count_down(size);
@@ -281,7 +324,8 @@ namespace hpx { namespace parallel { namespace execution
         template <typename Result, typename F, typename Iter, typename ... Ts>
         void spawn_hierarchical(std::vector<hpx::future<Result> >& results,
             lcos::local::latch& l, std::size_t base, std::size_t size,
-            std::size_t num_tasks, F const& func, Iter it, Ts const&... ts) const
+            std::size_t num_tasks, F const& func, Iter it,
+            threads::thread_schedule_hint hint, Ts const&... ts) const
         {
             if (size > num_tasks)
             {
@@ -292,9 +336,9 @@ namespace hpx { namespace parallel { namespace execution
 
                 while (size > chunk_size)
                 {
-                    post([&, base, chunk_size, num_tasks, it] {
+                    post([&, base, chunk_size, num_tasks, it, hint] {
                         spawn_hierarchical(results, l, base, chunk_size,
-                            num_tasks, func, it, ts...);
+                            num_tasks, func, it, hint, ts...);
                     });
 
                     base += chunk_size;
@@ -304,7 +348,7 @@ namespace hpx { namespace parallel { namespace execution
             }
 
             // spawn remaining tasks sequentially
-            spawn_sequential(results, l, base, size, func, it, ts...);
+            spawn_sequential(results, l, base, size, func, it, hint, ts...);
         }
         /// \endcond
 

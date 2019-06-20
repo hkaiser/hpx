@@ -119,11 +119,11 @@ namespace hpx { namespace parallel { namespace execution
                     std::forward<Ts>(ts)...
                 ))>
             {
-                typedef std::is_void<decltype(
+                using is_void = std::is_void<decltype(
                         sync_execute_dispatch(0,
                             std::forward<OneWayExecutor>(exec),
                             std::forward<F>(f), std::forward<Ts>(ts)...)
-                    )> is_void;
+                    )>;
 
                 return call_impl(is_void(), exec, std::forward<F>(f),
                     std::forward<Ts>(ts)...);
@@ -187,9 +187,9 @@ namespace hpx { namespace parallel { namespace execution
             call(OneWayExecutor && exec, F && f, Future&& predecessor,
                 Ts &&... ts)
             {
-                typedef typename hpx::util::detail::invoke_deferred_result<
-                        F, Future, Ts...
-                    >::type result_type;
+                using result_type =
+                    typename hpx::util::detail::invoke_deferred_result<F,
+                        Future, Ts...>::type;
 
                 auto func = hpx::util::one_shot(hpx::util::bind_back(
                     std::forward<F>(f), std::forward<Ts>(ts)...));
@@ -352,9 +352,9 @@ namespace hpx { namespace parallel { namespace execution
                 ))
             {
                 try {
-                    typedef typename hpx::util::detail::invoke_deferred_result<
-                            F, Ts...
-                        >::type result_type;
+                    using result_type =
+                        typename hpx::util::detail::invoke_deferred_result<F,
+                            Ts...>::type;
 
                     // use async execution, wait for result, propagate exceptions
                     return async_execute_dispatch(0, std::forward<TwoWayExecutor>(exec),
@@ -391,11 +391,11 @@ namespace hpx { namespace parallel { namespace execution
                     std::forward<F>(f), std::forward<Ts>(ts)...
                 ))
             {
-                typedef typename std::is_void<
+                using is_void = typename std::is_void<
                         typename hpx::util::detail::invoke_deferred_result<
                             F, Ts...
                         >::type
-                    >::type is_void;
+                    >::type;
 
                 return call_impl(is_void(), std::forward<TwoWayExecutor>(exec),
                     std::forward<F>(f), std::forward<Ts>(ts)...);
@@ -455,9 +455,9 @@ namespace hpx { namespace parallel { namespace execution
                     TwoWayExecutor && exec, F && f, Future&& predecessor,
                     Ts &&... ts)
             {
-                typedef typename hpx::util::detail::invoke_deferred_result<
+                using result_type = typename hpx::util::detail::invoke_deferred_result<
                         F, Future, Ts...
-                    >::type result_type;
+                    >::type;
 
                 auto func = hpx::util::one_shot(hpx::util::bind_back(
                     std::forward<F>(f), std::forward<Ts>(ts)...));
@@ -677,13 +677,12 @@ namespace hpx { namespace parallel { namespace execution
         template <typename F, typename Shape, typename ... Ts>
         struct bulk_function_result
         {
-            typedef typename hpx::traits::range_traits<Shape>::value_type
-                value_type;
-            typedef typename
+            using value_type =
+                typename hpx::traits::range_traits<Shape>::value_type;
+            using type = typename
                     hpx::util::detail::invoke_deferred_result<
                         F, value_type, Ts...
-                    >::type
-                type;
+                    >::type;
         };
 
         template <typename Executor>
@@ -830,15 +829,15 @@ namespace hpx { namespace parallel { namespace execution
         template <typename F, typename Shape, typename ... Ts>
         struct bulk_execute_result_impl<F, Shape, false, Ts...>
         {
-            typedef std::vector<
+            using type = std::vector<
                     typename bulk_function_result<F, Shape, Ts...>::type
-                > type;
+                >;
         };
 
         template <typename F, typename Shape, typename ... Ts>
         struct bulk_execute_result_impl<F, Shape, true, Ts...>
         {
-            typedef void type;
+            using type = void;
         };
 
         template <typename F, typename Shape, typename ... Ts>
@@ -919,9 +918,9 @@ namespace hpx { namespace parallel { namespace execution
                     Ts &&... ts)
             ->  typename bulk_execute_result<F, Shape, Ts...>::type
             {
-                typedef typename std::is_void<
+                using is_void = typename std::is_void<
                         typename bulk_function_result<F, Shape, Ts...>::type
-                    >::type is_void;
+                    >::type;
 
                 return call_impl(is_void(), std::forward<BulkExecutor>(exec),
                     std::forward<F>(f), shape, std::forward<Ts>(ts)...);
@@ -981,10 +980,10 @@ namespace hpx { namespace parallel { namespace execution
                     Ts &&... ts)
             ->  typename bulk_execute_result<F, Shape, Ts...>::type
             {
-                typedef typename hpx::traits::executor_future<
+                using result_type = typename hpx::traits::executor_future<
                         Executor,
                         typename bulk_execute_result<F, Shape, Ts...>::type
-                    >::type result_type;
+                    >::type;
 
                 try {
                     result_type results;
@@ -1012,12 +1011,12 @@ namespace hpx { namespace parallel { namespace execution
                     BulkExecutor && exec, F && f, Shape const& shape,
                     Ts &&... ts)
             {
-                typedef std::vector<
+                using result_type = std::vector<
                         typename hpx::traits::executor_future<
                             Executor,
                             typename bulk_function_result<F, Shape, Ts...>::type
                         >::type
-                    > result_type;
+                    >;
 
                 try {
                     result_type results;
@@ -1047,9 +1046,9 @@ namespace hpx { namespace parallel { namespace execution
                     Ts &&... ts)
             ->  typename bulk_execute_result<F, Shape, Ts...>::type
             {
-                typedef typename std::is_void<
+                using is_void = typename std::is_void<
                         typename bulk_function_result<F, Shape, Ts...>::type
-                    >::type is_void;
+                    >::type;
 
                 return call_impl(is_void(), std::forward<BulkExecutor>(exec),
                     std::forward<F>(f), shape, std::forward<Ts>(ts)...);
@@ -1149,13 +1148,13 @@ namespace hpx { namespace parallel { namespace execution
                         F, Shape, Future, Ts...
                     >::type>
             {
-                typedef typename bulk_then_execute_result<
+                using result_type = typename bulk_then_execute_result<
                         F, Shape, Future, Ts...
-                    >::type result_type;
+                    >::type;
 
-                typedef typename hpx::traits::detail::shared_state_ptr<
+                using shared_state_type = typename hpx::traits::detail::shared_state_ptr<
                         result_type
-                    >::type shared_state_type;
+                    >::type;
 
                 auto func = make_fused_bulk_sync_execute_helper<result_type>(
                     exec, std::forward<F>(f), shape,
@@ -1200,11 +1199,11 @@ namespace hpx { namespace parallel { namespace execution
                         F, Shape, Future, Ts...
                     >::type>
             {
-                typedef typename std::is_void<
+                using is_void = typename std::is_void<
                         typename then_bulk_function_result<
                             F, Shape, Future, Ts...
                         >::type
-                    >::type is_void;
+                    >::type;
 
                 return bulk_then_execute_fn_helper::call_impl(is_void(),
                     std::forward<BulkExecutor>(exec), std::forward<F>(f), shape,
@@ -1278,34 +1277,34 @@ namespace hpx { namespace parallel { namespace execution
                 >::type
             {
                 // result_of_t<F(Shape::value_type, Future)>
-                typedef typename then_bulk_function_result<
+                using func_result_type = typename then_bulk_function_result<
                         F, Shape, Future, Ts...
-                    >::type func_result_type;
+                    >::type;
 
                 // std::vector<future<func_result_type>>
-                typedef std::vector<typename hpx::traits::executor_future<
-                        Executor, func_result_type, Ts...
-                    >::type> result_type;
+                using result_type =
+                    std::vector<typename hpx::traits::executor_future<Executor,
+                        func_result_type, Ts...>::type>;
 
                 auto func = make_fused_bulk_async_execute_helper<result_type>(
                     exec, std::forward<F>(f), shape,
                     hpx::util::make_tuple(std::forward<Ts>(ts)...));
 
                 // void or std::vector<func_result_type>
-                typedef typename bulk_then_execute_result<
+                using vector_result_type = typename bulk_then_execute_result<
                         F, Shape, Future, Ts...
-                    >::type vector_result_type;
+                    >::type;
 
                 // future<vector_result_type>
-                typedef typename hpx::traits::executor_future<
+                using result_future_type = typename hpx::traits::executor_future<
                         Executor, vector_result_type
-                    >::type result_future_type;
+                    >::type;
 
-                typedef typename hpx::traits::detail::shared_state_ptr<
-                        result_future_type
-                    >::type shared_state_type;
+                using shared_state_type =
+                    typename hpx::traits::detail::shared_state_ptr<
+                        result_future_type>::type;
 
-                typedef typename std::decay<Future>::type future_type;
+                using future_type = typename std::decay<Future>::type;
 
                 shared_state_type p =
                     lcos::detail::make_continuation_exec<result_future_type>(

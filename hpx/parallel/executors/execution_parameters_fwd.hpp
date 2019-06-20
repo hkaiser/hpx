@@ -31,6 +31,7 @@ namespace hpx { namespace parallel { namespace execution
         struct mark_begin_execution_tag {};
         struct mark_end_of_scheduling_tag {};
         struct mark_end_execution_tag {};
+        struct inject_executor_tag {};
         /// \endcond
     }
 
@@ -62,6 +63,9 @@ namespace hpx { namespace parallel { namespace execution
 
         template <typename Parameters, typename Executor, typename Enable = void>
         struct mark_end_execution_fn_helper;
+
+        template <typename Parameters, typename Executor, typename Enable = void>
+        struct inject_executor_fn_helper;
         /// \endcond
     }
 
@@ -339,6 +343,39 @@ namespace hpx { namespace parallel { namespace execution
             }
         };
 
+
+        ///////////////////////////////////////////////////////////////////////
+        // inject_executor dispatch point
+        template <typename Parameters, typename Executor>
+        HPX_FORCEINLINE auto inject_executor(Parameters&& params,
+                Executor&& exec)
+        ->  typename inject_executor_fn_helper<
+                typename hpx::util::decay_unwrap<Parameters>::type,
+                typename hpx::util::decay<Executor>::type
+            >::template result<Parameters, Executor>::type
+        {
+            return inject_executor_fn_helper<
+                    typename hpx::util::decay_unwrap<Parameters>::type,
+                    typename hpx::util::decay<Executor>::type
+                >::call(std::forward<Parameters>(params),
+                    std::forward<Executor>(exec));
+        }
+
+        template <>
+        struct customization_point<inject_executor_tag>
+        {
+        public:
+            template <typename Parameters, typename Executor>
+            HPX_FORCEINLINE auto operator()(Parameters&& params,
+                    Executor&& exec) const
+            -> decltype(inject_executor(std::forward<Parameters>(params),
+                    std::forward<Executor>(exec)))
+            {
+                return inject_executor(std::forward<Parameters>(params),
+                    std::forward<Executor>(exec));
+            }
+        };
+
         /// \endcond
     }
 
@@ -489,6 +526,21 @@ namespace hpx { namespace parallel { namespace execution
             > const& mark_end_execution =
                 detail::static_const<detail::customization_point<
                     detail::mark_end_execution_tag
+                > >::value;
+
+        /// Inject a executor into the execution of a parallel algorithm
+        ///
+        /// \param params [in] The executor parameters object to use as a
+        ///              fallback if the executor does not expose
+        ///
+        /// \note This calls params.inject_executor(exec) if it exists;
+        ///       otherwise it does nothing.
+        ///
+        constexpr detail::customization_point<
+                detail::inject_executor_tag
+            > const& inject_executor =
+                detail::static_const<detail::customization_point<
+                    detail::inject_executor_tag
                 > >::value;
     }
 }}}

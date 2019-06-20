@@ -25,13 +25,24 @@ namespace hpx { namespace parallel { namespace execution { namespace detail
     {
         template <typename F, typename... Ts>
         static void call(hpx::util::thread_description const& desc,
-            Policy const& policy, threads::thread_schedule_hint hint, F&& f,
+            Policy const& policy, F&& f, threads::thread_schedule_hint hint,
             Ts&&... ts)
         {
             threads::register_thread_nullary(
                 hpx::util::deferred_call(
                     std::forward<F>(f), std::forward<Ts>(ts)...),
                 desc, threads::pending, false, policy.priority(), hint);
+        }
+
+        template <typename F, typename... Ts>
+        static void call(hpx::util::thread_description const& desc,
+            Policy const& policy, F&& f, Ts&&... ts)
+        {
+            threads::register_thread_nullary(
+                hpx::util::deferred_call(
+                    std::forward<F>(f), std::forward<Ts>(ts)...),
+                desc, threads::pending, false, policy.priority(),
+                threads::thread_schedule_hint{});
         }
     };
 
@@ -41,7 +52,7 @@ namespace hpx { namespace parallel { namespace execution { namespace detail
         template <typename F, typename... Ts>
         static void call(hpx::util::thread_description const& desc,
             launch::fork_policy const& policy,
-            threads::thread_schedule_hint /* hint */, F&& f, Ts&&... ts)
+            F&& f, threads::thread_schedule_hint hint, Ts&&... ts)
         {
             threads::thread_id_type tid = threads::register_thread_nullary(
                 hpx::util::deferred_call(
@@ -58,6 +69,14 @@ namespace hpx { namespace parallel { namespace execution { namespace detail
                 hpx::this_thread::suspend(threads::pending, tid,
                     "hpx::parallel::execution::parallel_executor::post");
             }
+        }
+
+        template <typename F, typename... Ts>
+        static void call(hpx::util::thread_description const& desc,
+            launch::fork_policy const& policy, F&& f, Ts&&... ts)
+        {
+            return call(desc, policy, std::forward<F>(f),
+                threads::thread_schedule_hint{}, std::forward<Ts>(ts)...);
         }
     };
 }}}}
