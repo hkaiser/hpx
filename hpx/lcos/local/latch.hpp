@@ -20,8 +20,12 @@
 #include <utility>
 
 ///////////////////////////////////////////////////////////////////////////////
-namespace hpx { namespace lcos { namespace local
+namespace hpx { namespace lcos { namespace local { inline namespace v1
 {
+    // This has been moved to an 'inline namespace v1' to allow seamless
+    // converting user code that currently depends on this latch to a latch
+    // type as defined in C++20.
+
     /// Latches are a thread coordination mechanism that allow one or more
     /// threads to block until an operation is completed. An individual latch
     /// is a singleuse object; once the operation has been completed, the latch
@@ -46,7 +50,7 @@ namespace hpx { namespace lcos { namespace local
         HPX_NON_COPYABLE(latch);
 
     private:
-        typedef lcos::local::spinlock mutex_type;
+        using mutex_type = lcos::local::spinlock;
 
     public:
         /// Initialize the latch
@@ -193,7 +197,7 @@ namespace hpx { namespace lcos { namespace local
         std::atomic<std::ptrdiff_t> counter_;
         bool notified_;
     };
-}}}
+}}}}
 
 #endif
 

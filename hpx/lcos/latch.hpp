@@ -16,7 +16,7 @@
 #include <utility>
 
 ///////////////////////////////////////////////////////////////////////////////
-namespace hpx { namespace lcos
+namespace hpx { namespace lcos { inline namespace v1
 {
     class HPX_EXPORT latch
       : public components::client_base<latch, lcos::server::latch>
@@ -125,6 +125,6 @@ namespace hpx { namespace lcos
         }
         /// \endcond
     };
-}}
+}}}
 
 #endif
