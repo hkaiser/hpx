@@ -234,7 +234,7 @@ namespace hpx { namespace parcelset
                         else {
                             // enqueue the outgoing parcel ...
                             enqueue_parcel(dest, std::move(p), std::move(f));
-                            do_background_work_impl<ConnectionHandler>(0);
+                            do_background_work_impl<ConnectionHandler>(0, parcelport_background_mode_all);
                             get_connection_and_send_parcels_impl<ConnectionHandler>(dest);
 //                            hpx::this_thread::suspend(
 //                                hpx::threads::pending_boost, "libfabric enqueue");
@@ -294,7 +294,7 @@ namespace hpx { namespace parcelset
                             // enqueue the outgoing parcels ...
                             enqueue_parcels(
                                 dest, std::move(parcels), std::move(handlers));
-                            do_background_work_impl<ConnectionHandler>(0);
+                            do_background_work_impl<ConnectionHandler>(0, parcelport_background_mode_all);
                             get_connection_and_send_parcels_impl<ConnectionHandler>(dest);
 
 //                            hpx::this_thread::suspend(

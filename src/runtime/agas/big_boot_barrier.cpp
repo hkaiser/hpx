@@ -808,7 +808,7 @@ void big_boot_barrier::wait_hosted(
     // wait until the agas node informs us that everyone has connected
     hpx::util::yield_while(
         [&lfpp](){
-            lfpp->background_work(0);
+            lfpp->background_work(0, hpx::parcelset::parcelport_background_mode_all);
             return lfpp->bootstrapping();
         }
     );

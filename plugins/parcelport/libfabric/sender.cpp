@@ -167,7 +167,7 @@ namespace libfabric
                 }
                 else if (ret == -FI_EAGAIN) {
                     LOG_ERROR_MSG("Reposting fi_sendv...");
-                    parcelport_->background_work(0);
+                    parcelport_->background_work(0, parcelport_background_mode_all);
                 }
                 else if (ret == -FI_ENOENT) {
                     if (hpx::threads::get_self_id()==hpx::threads::invalid_thread_id) {
@@ -220,7 +220,7 @@ namespace libfabric
                 else if (ret == -FI_EAGAIN)
                 {
                     LOG_ERROR_MSG("reposting fi_send...\n");
-                    parcelport_->background_work(0);
+                    parcelport_->background_work(0, parcelport_background_mode_all);
                 }
                 else if (ret)
                 {
@@ -315,7 +315,7 @@ namespace libfabric
                 else if (ret == -FI_EAGAIN)
                 {
                     LOG_ERROR_MSG("reposting fi_sendv...\n");
-                    parcelport_->background_work(0);
+                    parcelport_->background_work(0, parcelport_background_mode_all);
                 }
                 else if (ret)
                 {
@@ -342,7 +342,7 @@ namespace libfabric
                 else if (ret == -FI_EAGAIN)
                 {
                     LOG_ERROR_MSG("reposting fi_send...\n");
-                    parcelport_->background_work(0);
+                    parcelport_->background_work(0, parcelport_background_mode_all);
                 }
                 else if (ret)
                 {

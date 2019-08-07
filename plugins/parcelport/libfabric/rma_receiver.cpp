@@ -386,7 +386,7 @@ namespace libfabric
             {
                 LOG_ERROR_MSG("receiver " << hexpointer(this)
                     << "reposting fi_read...\n");
-                parcelport_->background_work(0);
+                parcelport_->background_work(0, parcelport_background_mode_all);
                 std::this_thread::sleep_for(std::chrono::microseconds(1));
             }
             else if (ret)
