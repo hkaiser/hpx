@@ -31,6 +31,7 @@ set(HPX_LIBS
   hashing
   iterator_support
   logging
+  memory
   plugin
   preprocessor
   program_options
@@ -46,6 +47,7 @@ set(HPX_LIBS
   util
   CACHE INTERNAL "list of HPX modules" FORCE
 )
+
 
 # add example pseudo targets needed for modules
 if(HPX_WITH_EXAMPLES)
