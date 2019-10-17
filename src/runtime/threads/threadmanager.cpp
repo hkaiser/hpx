@@ -98,9 +98,19 @@ namespace hpx { namespace detail {
 namespace hpx { namespace threads {
     ///////////////////////////////////////////////////////////////////////
     namespace strings {
-        char const* const thread_state_names[] = {"unknown", "active",
-            "pending", "suspended", "depleted", "terminated", "staged",
-            "pending_do_not_schedule", "pending_boost"};
+        // clang-format off
+        char const* const thread_state_names[] = {
+            "unknown",
+            "active",
+            "pending",
+            "suspended",
+            "depleted",
+            "terminated",
+            "staged",
+            "pending_do_not_schedule",
+            "pending_boost"
+        };
+        // clang-format on
     }
 
     char const* get_thread_state_name(thread_state_enum state)
@@ -117,8 +127,15 @@ namespace hpx { namespace threads {
 
     ///////////////////////////////////////////////////////////////////////
     namespace strings {
-        char const* const thread_state_ex_names[] = {"wait_unknown",
-            "wait_signaled", "wait_timeout", "wait_terminate", "wait_abort"};
+        // clang-format off
+        char const* const thread_state_ex_names[] = {
+            "wait_unknown",
+            "wait_signaled",
+            "wait_timeout",
+            "wait_terminate",
+            "wait_abort"
+        };
+        // clang-format on
     }    // namespace strings
 
     char const* get_thread_state_ex_name(thread_state_ex_enum state_ex)
@@ -130,6 +147,7 @@ namespace hpx { namespace threads {
 
     ///////////////////////////////////////////////////////////////////////
     namespace strings {
+        // clang-format off
         char const* const thread_priority_names[] = {
             "default",
             "low",
@@ -138,6 +156,7 @@ namespace hpx { namespace threads {
             "boost",
             "high (non-recursive)",
         };
+        // clang-format on
     }
 
     char const* get_thread_priority_name(thread_priority priority)
@@ -151,12 +170,15 @@ namespace hpx { namespace threads {
     }
 
     namespace strings {
+        // clang-format off
         char const* const stack_size_names[] = {
             "small",
             "medium",
             "large",
             "huge",
+            "nostack",
         };
+        // clang-format on
     }
 
     char const* get_stack_size_name(std::ptrdiff_t size)
@@ -173,8 +195,10 @@ namespace hpx { namespace threads {
             size = thread_stacksize_large;
         else if (rtcfg.get_stack_size(thread_stacksize_huge) == size)
             size = thread_stacksize_huge;
+        else if (rtcfg.get_stack_size(thread_stacksize_nostack) == size)
+            size = thread_stacksize_nostack;
 
-        if (size < thread_stacksize_small || size > thread_stacksize_huge)
+        if (size < thread_stacksize_small || size > thread_stacksize_nostack)
             return "custom";
 
         return strings::stack_size_names[size - 1];
