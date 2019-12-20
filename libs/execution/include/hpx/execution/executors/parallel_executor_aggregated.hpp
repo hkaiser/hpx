@@ -22,6 +22,8 @@
 #include <hpx/lcos/future.hpp>
 #include <hpx/runtime/get_worker_thread_num.hpp>
 #include <hpx/runtime/launch_policy.hpp>
+#include <hpx/runtime/threads/thread_helpers.hpp>
+#include <hpx/runtime/threads/thread_pool_base.hpp>
 #include <hpx/serialization/serialize.hpp>
 #include <hpx/synchronization/latch.hpp>
 #include <hpx/threading_base/thread_helpers.hpp>
@@ -113,13 +115,13 @@ namespace hpx { namespace parallel { namespace execution {
             template <typename F, typename S, typename... Ts>
             void operator()(F&& f, S const& shape, Ts&&... ts) const
             {
-                // lazily initialize once
-                static std::size_t global_num_tasks =
-                    (std::min)(std::size_t(128), hpx::get_os_thread_count());
-
-                std::size_t num_tasks = (num_tasks_ == std::size_t(-1)) ?
-                    global_num_tasks :
-                    num_tasks_;
+                std::size_t num_tasks = num_tasks_;
+                if (num_tasks == std::size_t(-1))
+                {
+                    auto pool = threads::detail::get_self_or_default_pool();
+                    num_tasks = (std::min)(
+                        std::size_t(128), pool->get_os_thread_count());
+                }
 
                 std::exception_ptr e;
                 lcos::local::spinlock mtx_e;
@@ -313,13 +315,13 @@ namespace hpx { namespace parallel { namespace execution {
             template <typename F, typename S, typename... Ts>
             void operator()(F&& f, S const& shape, Ts&&... ts) const
             {
-                // lazily initialize once
-                static std::size_t global_num_tasks =
-                    (std::min)(std::size_t(128), hpx::get_os_thread_count());
-
-                std::size_t num_tasks = (num_tasks_ == std::size_t(-1)) ?
-                    global_num_tasks :
-                    num_tasks_;
+                std::size_t num_tasks = num_tasks_;
+                if (num_tasks == std::size_t(-1))
+                {
+                    auto pool = threads::detail::get_self_or_default_pool();
+                    num_tasks = (std::min)(
+                        std::size_t(128), pool->get_os_thread_count());
+                }
 
                 std::exception_ptr e;
                 lcos::local::spinlock mtx_e;
