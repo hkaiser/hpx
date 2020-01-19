@@ -79,14 +79,6 @@ namespace hpx { namespace lcos { namespace local {
             {
             }
 
-            ~task_object() override
-            {
-                if (runs_as_child_)
-                {
-                    get_thread_id_data(runs_as_child_)->destroy_thread();
-                }
-            }
-
             void do_run() override
             {
                 return do_run_impl(std::is_void<Result>());
@@ -110,7 +102,6 @@ namespace hpx { namespace lcos { namespace local {
                         {
                             // thread terminated, mark as being destroyed
                             runs_as_child_ = threads::invalid_thread_id;
-                            child->destroy_thread();
                         }
 
                         // fall back to possibly suspended wait if necessary

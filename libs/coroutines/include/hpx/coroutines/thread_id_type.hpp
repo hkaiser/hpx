@@ -11,6 +11,8 @@
 
 #include <hpx/config/constexpr.hpp>
 #include <hpx/config/export_definitions.hpp>
+#include <hpx/memory/intrusive_ptr.hpp>
+#include <hpx/thread_support/atomic_count.hpp>
 
 #include <cstddef>
 #include <functional>
@@ -18,110 +20,172 @@
 
 namespace hpx { namespace threads {
 
+    namespace detail {
+
+        struct thread_data_reference_counting;
+
+        void intrusive_ptr_add_ref(thread_data_reference_counting* p);
+        void intrusive_ptr_release(thread_data_reference_counting* p);
+
+        struct thread_data_reference_counting
+        {
+            thread_data_reference_counting()
+              : count_(0)
+            {
+            }
+
+            virtual ~thread_data_reference_counting() = default;
+            virtual void destroy_thread() = 0;
+
+            // reference counting
+            friend void intrusive_ptr_add_ref(thread_data_reference_counting* p)
+            {
+                ++p->count_;
+            }
+
+            friend void intrusive_ptr_release(thread_data_reference_counting* p)
+            {
+                if (--p->count_ == 0)
+                {
+                    // give this object back to the system
+                    p->destroy_thread();
+                }
+            }
+
+            util::atomic_count count_;
+        };
+    }    // namespace detail
+
     struct thread_id
     {
     private:
-        using thread_id_repr = void*;
+        using thread_id_repr =
+            memory::intrusive_ptr<detail::thread_data_reference_counting>;
 
     public:
-        constexpr thread_id() noexcept
-          : thrd_(nullptr)
-        {
-        }
-        explicit constexpr thread_id(thread_id_repr thrd) noexcept
-          : thrd_(thrd)
-        {
-        }
+        thread_id() noexcept = default;
 
         thread_id(thread_id const&) = default;
         thread_id& operator=(thread_id const&) = default;
 
-        thread_id(thread_id&& rhs) noexcept
-          : thrd_(rhs.thrd_)
+        thread_id(thread_id&& rhs) noexcept = default;
+        thread_id& operator=(thread_id&& rhs) noexcept = default;
+
+        ////////////////////////////////////////////////////////////////////////
+        explicit thread_id(thread_id_repr const& thrd) noexcept
+          : thrd_(thrd)
         {
-            rhs.thrd_ = nullptr;
+        }
+        explicit thread_id(thread_id_repr&& thrd) noexcept
+          : thrd_(std::move(thrd))
+        {
         }
 
-        thread_id& operator=(thread_id&& rhs) noexcept
+        thread_id& operator=(thread_id_repr const& rhs) noexcept
         {
-            if (&rhs != this)
-            {
-                thrd_ = rhs.thrd_;
-                rhs.thrd_ = nullptr;
-            }
+            thrd_ = rhs;
+        }
+        thread_id& operator=(thread_id_repr&& rhs) noexcept
+        {
+            thrd_ = std::move(rhs);
+        }
+
+        using thread_repr = detail::thread_data_reference_counting;
+
+        ////////////////////////////////////////////////////////////////////////
+        explicit thread_id(thread_repr* thrd) noexcept
+          : thrd_(thrd)
+        {
+        }
+
+        thread_id& operator=(thread_repr* rhs) noexcept
+        {
+            thrd_.reset(rhs);
             return *this;
         }
 
-        explicit constexpr operator bool() const noexcept
+        ////////////////////////////////////////////////////////////////////////
+        explicit operator bool() const noexcept
         {
-            return nullptr != thrd_;
+            return !!thrd_;
         }
 
-        constexpr thread_id_repr get() const noexcept
+        thread_id_repr& get() & noexcept
         {
             return thrd_;
         }
+        thread_id_repr get() && noexcept
+        {
+            return std::move(thrd_);
+        }
 
-        HPX_CXX14_CONSTEXPR void reset() noexcept
+        thread_id_repr const& get() const& noexcept
+        {
+            return thrd_;
+        }
+        thread_id_repr get() const&& noexcept
+        {
+            return std::move(thrd_);
+        }
+
+        void reset() noexcept
         {
             thrd_ = nullptr;
         }
 
-        friend constexpr bool operator==(
-            std::nullptr_t, thread_id const& rhs) noexcept
+        friend bool operator==(std::nullptr_t, thread_id const& rhs) noexcept
         {
             return nullptr == rhs.thrd_;
         }
 
-        friend constexpr bool operator!=(
-            std::nullptr_t, thread_id const& rhs) noexcept
+        friend bool operator!=(std::nullptr_t, thread_id const& rhs) noexcept
         {
             return nullptr != rhs.thrd_;
         }
 
-        friend constexpr bool operator==(
-            thread_id const& lhs, std::nullptr_t) noexcept
+        friend bool operator==(thread_id const& lhs, std::nullptr_t) noexcept
         {
             return nullptr == lhs.thrd_;
         }
 
-        friend constexpr bool operator!=(
-            thread_id const& lhs, std::nullptr_t) noexcept
+        friend bool operator!=(thread_id const& lhs, std::nullptr_t) noexcept
         {
             return nullptr != lhs.thrd_;
         }
 
-        friend constexpr bool operator==(
+        friend bool operator==(
             thread_id const& lhs, thread_id const& rhs) noexcept
         {
             return lhs.thrd_ == rhs.thrd_;
         }
 
-        friend constexpr bool operator!=(
+        friend bool operator!=(
             thread_id const& lhs, thread_id const& rhs) noexcept
         {
             return lhs.thrd_ != rhs.thrd_;
         }
 
-        friend HPX_CXX14_CONSTEXPR bool operator<(
+        friend bool operator<(
             thread_id const& lhs, thread_id const& rhs) noexcept
         {
-            return std::less<void const*>{}(lhs.thrd_, rhs.thrd_);
+            return std::less<thread_repr const*>{}(
+                lhs.thrd_.get(), rhs.thrd_.get());
         }
 
-        friend HPX_CXX14_CONSTEXPR bool operator>(
+        friend bool operator>(
             thread_id const& lhs, thread_id const& rhs) noexcept
         {
-            return std::less<void const*>{}(rhs.thrd_, lhs.thrd_);
+            return std::less<thread_repr const*>{}(
+                rhs.thrd_.get(), lhs.thrd_.get());
         }
 
-        friend HPX_CXX14_CONSTEXPR bool operator<=(
+        friend bool operator<=(
             thread_id const& lhs, thread_id const& rhs) noexcept
         {
             return !(rhs > lhs);
         }
 
-        friend HPX_CXX14_CONSTEXPR bool operator>=(
+        friend bool operator>=(
             thread_id const& lhs, thread_id const& rhs) noexcept
         {
             return !(rhs < lhs);
@@ -139,7 +203,7 @@ namespace hpx { namespace threads {
         thread_id_repr thrd_;
     };
 
-    HPX_CONSTEXPR_OR_CONST thread_id invalid_thread_id;
+    static thread_id const invalid_thread_id;
 
 }}    // namespace hpx::threads
 

@@ -76,6 +76,8 @@ add_hpx_module(coroutines
     hpx_config
     hpx_format
     hpx_functional
+    hpx_memory
     hpx_util
+    hpx_thread_support
   CMAKE_SUBDIRS examples tests
 )

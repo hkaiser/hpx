@@ -117,7 +117,7 @@ namespace hpx { namespace threads { namespace policies {
                 threads::thread_id_type tid;
 
                 holder_->create_thread_object(tid, data, state);
-                holder_->add_to_thread_map(tid);
+                holder_->add_to_thread_map(get_thread_id_data(tid));
                 // Decrement only after thread_map_count_ has been incremented
                 --addfrom->new_tasks_count_.data_;
 
@@ -208,7 +208,7 @@ namespace hpx { namespace threads { namespace policies {
             {
                 threads::thread_id_type tid;
                 holder_->create_thread_object(tid, data, initial_state);
-                holder_->add_to_thread_map(tid);
+                holder_->add_to_thread_map(get_thread_id_data(tid));
 
                 // push the new thread in the pending queue thread
                 if (initial_state == pending)

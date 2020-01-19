@@ -33,12 +33,12 @@ namespace hpx { namespace actions { namespace detail
         {}
 
         action_serialization_data(std::uint32_t parent_locality,
-                threads::thread_id_type parent_id,
-                std::uint64_t parent_phase,
-                threads::thread_priority priority,
-                threads::thread_stacksize stacksize)
+            threads::thread_id_type parent_id, std::uint64_t parent_phase,
+            threads::thread_priority priority,
+            threads::thread_stacksize stacksize)
           : parent_locality_(parent_locality)
-          , parent_id_(reinterpret_cast<std::uint64_t>(parent_id.get()))
+          , parent_id_(reinterpret_cast<std::uint64_t>(
+                threads::get_thread_id_data(parent_id)))
           , parent_phase_(parent_phase)
           , priority_(priority)
           , stacksize_(stacksize)

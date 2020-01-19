@@ -15,14 +15,15 @@
 #include <hpx/basic_execution.hpp>
 #include <hpx/concurrency/spinlock_pool.hpp>
 #include <hpx/coroutines/coroutine.hpp>
-#include <hpx/coroutines/detail/coroutine_accessor.hpp>
 #include <hpx/coroutines/detail/combined_tagged_state.hpp>
+#include <hpx/coroutines/detail/coroutine_accessor.hpp>
 #include <hpx/coroutines/thread_id_type.hpp>
 #include <hpx/errors.hpp>
 #include <hpx/functional/function.hpp>
 #include <hpx/logging.hpp>
 #include <hpx/memory/intrusive_ptr.hpp>
 #include <hpx/runtime/get_locality_id.hpp>
+#include <hpx/runtime/naming_fwd.hpp>
 #include <hpx/runtime/threads/execution_agent.hpp>
 #include <hpx/runtime/threads/thread_init_data.hpp>
 #include <hpx/thread_support/atomic_count.hpp>
@@ -36,10 +37,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <forward_list>
+// #include <functional>
+#include <memory>
 #include <stack>
 #include <string>
 #include <utility>
-#include <memory>
 
 #include <hpx/config/warnings_prefix.hpp>
 
@@ -64,6 +66,7 @@ namespace hpx { namespace threads {
     /// functionality related to the management of \a threads is
     /// implemented by the thread-manager.
     class HPX_EXPORT thread_data
+      : public threads::detail::thread_data_reference_counting
     {
     private:
         // Avoid warning about using 'this' in initializer list
@@ -502,7 +505,7 @@ namespace hpx { namespace threads {
             return runs_as_child_;
         }
 
-        void destroy_thread();
+        void destroy_thread() override;
 
         policies::scheduler_base* get_scheduler_base() const noexcept
         {
@@ -659,8 +662,8 @@ namespace hpx { namespace threads {
         }
 
 #if defined(HPX_HAVE_APEX)
-        std::shared_ptr<util::external_timer::task_wrapper>
-            get_timer_data() const noexcept
+        std::shared_ptr<util::external_timer::task_wrapper> get_timer_data()
+            const noexcept
         {
             return timer_data_;
         }
@@ -675,7 +678,7 @@ namespace hpx { namespace threads {
         thread_data(thread_init_data& init_data, void* queue,
             thread_state_enum newstate);
 
-        ~thread_data();
+        ~thread_data() override;
 
         static inline thread_data* create(thread_init_data& init_data,
             void* queue, thread_state_enum newstate);
@@ -749,7 +752,7 @@ namespace hpx { namespace threads {
     HPX_CXX14_CONSTEXPR inline thread_data* get_thread_id_data(
         thread_id_type const& tid) noexcept
     {
-        return static_cast<thread_data*>(tid.get());
+        return static_cast<thread_data*>(tid.get().get());
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -763,5 +766,20 @@ namespace hpx { namespace threads {
 }}    // namespace hpx::threads
 
 #include <hpx/config/warnings_suffix.hpp>
+
+// namespace std {
+// 
+//     template <>
+//     struct hash<::hpx::threads::thread_id>
+//     {
+//         std::size_t operator()(::hpx::threads::thread_id const& v) const
+//             noexcept
+//         {
+//             std::hash<::hpx::threads::thread_data const*> hasher_;
+//             return hasher_(
+//                 static_cast<::hpx::threads::thread_data*>(v.get().get()));
+//         }
+//     };
+// }    // namespace std
 
 #endif /*HPX_RUNTIME_THREADS_THREAD_DATA_HPP*/

@@ -103,7 +103,7 @@ namespace hpx { namespace threads { namespace policies {
         // every thread maintains lists of free thread data objects
         // sorted by their stack sizes
         using thread_heap_type =
-            std::list<thread_id_type, util::internal_allocator<thread_id_type>>;
+            std::list<thread_data*, util::internal_allocator<thread_data*>>;
 
         thread_heap_type thread_heap_small_;
         thread_heap_type thread_heap_medium_;
@@ -134,9 +134,9 @@ namespace hpx { namespace threads { namespace policies {
         // -------------------------------------
         // thread map stores every task in this queue set
         // this is the type of a map holding all threads (except depleted/terminated)
-        using thread_map_type = std::unordered_set<thread_id_type,
-            std::hash<thread_id_type>, std::equal_to<thread_id_type>,
-            util::internal_allocator<thread_id_type>>;
+        using thread_map_type = std::unordered_set<thread_data*,
+            std::hash<thread_data*>, std::equal_to<thread_data*>,
+            util::internal_allocator<thread_data*>>;
         thread_map_type thread_map_;
 
         mutable util::cache_line_data<std::atomic<std::int32_t>>
@@ -245,16 +245,16 @@ namespace hpx { namespace threads { namespace policies {
                 delete lp_queue_;
             //
             for (auto t : thread_heap_small_)
-                deallocate(get_thread_id_data(t));
+                deallocate(t);
 
             for (auto t : thread_heap_medium_)
-                deallocate(get_thread_id_data(t));
+                deallocate(t);
 
             for (auto t : thread_heap_large_)
-                deallocate(get_thread_id_data(t));
+                deallocate(t);
 
             for (auto t : thread_heap_huge_)
-                deallocate(get_thread_id_data(t));
+                deallocate(t);
         }
 
         // ----------------------------------------------------------------
@@ -371,8 +371,7 @@ namespace hpx { namespace threads { namespace policies {
                     tq_deb.debug(debug::str<>("cleanup"), "delete",
                         queue_data_print(this),
                         debug::threadinfo<thread_data*>(todelete));
-                    thread_id_type tid(todelete);
-                    remove_from_thread_map(tid, true);
+                    remove_from_thread_map(todelete, true);
                 }
             }
             else
@@ -389,13 +388,12 @@ namespace hpx { namespace threads { namespace policies {
                 thread_data* todelete;
                 while (delete_count && terminated_items_.pop(todelete))
                 {
-                    thread_id_type tid(todelete);
                     --terminated_items_count_.data_;
-                    remove_from_thread_map(tid, false);
+                    remove_from_thread_map(todelete, false);
                     tq_deb.debug(debug::str<>("cleanup"), "recycle",
                         queue_data_print(this),
-                        debug::threadinfo<thread_id_type*>(&tid));
-                    recycle_thread(tid);
+                        debug::threadinfo<thread_data*>(todelete));
+                    recycle_thread(todelete);
                     --delete_count;
                 }
             }
@@ -518,10 +516,9 @@ namespace hpx { namespace threads { namespace policies {
         }
 
         // ----------------------------------------------------------------
-        void recycle_thread(thread_id_type tid)
+        void recycle_thread(thread_data* tid)
         {
-            std::ptrdiff_t stacksize =
-                get_thread_id_data(tid)->get_stack_size();
+            std::ptrdiff_t stacksize = tid->get_stack_size();
 
             if (stacksize == get_stack_size(thread_stacksize_small))
             {
@@ -555,7 +552,7 @@ namespace hpx { namespace threads { namespace policies {
         }
 
         // ----------------------------------------------------------------
-        void add_to_thread_map(threads::thread_id_type tid)
+        void add_to_thread_map(threads::thread_data* tid)
         {
             scoped_lock lk(thread_map_mtx_.data_);
 
@@ -575,7 +572,7 @@ namespace hpx { namespace threads { namespace policies {
                 tq_deb.error(debug::str<>("map add"),
                     "Couldn't add new thread to the thread map",
                     queue_data_print(this),
-                    debug::threadinfo<thread_id_type*>(&tid));
+                    debug::threadinfo<thread_data*>(tid));
 
                 lk.unlock();
                 HPX_THROW_EXCEPTION(hpx::out_of_memory,
@@ -587,14 +584,14 @@ namespace hpx { namespace threads { namespace policies {
             ++thread_map_count_.data_;
 
             tq_deb.debug(debug::str<>("map add"), queue_data_print(this),
-                debug::threadinfo<thread_id_type*>(&tid));
+                debug::threadinfo<thread_data*>(tid));
 
             // this thread has to be in the map now
             HPX_ASSERT(thread_map_.find(tid) != thread_map_.end());
         }
 
         // ----------------------------------------------------------------
-        void remove_from_thread_map(threads::thread_id_type tid, bool dealloc)
+        void remove_from_thread_map(threads::thread_data* tid, bool dealloc)
         {
             // this thread has to be in this map
             HPX_ASSERT(thread_map_.find(tid) != thread_map_.end());
@@ -606,11 +603,11 @@ namespace hpx { namespace threads { namespace policies {
             (void) deleted;
 
             tq_deb.debug(debug::str<>("map remove"), queue_data_print(this),
-                debug::threadinfo<thread_id_type*>(&tid));
+                debug::threadinfo<thread_data*>(tid));
 
             if (dealloc)
             {
-                deallocate(get_thread_id_data(tid));
+                deallocate(tid);
             }
             --thread_map_count_.data_;
         }
@@ -867,7 +864,7 @@ namespace hpx { namespace threads { namespace policies {
             for (thread_map_type::const_iterator it = thread_map_.begin();
                  it != end; ++it)
             {
-                if (get_thread_id_data(*it)->get_state().state() == state)
+                if ((*it)->get_state().state() == state)
                     ++num_threads;
             }
             return num_threads;
@@ -902,11 +899,11 @@ namespace hpx { namespace threads { namespace policies {
             for (thread_map_type::iterator it = thread_map_.begin(); it != end;
                  ++it)
             {
-                if (get_thread_id_data(*it)->get_state().state() == suspended)
+                if ((*it)->get_state().state() == suspended)
                 {
-                    get_thread_id_data(*it)->set_state(pending, wait_abort);
+                    (*it)->set_state(pending, wait_abort);
                     // np queue always exists so use that as priority doesn't matter
-                    np_queue_->schedule_work(get_thread_id_data(*it), true);
+                    np_queue_->schedule_work(*it, true);
                 }
             }
             throw std::runtime_error("This function needs to be reimplemented");
@@ -940,7 +937,7 @@ namespace hpx { namespace threads { namespace policies {
                 for (thread_map_type::const_iterator it = thread_map_.begin();
                      it != end; ++it)
                 {
-                    tids.push_back(*it);
+                    tids.push_back(thread_id_type(*it));
                 }
             }
             else
@@ -950,8 +947,8 @@ namespace hpx { namespace threads { namespace policies {
                 for (thread_map_type::const_iterator it = thread_map_.begin();
                      it != end; ++it)
                 {
-                    if (get_thread_id_data(*it)->get_state().state() == state)
-                        tids.push_back(*it);
+                    if ((*it)->get_state().state() == state)
+                        tids.push_back(thread_id_type(*it));
                 }
             }
 
