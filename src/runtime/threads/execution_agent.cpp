@@ -138,7 +138,7 @@ namespace hpx { namespace threads {
                 id, util::thread_description(desc));
 #endif
 #ifdef HPX_HAVE_THREAD_BACKTRACE_ON_SUSPENSION
-            detail::reset_backtrace bt(id, ec);
+//            detail::reset_backtrace bt(id, ec);
 #endif
             HPX_ASSERT(get_thread_id_data(id)->get_state().state() == active);
             HPX_ASSERT(state != active);

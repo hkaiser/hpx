@@ -8,10 +8,15 @@
 #ifndef HPX_PARCELSET_POLICIES_LIBFABRIC_RECEIVER_HPP
 #define HPX_PARCELSET_POLICIES_LIBFABRIC_RECEIVER_HPP
 
-#include <plugins/parcelport/libfabric/libfabric_region_provider.hpp>
+#include <hpx/runtime/parcelset/rma/detail/memory_region_impl.hpp>
+#include <hpx/runtime/parcelset/rma/memory_pool.hpp>
+#include <hpx/thread_support/atomic_count.hpp>
+//
 #include <plugins/parcelport/performance_counter.hpp>
-#include <plugins/parcelport/rma_memory_pool.hpp>
+//
+#include <plugins/parcelport/libfabric/libfabric_region_provider.hpp>
 #include <plugins/parcelport/libfabric/header.hpp>
+#include <plugins/parcelport/libfabric/rma_base.hpp>
 #include <plugins/parcelport/libfabric/rma_receiver.hpp>
 //
 #include <hpx/thread_support/atomic_count.hpp>
@@ -26,6 +31,8 @@ namespace policies {
 namespace libfabric
 {
     struct parcelport;
+    class controller;
+
     // The receiver is responsible for handling incoming messages. For that purpose,
     // it posts receive buffers. Incoming messages can be of two kinds:
     //      1) An ACK message which has been sent from an rma_receiver, to signal
@@ -34,26 +41,23 @@ namespace libfabric
     //         piggy backed message. If the message is not piggy backed or zero
     //         copy RMA chunks need to be read, a rma_receiver is created to
     //         complete the transfer of the message
-    struct receiver
+    struct receiver : public rma_base
     {
-        typedef libfabric_region_provider                      region_provider;
-        typedef rma_memory_region<region_provider>             region_type;
-        typedef boost::container::small_vector<region_type*,8> zero_copy_vector;
+        typedef libfabric_region_provider                        region_provider;
+        typedef rma::detail::memory_region_impl<region_provider> region_type;
+        typedef boost::container::small_vector<region_type*,8>   zero_copy_vector;
 
         // --------------------------------------------------------------------
         // construct receive object
         receiver(parcelport* pp, fid_ep* endpoint,
-                 rma_memory_pool<region_provider>& memory_pool);
-
-        // --------------------------------------------------------------------
-        // these constructors are provided because boost::lockfree::stack requires them
-        // they should not be used
-        receiver(receiver&& other);
-        receiver& operator=(receiver&& other);
+                 rma::memory_pool<region_provider>& memory_pool);
 
         // --------------------------------------------------------------------
         // destruct receive object
         ~receiver();
+
+        // --------------------------------------------------------------------
+        bool handle_new_connection(controller *controller, std::uint64_t len);
 
         // --------------------------------------------------------------------
         // A received message is routed by the controller into this function.
@@ -67,39 +71,40 @@ namespace libfabric
         // the owning reciever is called to handle processing of the buffer
         void pre_post_receive();
 
+        rma_receiver* create_rma_receiver(bool push_to_stack);
+        rma_receiver* get_rma_receiver(fi_addr_t const& src_addr);
+
         // --------------------------------------------------------------------
         // The cleanup call deletes resources and sums counters from internals
         // once cleanup is done, the recevier should not be used, other than
         // dumping counters
         void cleanup();
 
+        // --------------------------------------------------------------------
+        // Not used, provided for potential/future rma_base compatibility
+        void handle_error(struct fi_cq_err_entry err) {};
+
     private:
-        parcelport                       *pp_;
-        fid_ep                           *endpoint_;
-        region_type                      *header_region_ ;
-        rma_memory_pool<region_provider>  *memory_pool_;
+        parcelport                        *parcelport_;
+        fid_ep                            *endpoint_;
+        region_type                       *header_region_ ;
+        rma::memory_pool<region_provider> *memory_pool_;
         //
-        friend class libfabric_controller;
+        friend class controller;
+
+        // shared performance counters used by all receivers
+        static performance_counter<unsigned int> messages_handled_;
+        static performance_counter<unsigned int> acks_received_;
+        static performance_counter<unsigned int> receives_pre_posted_;
+        static performance_counter<unsigned int> active_rma_receivers_;
+
         //
-        performance_counter<unsigned int> messages_handled_;
-        performance_counter<unsigned int> acks_received_;
-        // from the internal rma_receivers
-        performance_counter<unsigned int> msg_plain_;
-        performance_counter<unsigned int> msg_rma_;
-        performance_counter<unsigned int> sent_ack_;
-        performance_counter<unsigned int> rma_reads_;
-        performance_counter<unsigned int> recv_deletes_;
-        //
-        boost::lockfree::stack<
+        typedef boost::lockfree::stack<
             rma_receiver*,
             boost::lockfree::capacity<HPX_PARCELPORT_LIBFABRIC_MAX_PREPOSTS>,
             boost::lockfree::fixed_sized<true>
-        > rma_receivers_;
-
-        typedef hpx::lcos::local::spinlock mutex_type;
-        mutex_type active_receivers_mtx_;
-        hpx::lcos::local::detail::condition_variable active_receivers_cv_;
-        hpx::util::atomic_count active_receivers_;
+        > rma_stack;
+        static rma_stack rma_receivers_;
     };
 }}}}
 

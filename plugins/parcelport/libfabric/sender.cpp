@@ -9,7 +9,6 @@
 #include <plugins/parcelport/libfabric/libfabric_region_provider.hpp>
 #include <plugins/parcelport/libfabric/parcelport_libfabric.hpp>
 #include <plugins/parcelport/libfabric/sender.hpp>
-#include <plugins/parcelport/rma_memory_pool.hpp>
 //
 #include <hpx/assertion.hpp>
 #include <hpx/functional/unique_function.hpp>
@@ -22,6 +21,7 @@
 #include <memory>
 #include <cstddef>
 #include <cstring>
+#include <chrono>
 
 namespace hpx {
 namespace parcelset {
@@ -30,7 +30,7 @@ namespace libfabric
 {
     // --------------------------------------------------------------------
     // The main message send routine
-    void sender::async_write_impl()
+    void sender::async_write_impl(unsigned int flags)
     {
         buffer_.data_point_.time_ = util::high_resolution_clock::now();
         HPX_ASSERT(message_region_ == nullptr);
@@ -38,18 +38,22 @@ namespace libfabric
         // increment counter of total messages sent
         ++sends_posted_;
 
+        // reserve some space for zero copy information
+        rma_regions_.reserve(buffer_.num_chunks_.first);
+
         // for each zerocopy chunk, we must create a memory region for the data
         // do this before creating the header as the chunk details will be copied
         // into the header space
+        int rma_chunks = 0;
         int index = 0;
         for (auto &c : buffer_.chunks_)
         {
             // Debug only, dump out the chunk info
             LOG_DEBUG_MSG("write : chunk : size " << hexnumber(c.size_)
-                    << " type " << decnumber((uint64_t)c.type_)
-                    << " rkey " << hexpointer(c.rkey_)
-                    << " cpos " << hexpointer(c.data_.cpos_)
-                    << " index " << decnumber(c.data_.index_));
+                    << "type "   << decnumber((uint64_t)c.type_)
+                    << "rma "    << hexpointer(c.rma_)
+                    << "cpos "   << hexpointer(c.data_.cpos_)
+                    << "index "  << decnumber(c.data_.index_));
             if (c.type_ == serialization::chunk_type_pointer)
             {
                 LOG_EXCLUSIVE(util::high_resolution_timer regtimer);
@@ -61,17 +65,22 @@ namespace libfabric
                 rma_regions_.push_back(zero_copy_region);
 
                 // set the region remote access key in the chunk space
-                c.rkey_  = zero_copy_region->get_remote_key();
-                    LOG_DEBUG_MSG("Time to register memory (ns) "
-                        << decnumber(regtimer.elapsed_nanoseconds()));
+                c.rma_  = zero_copy_region->get_remote_key();
+                LOG_DEBUG_MSG("Time to register memory (ns) "
+                    << decnumber(regtimer.elapsed_nanoseconds()));
                 LOG_DEBUG_MSG("Created zero-copy rdma Get region "
                     << decnumber(index) << *zero_copy_region
-                    << "for rkey " << hexpointer(c.rkey_));
+                    << "for rma " << hexpointer(c.rma_));
 
                 LOG_TRACE_MSG(
                     CRC32_MEM(zero_copy_region->get_address(),
                         zero_copy_region->get_message_length(),
                         "zero_copy_region (pre-send) "));
+            }
+            else if (c.type_ == serialization::chunk_type_rma)
+            {
+                LOG_DEBUG_MSG("an RMA chunk was found");
+                rma_chunks++;
             }
             ++index;
         }
@@ -82,18 +91,7 @@ namespace libfabric
         LOG_DEBUG_MSG("Placement new for header");
         header_ = new(header_memory) header_type(buffer_, this);
         header_region_->set_message_length(header_->header_length());
-
-        LOG_DEBUG_MSG("sender " << hexpointer(this)
-            << ", buffsize " << hexuint32(header_->message_size())
-            << ", header_length " << decnumber(header_->header_length())
-            << ", chunks zerocopy( " << decnumber(buffer_.num_chunks_.first) << ") "
-            << ", normal( " << decnumber(buffer_.num_chunks_.second) << ") "
-            << ", chunk_flag " << decnumber(header_->header_length())
-            << ", tag " << hexuint64(header_->tag())
-        );
-
-        // reserve some space for zero copy information
-        rma_regions_.reserve(buffer_.num_chunks_.first);
+        LOG_DEBUG_MSG("header " << *header_);
 
         // Get the block of pinned memory where the message was encoded
         // during serialization
@@ -103,7 +101,7 @@ namespace libfabric
         HPX_ASSERT(header_->message_size() == buffer_.data_.size());
         LOG_DEBUG_MSG("Found region allocated during encode_parcel : address "
             << hexpointer(buffer_.data_.m_array_)
-            << " region "<< *message_region_);
+            << *message_region_);
 
         // The number of completions we need before cleaning up:
         // 1 (header block send) + 1 (ack message if we have RMA chunks)
@@ -113,9 +111,10 @@ namespace libfabric
         region_list_[1] = {
             message_region_->get_address(), message_region_->get_message_length() };
 
-        desc_[0] = header_region_->get_desc();
-        desc_[1] = message_region_->get_desc();
-        if (rma_regions_.size()>0 || !header_->message_piggy_back()) {
+        desc_[0] = header_region_->get_local_key();
+        desc_[1] = message_region_->get_local_key();
+        if (rma_regions_.size()>0 || rma_chunks>0 || !header_->message_piggy_back())
+        {
             completion_count_ = 2;
         }
 
@@ -124,17 +123,23 @@ namespace libfabric
                 << "Chunk info is piggybacked");
         }
         else {
-            LOG_DEBUG_MSG("Setting up header-chunk rma data with "
-                << "zero-copy chunks " << decnumber(rma_regions_.size()));
+            LOG_TRACE_MSG("Setting up header-chunk rma data with "
+                << "zero-copy chunks " << decnumber(rma_regions_.size())
+                << "rma chunks " << decnumber(rma_chunks));
             auto &cb = header_->chunk_header_ptr()->chunk_rma;
             chunk_region_  = memory_pool_->allocate_region(cb.size_);
             cb.data_.pos_  = chunk_region_->get_address();
-            cb.rkey_       = chunk_region_->get_remote_key();
+            cb.rma_        = chunk_region_->get_remote_key();
             std::memcpy(cb.data_.pos_, buffer_.chunks_.data(), cb.size_);
             LOG_DEBUG_MSG("Set up header-chunk rma data with "
-                << "size " << decnumber(cb.size_)
-                << "rkey " << hexpointer(cb.rkey_)
-                << "addr " << hexpointer(cb.data_.cpos_));
+                << "size "   << decnumber(cb.size_)
+                << "rma "    << hexpointer(cb.rma_)
+                << "addr "   << hexpointer(cb.data_.cpos_));
+        }
+
+        if ((flags & header_type::bootstrap_flag) != 0)
+        {
+            header_->set_bootstrap_flag();
         }
 
         if (header_->message_piggy_back())
@@ -151,23 +156,40 @@ namespace libfabric
                 "Message region (send piggyback)"));
 
             // send 2 regions as one message, goes into one receive
-            hpx::util::yield_while([this]()
+            bool ok = false;
+            while (!ok) {
+                HPX_ASSERT(
+                    (this->region_list_[0].iov_len + this->region_list_[1].iov_len) <=
+                        HPX_PARCELPORT_LIBFABRIC_MESSAGE_HEADER_SIZE);
+                ssize_t ret = fi_sendv(this->endpoint_, this->region_list_,
+                    this->desc_, 2, this->dst_addr_, this);
+
+                if (ret == 0) {
+                    ok = true;
+                }
+                else if (ret == -FI_EAGAIN) {
+                    LOG_ERROR_MSG("Reposting fi_sendv...");
+                    parcelport_->background_work(0, parcelport_background_mode_all);
+                }
+                else if (ret == -FI_ENOENT) {
+                    if (hpx::threads::get_self_id()==hpx::threads::invalid_thread_id) {
+                        // during bootstrap, this might happen on an OS thread
+                        // so use std::this_thread::sleep to really stop activity
+                        LOG_ERROR_MSG("No destination endpoint (bootstrap?), "
+                                      << "retrying after 1s ...");
+                        std::this_thread::sleep_for(std::chrono::seconds(1));
+                    }
+                    else {
+                        // if a node has failed, we can recover @TODO : put something here
+                        LOG_ERROR_MSG("No destination endpoint, retrying after 1s ...");
+                        std::terminate();
+                    }
+                }
+                else if (ret)
                 {
-                    int ret = fi_sendv(this->endpoint_, this->region_list_,
-                        this->desc_, 2, this->dst_addr_, this);
-
-                    if (ret == -FI_EAGAIN)
-                    {
-                        LOG_ERROR_MSG("reposting fi_sendv...\n");
-                        return true;
-                    }
-                    else if (ret)
-                    {
-                        throw fabric_error(ret, "fi_sendv");
-                    }
-
-                    return false;
-                }, "sender::async_write");
+                    throw fabric_error(int(ret), "fi_sendv");
+                }
+            }
         }
         else
         {
@@ -187,28 +209,27 @@ namespace libfabric
                 message_region_->get_message_length(),
                 "Message region (send for rdma fetch)"));
 
-            // send just the header region - a single message
-            hpx::util::yield_while([this]()
+            bool ok = false;
+            while (!ok) {
+                ssize_t ret = fi_send(this->endpoint_,
+                    this->region_list_[0].iov_base,
+                    this->region_list_[0].iov_len,
+                    this->desc_[0], this->dst_addr_, this);
+
+                if (ret == 0) {
+                    ok = true;
+                }
+                else if (ret == -FI_EAGAIN)
                 {
-                    int ret = fi_send(this->endpoint_,
-                        this->region_list_[0].iov_base,
-                        this->region_list_[0].iov_len,
-                        this->desc_[0], this->dst_addr_, this);
-
-                    if (ret == -FI_EAGAIN)
-                    {
-                        LOG_ERROR_MSG("reposting fi_send...\n");
-                        return true;
-                    }
-                    else if (ret)
-                    {
-                        throw fabric_error(ret, "fi_sendv");
-                    }
-
-                    return false;
-                }, "sender::async_write");
+                    LOG_ERROR_MSG("reposting fi_send...\n");
+                    parcelport_->background_work(0, parcelport_background_mode_all);
+                }
+                else if (ret)
+                {
+                    throw fabric_error(int(ret), "fi_send");
+                }
+            }
         }
-
         FUNC_END_DEBUG_MSG;
     }
 
@@ -226,7 +247,7 @@ namespace libfabric
     void sender::handle_message_completion_ack()
     {
         LOG_DEBUG_MSG("Sender " << hexpointer(this)
-            << "handle handle_message_completion_ack ( "
+            << "handle_message_completion_ack ( "
             << "RMA regions " << decnumber(rma_regions_.size())
             << "completion count " << decnumber(completion_count_));
         ++acks_received_;
@@ -267,7 +288,11 @@ namespace libfabric
         buffer_.data_point_.time_ =
             util::high_resolution_clock::now() - buffer_.data_point_.time_;
         parcelport_->add_sent_data(buffer_.data_point_);
+        LOG_DEBUG_MSG("Sender " << hexpointer(this)
+            << "calling postprocess_handler");
         postprocess_handler_(this);
+        LOG_DEBUG_MSG("Sender " << hexpointer(this)
+            << "completed cleanup/postprocess_handler");
     }
 
     // --------------------------------------------------------------------
@@ -278,23 +303,27 @@ namespace libfabric
         if (header_->message_piggy_back())
         {
             // send 2 regions as one message, goes into one receive
-            hpx::util::yield_while([this]()
+            bool ok = false;
+            while (!ok) {
+                HPX_ASSERT(
+                    (this->region_list_[0].iov_len + this->region_list_[1].iov_len) <=
+                        HPX_PARCELPORT_LIBFABRIC_MESSAGE_HEADER_SIZE);
+                ssize_t ret = fi_sendv(this->endpoint_, this->region_list_,
+                    this->desc_, 2, this->dst_addr_, this);
+
+                if (ret == 0) {
+                    ok = true;
+                }
+                else if (ret == -FI_EAGAIN)
                 {
-                    int ret = fi_sendv(this->endpoint_, this->region_list_,
-                        this->desc_, 2, this->dst_addr_, this);
-
-                    if (ret == -FI_EAGAIN)
-                    {
-                        LOG_ERROR_MSG("reposting fi_sendv...\n");
-                        return true;
-                    }
-                    else if (ret)
-                    {
-                        throw fabric_error(ret, "fi_sendv");
-                    }
-
-                    return false;
-                }, "libfabric::sender::handle_error");
+                    LOG_ERROR_MSG("reposting fi_sendv...\n");
+                    parcelport_->background_work(0, parcelport_background_mode_all);
+                }
+                else if (ret)
+                {
+                    throw fabric_error(int(ret), "fi_sendv");
+                }
+            }
         }
         else
         {
@@ -302,26 +331,39 @@ namespace libfabric
                 message_region_->get_remote_key(), message_region_->get_address());
 
             // send just the header region - a single message
-            hpx::util::yield_while([this]()
+            bool ok = false;
+            while (!ok) {
+                ssize_t ret = fi_send(this->endpoint_,
+                    this->region_list_[0].iov_base,
+                    this->region_list_[0].iov_len,
+                    this->desc_[0], this->dst_addr_, this);
+
+                if (ret == 0) {
+                    ok = true;
+                }
+                else if (ret == -FI_EAGAIN)
                 {
-                    int ret = fi_send(this->endpoint_,
-                        this->region_list_[0].iov_base,
-                        this->region_list_[0].iov_len,
-                        this->desc_[0], this->dst_addr_, this);
-
-                    if (ret == -FI_EAGAIN)
-                    {
-                        LOG_ERROR_MSG("reposting fi_send...\n");
-                        return true;
-                    }
-                    else if (ret)
-                    {
-                        throw fabric_error(ret, "fi_sendv");
-                    }
-
-                    return false;
-                }, "libfabric::sender::handle_error");
+                    LOG_ERROR_MSG("reposting fi_send...\n");
+                    parcelport_->background_work(0, parcelport_background_mode_all);
+                }
+                else if (ret)
+                {
+                    throw fabric_error(int(ret), "fi_sendv");
+                }
+            }
         }
+    }
+
+    // --------------------------------------------------------------------
+    std::ostream & operator<<(std::ostream & os, const sender &s)
+    {
+        if (s.header_) {
+            os << "sender " << hexpointer(&s) << "header block " << *(s.header_);
+        }
+        else {
+            os << "sender " << hexpointer(&s) << "header block nullptr";
+        }
+        return os;
     }
 
 }}}}

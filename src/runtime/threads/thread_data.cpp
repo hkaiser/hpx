@@ -42,7 +42,7 @@ namespace hpx { namespace threads {
         , marked_state_(unknown)
 #endif
 #ifdef HPX_HAVE_THREAD_BACKTRACE_ON_SUSPENSION
-        , backtrace_(nullptr
+        , backtrace_(nullptr)
 #endif
         , priority_(init_data.priority)
         , requested_interrupt_(false)

@@ -13,7 +13,6 @@
 #include <plugins/parcelport/libfabric/pinned_memory_vector.hpp>
 #include <plugins/parcelport/libfabric/rma_base.hpp>
 #include <plugins/parcelport/performance_counter.hpp>
-#include <plugins/parcelport/rma_memory_pool.hpp>
 
 #include <hpx/runtime/parcelset/locality.hpp>
 
@@ -22,8 +21,8 @@
 #include <hpx/thread_support/atomic_count.hpp>
 
 #include <boost/container/small_vector.hpp>
+//
 #include <memory>
-
 // include for iovec
 #include <sys/uio.h>
 
@@ -36,9 +35,9 @@ namespace libfabric
 
     struct sender : public rma_base
     {
-        typedef libfabric_region_provider                region_provider;
-        typedef rma_memory_region<region_provider>       region_type;
-        typedef rma_memory_pool<region_provider>         memory_pool_type;
+        typedef libfabric_region_provider                        region_provider;
+        typedef rma::detail::memory_region_impl<region_provider> region_type;
+        typedef rma::memory_pool<region_provider>                memory_pool_type;
 
         typedef header<HPX_PARCELPORT_LIBFABRIC_MESSAGE_HEADER_SIZE> header_type;
         static constexpr unsigned int header_size = header_type::header_block_size;
@@ -53,14 +52,17 @@ namespace libfabric
         // --------------------------------------------------------------------
         sender(parcelport* pp, fid_ep* endpoint, fid_domain* domain,
             memory_pool_type* memory_pool)
-          : parcelport_(pp)
+          : rma_base(ctx_sender)
+          , parcelport_(pp)
           , endpoint_(endpoint)
           , domain_(domain)
           , memory_pool_(memory_pool)
+          , dst_addr_(-1)
           , buffer_(snd_data_type(memory_pool_), memory_pool_)
           , header_region_(nullptr)
           , chunk_region_(nullptr)
           , message_region_(nullptr)
+          , header_(nullptr)
           , completion_count_(0)
           , sends_posted_(0)
           , sends_deleted_(0)
@@ -102,14 +104,14 @@ namespace libfabric
         // The main message send routine : package the header, send it
         // with an optional extra message region if it cannot be piggybacked
         // send chunk/rma information for all zero copy serialization regions
-        void async_write_impl();
+        void async_write_impl(unsigned int flags=0);
 
         // --------------------------------------------------------------------
         // Called when a send completes
         void handle_send_completion();
 
         // --------------------------------------------------------------------
-        // Triggered when the remote end has finished RMA opreations and
+        // Triggered when the remote end has finished RMA operations and
         // we can release resources
         void handle_message_completion_ack();
 
@@ -119,7 +121,11 @@ namespace libfabric
 
         // --------------------------------------------------------------------
         // if a send completion reports failure, we can retry the send
-        void handle_error(struct fi_cq_err_entry err) override;
+        void handle_error(struct fi_cq_err_entry err);
+
+        // --------------------------------------------------------------------
+        // print out some info that is useful
+        friend std::ostream & operator<<(std::ostream & os, const sender &);
 
         // --------------------------------------------------------------------
         parcelport               *parcelport_;
@@ -144,7 +150,7 @@ namespace libfabric
         util::function_nonser<void(sender*)>                  postprocess_handler_;
         //
         struct iovec region_list_[2];
-        void        *desc_[2];
+        void*        desc_[2];
     };
 }}}}
 

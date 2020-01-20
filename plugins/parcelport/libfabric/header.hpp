@@ -12,6 +12,7 @@
 #include <hpx/assertion.hpp>
 #include <hpx/runtime/parcelset/parcel_buffer.hpp>
 #include <plugins/parcelport/parcelport_logging.hpp>
+#include <hpx/runtime/parcelset/rma/memory_region.hpp>
 //
 #include <array>
 #include <cstdint>
@@ -19,6 +20,7 @@
 #include <cstring>
 #include <utility>
 #include <vector>
+#include <algorithm>
 
 // A generic header structure that can be used by parcelports
 // currently, the libfabric parcelport makes use of it
@@ -69,10 +71,11 @@ namespace libfabric
         static constexpr unsigned int header_block_size = sizeof(detail::header_block);
         static constexpr unsigned int data_size_        = SIZE - header_block_size;
         //
-        static const unsigned int chunk_flag    = 0x01; // chunks piggybacked
-        static const unsigned int message_flag  = 0x02; // message pigybacked
-        static const unsigned int normal_flag   = 0x04; // normal chunks present
-        static const unsigned int zerocopy_flag = 0x08; // zerocopy chunks present
+        static const uint32_t chunk_flag     = 0x01; // chunks piggybacked
+        static const uint32_t message_flag   = 0x02; // message pigybacked
+        static const uint32_t normal_flag    = 0x04; // normal chunks present
+        static const uint32_t zerocopy_flag  = 0x08; // zerocopy chunks present
+        static const uint32_t bootstrap_flag = 0x10; // Bootstrap messsage
 
         typedef serialization::serialization_chunk chunktype;
 
@@ -105,7 +108,7 @@ namespace libfabric
             message_header.flags     |= buffer.num_chunks_.second ? normal_flag : 0;
 
             // space occupied by chunk data
-            size_t chunkbytes = chunks.size() * sizeof(chunktype);
+            size_t chunkbytes = message_header.num_chunks * sizeof(chunktype);
 
             // can we send the chunk info inside the header
             // (NB. we add +1 chunk just in case of a non piggybacked message chunk)
@@ -126,13 +129,16 @@ namespace libfabric
                     reinterpret_cast<detail::chunk_header*>(&data_[chunk_data_offset()]);
                 ch->num_rma_chunks = buffer.num_chunks_.first;
                 ch->chunk_rma =
-                    serialization::create_pointer_chunk(nullptr, chunkbytes, 0);
+                    serialization::create_pointer_chunk(nullptr, chunkbytes);
                 // reset chunkbytes size to size of rma hunk header
                 chunkbytes = sizeof(detail::chunk_header);
             }
 
             // can we send main message inside the header
-            if (buffer.data_.size() <= (data_size_ - chunkbytes)) {
+            if (buffer.data_.size() <=
+                    (data_size_ - chunkbytes -
+                     sizeof(detail::message_info) - sizeof(detail::rma_info)))
+            {
                 message_header.flags |= message_flag;
                 detail::message_info *info = message_info_ptr();
                 info->message_size = buffer.size_;
@@ -144,7 +150,7 @@ namespace libfabric
                     // if chunks are piggybacked, just add one rma chunk for the message
                     message_header.num_chunks += 1;
                     chunktype message =
-                        serialization::create_pointer_chunk(nullptr, buffer.size_, 0);
+                        serialization::create_pointer_chunk(nullptr, buffer.size_);
                     std::memcpy(&data_[chunkbytes], &message, sizeof(chunktype));
                 }
                 else {
@@ -156,7 +162,7 @@ namespace libfabric
                         << decnumber(buffer.size_)
                         << "offset " << decnumber(message_info_offset()));
                     mc->message_rma =
-                        serialization::create_pointer_chunk(nullptr, buffer.size_, 0);
+                        serialization::create_pointer_chunk(nullptr, buffer.size_);
                 }
             }
 
@@ -166,13 +172,19 @@ namespace libfabric
                 ptr->tag = reinterpret_cast<uint64_t>(tag);
             }
 
+
             LOG_DEBUG_MSG("Header : " << *this);
         }
 
         // --------------------------------------------------------------------
         friend std::ostream & operator<<(std::ostream & os, header<SIZE> & h)
         {
-            os  << "Flags " << hexbyte(h.message_header.flags)
+            os  << "flags " << binary8(h.flags()) << "("
+                << (((h.message_header.flags & chunk_flag)!=0) ? "chunks " : "")
+                << (((h.message_header.flags & message_flag)!=0) ? "message " : "")
+                << (((h.message_header.flags & normal_flag)!=0) ? "normal " : "")
+                << (((h.message_header.flags & zerocopy_flag)!=0) ? "RMA " : "")
+                << (((h.message_header.flags & bootstrap_flag)!=0) ? "boot " : "") << ") "
                 << "chunk_data_offset " << decnumber(h.chunk_data_offset())
                 << "rma_info_offset " << decnumber(h.rma_info_offset())
                 << "message_info_offset " << decnumber(h.message_info_offset())
@@ -181,13 +193,21 @@ namespace libfabric
                 << "message length " << hexlength(h.message_size())
                 << "chunks " << decnumber(h.num_chunks())
                 << "zerocopy ( " << decnumber(h.num_zero_copy_chunks()) << ") "
-                << "normal ( " << decnumber(h.num_index_chunks()) << ") "
+                << "normal ( " << decnumber((h.chunk_ptr()?h.num_index_chunks():0))<<") "
                 << "piggyback " << decnumber((h.message_piggy_back()))
                 << "tag " << hexuint64(h.tag());
+;
             return os;
         }
 
     public:
+
+        // ------------------------------------------------------------------
+        // return a byte size representation of the flags
+        inline uint8_t flags() const {
+            return uint8_t(message_header.flags);
+        }
+
         // ------------------------------------------------------------------
         // if chunks are piggybacked, return pointer to list of chunk data
         inline char *chunk_ptr()
@@ -250,6 +270,17 @@ namespace libfabric
                 return nullptr;
             }
             return reinterpret_cast<char*>(&data_[message_offset()]);
+        }
+
+        // ------------------------------------------------------------------
+        bool bootstrap()
+        {
+            return ((message_header.flags & bootstrap_flag) != 0);
+        }
+
+        void set_bootstrap_flag()
+        {
+            message_header.flags |= bootstrap_flag;
         }
 
         // ------------------------------------------------------------------
@@ -347,7 +378,7 @@ namespace libfabric
             return size;
         }
 
-        inline void set_message_rdma_info(uint64_t key, const void *addr)
+        inline void set_message_rdma_info(std::uint64_t rkey, const void *addr)
         {
             chunktype *chunks = reinterpret_cast<chunktype *>(chunk_ptr());
             if (!chunks) {
@@ -358,7 +389,7 @@ namespace libfabric
                 chunks = &chunks[message_header.num_chunks-1];
             }
             // the last chunk will be our RMA message chunk
-            chunks->rkey_       = key;
+            chunks->rma_        = rkey;
             chunks->data_.cpos_ = addr;
         }
 
@@ -371,15 +402,15 @@ namespace libfabric
         {
             chunktype *chunks = reinterpret_cast<chunktype *>(chunk_ptr());
             if (!chunks) {
-                throw std::runtime_error("num_zero_copy_chunks without chunk data");
+                return 0;
+//                throw std::runtime_error(
+//                            "num_zero_copy_chunks>0 but chunk data==nullptr");
             }
-            uint32_t num=0;
-            for (uint32_t i=0; i<message_header.num_chunks; ++i) {
-                if (chunks[i].type_ == serialization::chunk_type::chunk_type_pointer) {
-                    ++num;
-                }
-            }
-            return num;
+            return std::count_if(&chunks[0], &chunks[message_header.num_chunks],
+                [](chunktype &c) {
+                    return c.type_ == serialization::chunk_type_pointer ||
+                           c.type_ == serialization::chunk_type_rma;
+            });
         }
 
         std::uint32_t num_index_chunks()
@@ -388,15 +419,11 @@ namespace libfabric
             if (!chunks) {
                 throw std::runtime_error("num_index_chunks without chunk data");
             }
-            uint32_t num=0;
-            for (uint32_t i=0; i<message_header.num_chunks; ++i) {
-                if (chunks[i].type_ == serialization::chunk_type::chunk_type_index) {
-                    ++num;
-                }
-            }
-            return num;
+            return std::count_if(&chunks[0], &chunks[message_header.num_chunks],
+                [](chunktype &c) {
+                    return c.type_ == serialization::chunk_type_index;
+            });
         }
-
     };
 
 }}}}

@@ -8,9 +8,14 @@
 #ifndef HPX_PARCELSET_POLICIES_LIBFABRIC_RMA_RECEIVER_HPP
 #define HPX_PARCELSET_POLICIES_LIBFABRIC_RMA_RECEIVER_HPP
 
-#include <plugins/parcelport/libfabric/libfabric_region_provider.hpp>
+#include <hpx/runtime/parcelset/rma/detail/memory_region_impl.hpp>
+#include <hpx/runtime/parcelset/rma/memory_pool.hpp>
+#include <hpx/runtime/parcelset/rma/detail/memory_region_allocator.hpp>
+#include <hpx/thread_support/atomic_count.hpp>
+//
 #include <plugins/parcelport/performance_counter.hpp>
-#include <plugins/parcelport/rma_memory_pool.hpp>
+//
+#include <plugins/parcelport/libfabric/libfabric_region_provider.hpp>
 #include <plugins/parcelport/libfabric/header.hpp>
 #include <plugins/parcelport/libfabric/rma_base.hpp>
 //
@@ -34,15 +39,15 @@ namespace libfabric
     //      2) The zero copy chunks from serialization
     struct rma_receiver : public rma_base
     {
-        typedef libfabric_region_provider                      region_provider;
-        typedef rma_memory_region<region_provider>             region_type;
-        typedef rma_memory_pool<region_provider>               memory_pool_type;
-        typedef boost::container::small_vector<region_type*,8> zero_copy_vector;
+        typedef libfabric_region_provider                        region_provider;
+        typedef rma::detail::memory_region_impl<region_provider> region_type;
+        typedef rma::memory_pool<region_provider>                memory_pool_type;
+        typedef boost::container::small_vector<region_type*,8>   zero_copy_vector;
 
         typedef header<HPX_PARCELPORT_LIBFABRIC_MESSAGE_HEADER_SIZE> header_type;
         static constexpr unsigned int header_size = header_type::header_block_size;
 
-        typedef serialization::serialization_chunk chunk_struct;
+        typedef serialization::serialization_chunk chunktype;
         typedef hpx::util::function_nonser<void(rma_receiver*)> completion_handler;
 
         rma_receiver(
@@ -51,13 +56,14 @@ namespace libfabric
             memory_pool_type *memory_pool,
             completion_handler&& handler);
 
-        ~rma_receiver();
-
         // --------------------------------------------------------------------
         // the main entry point when a message is received, this function
         // will despatch to either read with or without rma depending on
         // whether there are zero copy chunks to handle
         void read_message(region_type* region, fi_addr_t const& src_addr);
+
+        // @TODO insert docs here
+        void handle_bootstrap_message();
 
         // --------------------------------------------------------------------
         // Process a message that has no zero copy chunks
@@ -94,7 +100,9 @@ namespace libfabric
         void cleanup_receive();
 
         // --------------------------------------------------------------------
-        void handle_error(struct fi_cq_err_entry err) override;
+        // called when the controller receives an error condition when
+        // handling this object as an fi_context
+        void handle_error(struct fi_cq_err_entry err);
 
         // --------------------------------------------------------------------
         // convenience function to execute a read for each zero-copy chunk
@@ -108,30 +116,31 @@ namespace libfabric
             const void *remoteAddr, uint64_t rkey);
 
     private:
-        parcelport                       *pp_;
-        fid_ep                           *endpoint_;
-        region_type                      *header_region_;
-        region_type                      *chunk_region_;
-        region_type                      *message_region_;
-        header_type                      *header_;
-        std::vector<chunk_struct>         chunks_;
-        zero_copy_vector                  rma_regions_;
-        rma_memory_pool<region_provider> *memory_pool_;
-        fi_addr_t                         src_addr_;
-        completion_handler                handler_;
-        hpx::util::atomic_count           rma_count_;
-        bool                              chunk_fetch_;
+        parcelport                 *parcelport_;
+        fid_ep                     *endpoint_;
+        region_type                *header_region_;
+        region_type                *chunk_region_;
+        region_type                *message_region_;
+        header_type                *header_;
+        std::vector<chunktype>      chunks_;
+        zero_copy_vector            rma_regions_;
+        memory_pool_type           *memory_pool_;
+        fi_addr_t                   src_addr_;
+        completion_handler          handler_;
+        hpx::util::atomic_count     rma_count_;
+        bool                        chunk_fetch_;
 
         double start_time_;
 
-        //
-        friend class receiver;
-        performance_counter<unsigned int> msg_plain_;
-        performance_counter<unsigned int> msg_rma_;
-        performance_counter<unsigned int> sent_ack_;
-        performance_counter<unsigned int> rma_reads_;
-        performance_counter<unsigned int> recv_deletes_;
+        friend struct receiver;
+        friend class controller;
 
+        // counters for statistics about messages
+        static performance_counter<unsigned int> msg_plain_;
+        static performance_counter<unsigned int> msg_rma_;
+        static performance_counter<unsigned int> sent_ack_;
+        static performance_counter<unsigned int> rma_reads_;
+        static performance_counter<unsigned int> recv_deletes_;
     };
 }}}}
 

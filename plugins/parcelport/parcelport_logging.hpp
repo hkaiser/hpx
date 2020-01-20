@@ -7,6 +7,7 @@
 #ifndef HPX_PARCELSET_POLICIES_LOGGING
 #define HPX_PARCELSET_POLICIES_LOGGING
 
+#include <bitset>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -16,8 +17,7 @@
 //
 #include <hpx/config.hpp>
 #include <hpx/config/parcelport_defines.hpp>
-#include <hpx/preprocessor/stringize.hpp>
-#include <hpx/runtime/threads/thread.hpp>
+#include <hpx/util/detail/pp/stringize.hpp>
 //
 #include <boost/preprocessor.hpp>
 #if defined(__linux) || defined(__linux__)
@@ -31,43 +31,47 @@
 // ------------------------------------------------------------------
 
 // full logging support, we want everything
-#if defined(HPX_PARCELPORT_VERBS_HAVE_LOGGING) ||                              \
-    defined(HPX_PARCELPORT_LIBFABRIC_HAVE_LOGGING)
-#define HPX_PARCELPORT_LOGGING_INCLUDE_FILES
-#define HPX_PARCELPORT_LOGGING_HAVE_TRACE_LOG
-#define HPX_PARCELPORT_LOGGING_HAVE_DEBUG_LOG
-#define HPX_PARCELPORT_LOGGING_HAVE_TIMED_LOG
-#define HPX_PARCELPORT_LOGGING_HAVE_DEVEL_LOG
+#if   defined(HPX_PARCELPORT_VERBS_HAVE_LOGGING)      || \
+      defined(HPX_PARCELPORT_LIBFABRIC_HAVE_LOGGING)
+#  define HPX_PARCELPORT_LOGGING_INCLUDE_FILES
+//#  define HPX_PARCELPORT_LOGGING_HAVE_TRACE_LOG
+#  define HPX_PARCELPORT_LOGGING_HAVE_DEBUG_LOG
+#  define HPX_PARCELPORT_LOGGING_HAVE_TIMED_LOG
+#  define HPX_PARCELPORT_LOGGING_HAVE_DEVEL_LOG
 
 // just a subset of logging for dev mode enabled
-#elif defined(HPX_PARCELPORT_VERBS_HAVE_DEV_MODE) ||                           \
-    defined(HPX_PARCELPORT_LIBFABRIC_HAVE_DEV_MODE)
-#define HPX_PARCELPORT_LOGGING_INCLUDE_FILES
-#define HPX_PARCELPORT_LOGGING_HAVE_TIMED_LOG
-#define HPX_PARCELPORT_LOGGING_HAVE_DEVEL_LOG
+#elif defined(HPX_PARCELPORT_VERBS_HAVE_DEV_MODE)     || \
+      defined(HPX_PARCELPORT_LIBFABRIC_HAVE_DEV_MODE)
+#  define HPX_PARCELPORT_LOGGING_INCLUDE_FILES
+#  define HPX_PARCELPORT_LOGGING_HAVE_TIMED_LOG
+#  define HPX_PARCELPORT_LOGGING_HAVE_DEVEL_LOG
 #endif
 
 // ------------------------------------------------------------------
 // useful macros for formatting log messages
 // ------------------------------------------------------------------
+#define binary8(p)  "0b" << std::bitset<8>(uint8_t(p)) << " "
+#define binary32(p) "0b" << std::bitset<32>(uint32_t(p)) << " "
 #define nhex(n)                                                                \
-    "0x" << std::setfill('0') << std::setw(n) << std::noshowbase << std::hex
-#define hexpointer(p) nhex(16) << (uintptr_t)(p) << " "
-#define hexuint64(p) nhex(16) << (uintptr_t)(p) << " "
-#define hexuint32(p) nhex(8) << (uint32_t)(p) << " "
-#define hexlength(p) nhex(6) << (uintptr_t)(p) << " "
-#define hexnumber(p) nhex(4) << (uintptr_t)(p) << " "
-#define hexbyte(p) nhex(2) << static_cast<int>(p) << " "
+    "0x" << std::setfill('0')  << std::setw(n) << std::noshowbase << std::hex
+#define hexpointer(p) nhex(16) << uintptr_t(p) << " "
+#define hexuint64(p) nhex(16)  << uintptr_t(p) << " "
+#define hexuint32(p) nhex(8)   << uint32_t(p)  << " "
+#define hexlength(p) nhex(6)   << uintptr_t(p) << " "
+#define hexnumber(p) nhex(4)   << uintptr_t(p) << " "
+#define hexbyte(p) nhex(2)     << int32_t(p)   << " "
 #define decimal(n)                                                             \
     std::setfill('0') << std::setw(n) << std::noshowbase << std::dec
 #define decnumber(p) std::dec << p << " "
 #define dec4(p) decimal(4) << p << " "
 #define ipaddress(p)                                                           \
-    std::dec << (int) (reinterpret_cast<const uint8_t*>(&p))[0] << "."         \
-             << (int) (reinterpret_cast<const uint8_t*>(&p))[1] << "."         \
-             << (int) (reinterpret_cast<const uint8_t*>(&p))[2] << "."         \
-             << (int) (reinterpret_cast<const uint8_t*>(&p))[3] << " "
+    std::dec << int( (reinterpret_cast<const uint8_t*>(&p))[0] ) << "."        \
+             << int( (reinterpret_cast<const uint8_t*>(&p))[1] ) << "."        \
+             << int( (reinterpret_cast<const uint8_t*>(&p))[2] ) << "."        \
+             << int( (reinterpret_cast<const uint8_t*>(&p))[3] )
 #define sockaddress(p) ipaddress(((struct sockaddr_in*) (p))->sin_addr.s_addr)
+#define iplocality(p)  ipaddress(p.ip_address()) << ":" << decnumber(p.port()) \
+    << "(" << std::dec << p.fi_address() << ") "
 
 // ------------------------------------------------------------------
 // include files needed for boost::log
@@ -92,43 +96,47 @@
 // ------------------------------------------------------------------
 // helper classes/functions used in logging
 // ------------------------------------------------------------------
-namespace hpx { namespace parcelset { namespace policies { namespace libfabric {
-    namespace detail {
+namespace hpx {
+namespace parcelset {
+namespace policies {
+namespace libfabric {
+namespace detail {
 
-        // ------------------------------------------------------------------
-        // helper class for printing thread ID
-        // ------------------------------------------------------------------
-        struct rdma_thread_print_helper
-        {
-        };
+    // ------------------------------------------------------------------
+    // helper class for printing thread ID
+    // ------------------------------------------------------------------
+    struct rdma_thread_print_helper {};
 
-        inline std::ostream& operator<<(
-            std::ostream& os, const rdma_thread_print_helper&)
-        {
-            if (hpx::threads::get_self_id() == hpx::threads::invalid_thread_id)
-            {
-                os << "------------------ ";
-            }
-            else
-            {
-                hpx::threads::thread_data* dummy =
-                    hpx::threads::get_self_id_data();
-                os << hexpointer(dummy);
-            }
-            os << nhex(12) << std::this_thread::get_id() << " cpu "
-               << decnumber(sched_getcpu());
-            return os;
+    inline std::ostream& operator<<(
+        std::ostream& os, const rdma_thread_print_helper&)
+    {
+#ifdef HPX_PARCELPORT_LOGGING_INCLUDE_FILES
+        if (hpx::threads::get_self_id()==hpx::threads::invalid_thread_id) {
+            os << "------------------ ";
         }
-
-        // ------------------------------------------------------------------
-        // helper fuction for printing CRC32
-        // ------------------------------------------------------------------
-        inline uint32_t crc32(const void* address, size_t length)
-        {
-            boost::crc_32_type result;
-            result.process_bytes(address, length);
-            return result.checksum();
+        else {
+            hpx::threads::thread_data *dummy =
+                hpx::this_thread::get_id().native_handle().get();
+            os << hexpointer(dummy);
         }
+        os << nhex(12) << std::this_thread::get_id() << " cpu "
+           << decnumber(sched_getcpu());
+#else
+        os << "------------------ ";
+#endif
+        return os;
+    }
+
+#ifdef HPX_PARCELPORT_LOGGING_HAVE_TRACE_LOG
+    // ------------------------------------------------------------------
+    // helper fuction for printing CRC32
+    // ------------------------------------------------------------------
+    inline uint32_t crc32(const void *address, size_t length)
+    {
+        boost::crc_32_type result;
+        result.process_bytes(address, length);
+        return result.checksum();
+    }
 
         // ------------------------------------------------------------------
         // helper fuction for printing CRC32 and short memory dump
@@ -149,6 +157,8 @@ namespace hpx { namespace parcelset { namespace policies { namespace libfabric {
             temp << ": " << txt;
             return temp.str();
         }
+    }
+#endif
 
 }}}}}    // namespace hpx::parcelset::policies::libfabric::detail
 
@@ -156,17 +166,17 @@ namespace hpx { namespace parcelset { namespace policies { namespace libfabric {
     "" << hpx::parcelset::policies::libfabric::detail::                        \
             rdma_thread_print_helper()
 
-#define CRC32(buf, len)                                                        \
-    "" << hpx::parcelset::policies::libfabric::detail::crc32(buf, len)
-
-#define CRC32_MEM(buf, len, txt)                                               \
-    "" << hpx::parcelset::policies::libfabric::detail::mem_crc32(buf, len, txt)
-
 // ------------------------------------------------------------------
 // Trace messages are enabled for full debug
 // ------------------------------------------------------------------
 #ifdef HPX_PARCELPORT_LOGGING_HAVE_TRACE_LOG
-#define LOG_TRACE_MSG(x) BOOST_LOG_TRIVIAL(trace) << THREAD_ID << " " << x;
+#  define LOG_TRACE_MSG(x) BOOST_LOG_TRIVIAL(trace)   << THREAD_ID << " " << x;
+
+# define CRC32(buf,len) "" \
+    << hpx::parcelset::policies::libfabric::detail::crc32(buf,len)
+
+# define CRC32_MEM(buf, len, txt) "" \
+    << hpx::parcelset::policies::libfabric::detail::mem_crc32(buf, len, txt)
 #else
 #define LOG_TRACE_MSG(x)
 #endif
@@ -258,36 +268,5 @@ namespace hpx { namespace parcelset { namespace policies { namespace libfabric {
 #define LOG_TIMED_MSG(name, level, delay, x)
 #define LOG_TIMED_BLOCK(name, level, delay, x)
 #endif
-
-// ------------------------------------------------------------------
-// Utility to allow automatic printing of enum names in log messages
-//
-// example of usage
-// DEFINE_ENUM_WITH_STRING_CONVERSIONS(test_type, (test1)(test2)(test3))
-// ------------------------------------------------------------------
-
-#define X_DEFINE_ENUM_WITH_STRING_CONVERSIONS_TOSTRING_CASE(r, data, elem)     \
-    case elem:                                                                 \
-        return HPX_PP_STRINGIZE(elem);                                         \
-        /**/
-
-#define DEFINE_ENUM_WITH_STRING_CONVERSIONS(name, enumerators)                 \
-    enum name                                                                  \
-    {                                                                          \
-        BOOST_PP_SEQ_ENUM(enumerators)                                         \
-    };                                                                         \
-                                                                               \
-    static const char* ToString(name v)                                        \
-    {                                                                          \
-        switch (v)                                                             \
-        {                                                                      \
-            BOOST_PP_SEQ_FOR_EACH(                                             \
-                X_DEFINE_ENUM_WITH_STRING_CONVERSIONS_TOSTRING_CASE, name,     \
-                enumerators)                                                   \
-        default:                                                               \
-            return "[Unknown " HPX_PP_STRINGIZE(name) "]";                     \
-        }                                                                      \
-    }                                                                          \
-    /**/
 
 #endif

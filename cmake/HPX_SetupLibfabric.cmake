@@ -167,27 +167,14 @@ if (HPX_WITH_PARCELPORT_LIBFABRIC AND NOT TARGET hpx::libfabric)
   #------------------------------------------------------------------------------
   # Throttling options
   #------------------------------------------------------------------------------
-  hpx_option(HPX_PARCELPORT_LIBFABRIC_THROTTLE_SENDS STRING
+  hpx_option(HPX_PARCELPORT_LIBFABRIC_MAX_SENDS STRING
     "Threshold of active sends at which throttling is enabled (default: 16)"
     "16" CATEGORY "Parcelport" ADVANCED)
 
   hpx_add_config_define_namespace(
-      DEFINE    HPX_PARCELPORT_LIBFABRIC_THROTTLE_SENDS
-      VALUE     ${HPX_PARCELPORT_LIBFABRIC_THROTTLE_SENDS}
+      DEFINE    HPX_PARCELPORT_LIBFABRIC_MAX_SENDS
+      VALUE     ${HPX_PARCELPORT_LIBFABRIC_MAX_SENDS}
       NAMESPACE parcelport)
-
-  #------------------------------------------------------------------------------
-  # Custom Scheduler options
-  #------------------------------------------------------------------------------
-  hpx_option(HPX_PARCELPORT_LIBFABRIC_USE_CUSTOM_SCHEDULER BOOL
-    "Configure the parcelport to use a custom scheduler (default: OFF - Warning, experimental, may cause serious program errors)"
-    OFF CATEGORY "Parcelport" ADVANCED)
-
-  if (HPX_PARCELPORT_LIBFABRIC_USE_CUSTOM_SCHEDULER)
-    hpx_add_config_define_namespace(
-        DEFINE    HPX_PARCELPORT_LIBFABRIC_USE_CUSTOM_SCHEDULER
-        NAMESPACE parcelport)
-  endif()
 
   #------------------------------------------------------------------------------
   # Lock checking
@@ -209,10 +196,6 @@ if (HPX_WITH_PARCELPORT_LIBFABRIC AND NOT TARGET hpx::libfabric)
     "Number of bytes a default chunk in the memory pool can hold (default: 4K)"
     "4096" CATEGORY "Parcelport" ADVANCED)
 
-  hpx_option(HPX_PARCELPORT_LIBFABRIC_64K_PAGES STRING
-    "Number of 64K pages we reserve for default message buffers (default: 10)"
-    "10" CATEGORY "Parcelport" ADVANCED)
-
   hpx_option(HPX_PARCELPORT_LIBFABRIC_MEMORY_COPY_THRESHOLD STRING
     "Cutoff size over which data is never copied into existing buffers (default: 4K)"
     "4096" CATEGORY "Parcelport" ADVANCED)
@@ -226,11 +209,6 @@ if (HPX_WITH_PARCELPORT_LIBFABRIC AND NOT TARGET hpx::libfabric)
   hpx_add_config_define_namespace(
       DEFINE    HPX_PARCELPORT_LIBFABRIC_MESSAGE_HEADER_SIZE
       VALUE     ${HPX_PARCELPORT_LIBFABRIC_MEMORY_CHUNK_SIZE}
-      NAMESPACE parcelport)
-
-  hpx_add_config_define_namespace(
-      DEFINE    HPX_PARCELPORT_LIBFABRIC_64K_PAGES
-      VALUE     ${HPX_PARCELPORT_LIBFABRIC_64K_PAGES}
       NAMESPACE parcelport)
 
   hpx_add_config_define_namespace(

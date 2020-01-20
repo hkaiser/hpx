@@ -19,6 +19,7 @@ if (HPX_WITH_PARCELPORT_LIBFABRIC)
     "${PROJECT_SOURCE_DIR}/plugins/parcelport/libfabric/receiver.cpp"
     "${PROJECT_SOURCE_DIR}/plugins/parcelport/libfabric/rma_receiver.cpp"
     "${PROJECT_SOURCE_DIR}/plugins/parcelport/libfabric/sender.cpp"
+    "${PROJECT_SOURCE_DIR}/plugins/parcelport/libfabric/locality.cpp"
     CACHE INTERNAL "" FORCE)
 
   set(_hpxc_CXX_srcs          "" CACHE INTERNAL "" FORCE)
@@ -82,6 +83,8 @@ if (HPX_WITH_PARCELPORT_LIBFABRIC)
       hpx_plugin
       hpx_program_options
       hpx_serialization
+      hpx_static_reinit
+      hpx_synchronization
       hpx_threadmanager
       hpx_timing
       hpx_topology

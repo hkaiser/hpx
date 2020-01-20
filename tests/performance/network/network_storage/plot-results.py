@@ -81,7 +81,7 @@ fig_T_RW_B_NB  = plot_configuration(T_RW_B_NB,
   lambda x: sizeof_bytes(x),                    # Legend text
   lambda x: "Threads = " + str(int(x)),                        # legend title
   lambda x,pos: str(int(x)),                    # X Axis labels
-  [[2,0,12,0.0], [2,0,13,0.0]],                 # minmax (base, min, max, padding)
+  [[2,0,13,0.0], [2,-3,13,0.0]],                 # minmax (base, min, max, padding)
   [0.0, 0.0]                                    # legend offset
   )
 graphs_to_save.append([fig_T_RW_B_NB,"fig_T_RW_B_NB"])
@@ -95,7 +95,7 @@ fig_T_B_RW_NB  = plot_configuration(T_B_RW_NB,
   lambda x: "Read" if (x==1) else "Write",                  # Legend text
   lambda x: "Threads = " + str(int(x)),                        # legend title
   lambda x,pos: str(int(x)),                    # X Axis labels
-  [[2,0,12,0.0], [2,0,13,0.0]],                 # minmax (base, min, max, padding)
+  [[2,0,13,0.0], [2,-3,13,0.0]],                 # minmax (base, min, max, padding)
   [0.0, 0.0]                                    # legend offset
   )
 graphs_to_save.append([fig_T_B_RW_NB,"fig_T_B_RW_NB"])
@@ -107,6 +107,6 @@ for fig in graphs_to_save:
   png_name = base + "." + fig[1] + ".png"
   print("Writing %s" % svg_name)
   fig[0].savefig(svg_name)
-  #fig[0].savefig(png_name)
+  fig[0].savefig(png_name)
 
 #-------------------------------------------------------------------

@@ -9,8 +9,9 @@
 
 #include <hpx/config.hpp>
 //
+#include <hpx/runtime/parcelset/rma/memory_pool.hpp>
+//
 #include <plugins/parcelport/parcelport_logging.hpp>
-#include <plugins/parcelport/rma_memory_pool.hpp>
 //
 #include <vector>
 #include <functional>
@@ -56,7 +57,7 @@ namespace libfabric
         pinned_memory_vector(allocator_type* alloc) :
         m_array_(0), m_size_(0), m_cb_(0), m_alloc_(alloc), m_region_(0)
         {
-            LOG_DEBUG_MSG("pinned_memory_vector alloc "
+            LOG_TRACE_MSG("pinned_memory_vector alloc "
                 << "size " << hexuint32(m_size_)
                 << "array " << hexpointer(m_array_)
                 << "region " << hexpointer(m_region_)
@@ -68,7 +69,7 @@ namespace libfabric
             allocator_type* alloc, region_type *r) :
                 m_array_(p), m_size_(s), m_cb_(cb), m_alloc_(alloc), m_region_(r)
         {
-            LOG_DEBUG_MSG("pinned_memory_vector exist "
+            LOG_TRACE_MSG("pinned_memory_vector exist "
                 << "size " << hexuint32(m_size_)
                 << "array " << hexpointer(m_array_)
                 << "region " << hexpointer(m_region_)
@@ -81,7 +82,7 @@ namespace libfabric
             m_cb_(std::move(other.m_cb_)), m_alloc_(other.m_alloc_),
             m_region_(other.m_region_)
         {
-            LOG_DEBUG_MSG("pinned_memory_vector moved "
+            LOG_TRACE_MSG("pinned_memory_vector moved "
                 << "size " << hexuint32(m_size_)
                 << "array " << hexpointer(m_array_)
                 << "region " << hexpointer(m_region_)
@@ -95,7 +96,7 @@ namespace libfabric
 
         ~pinned_memory_vector() {
             if (m_array_ && m_cb_) {
-                LOG_DEBUG_MSG("pinned_memory_vector delete "
+                LOG_TRACE_MSG("pinned_memory_vector delete "
                     << "size " << hexuint32(m_size_)
                     << "array " << hexpointer(m_array_)
                     << "region " << hexpointer(m_region_)
@@ -112,7 +113,7 @@ namespace libfabric
             m_cb_     = other.m_cb_;
             m_alloc_  = other.m_alloc_;
             m_region_ = other.m_region_;
-            LOG_DEBUG_MSG("pinned_memory_vector assigned/moved "
+            LOG_TRACE_MSG("pinned_memory_vector assigned/moved "
                 << "size " << hexuint32(m_size_)
                 << "array " << hexpointer(m_array_)
                 << "region " << hexpointer(m_region_)
@@ -177,12 +178,17 @@ namespace libfabric
                 << "array " << hexpointer(m_array_)
                 << "region " << hexpointer(m_region_)
                 << "alloc " << hexpointer(m_alloc_)
-                << "resizing from " << m_size_ << " to " << s);
+                << "resizing from " << hexlength(m_size_)
+                    << " to " << hexlength(s));
 
             if (m_region_) {
+                LOG_TRACE_MSG("Region in resize " << *m_region_);
+
                 if (s > m_region_->get_size()) {
                     LOG_ERROR_MSG(
-                        "Resizing from " << m_region_->get_size() << " to " << s);
+                        "Resizing from " << hexlength(m_region_->get_size())
+                        << " to " << hexlength(s)
+                        << *m_region_);
                     throw std::runtime_error(
                         "pinned_memory_vector should never be resized once an "
                         "allocation has been assigned");
@@ -197,7 +203,7 @@ namespace libfabric
         }
 
         void reserve(std::size_t s) {
-            LOG_DEBUG_MSG("pinned_memory_vector "
+            LOG_TRACE_MSG("pinned_memory_vector "
                 << "size " << hexuint32(m_size_)
                 << "array " << hexpointer(m_array_)
                 << "region " << hexpointer(m_region_)
