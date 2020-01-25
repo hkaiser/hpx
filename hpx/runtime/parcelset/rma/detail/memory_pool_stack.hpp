@@ -13,7 +13,6 @@
 #include <hpx/config/parcelport_defines.hpp>
 //
 #include <hpx/runtime/parcelset/rma/detail/memory_region_impl.hpp>
-#include <plugins/parcelport/parcelport_logging.hpp>
 #include <plugins/parcelport/performance_counter.hpp>
 //
 #include <boost/lockfree/stack.hpp>
@@ -77,7 +76,7 @@ namespace detail
         {
             LOG_TRACE_MSG(PoolType::desc() << "Allocating "
                 << "ChunkSize " << hexuint32(ChunkSize)
-                << "num_chunks " << decnumber(MaxChunks)
+                << "num_chunks " << hpx::debug::dec<>(MaxChunks)
                 << "total " << hexuint32(ChunkSize*MaxChunks));
 
             // Allocate one very large registered block for N small blocks
@@ -99,7 +98,7 @@ namespace detail
                     region_type::BLOCK_PARTIAL
                 );
                 LOG_TRACE_MSG(PoolType::desc() << "Allocate Block "
-                    << decnumber(i)
+                    << hpx::debug::dec<>(i)
                     << region_list_[i]);
                 // push the pointer onto our stack
                 push(&region_list_[i]);
@@ -115,7 +114,7 @@ namespace detail
             if (in_use_!=0) {
                 LOG_ERROR_MSG(PoolType::desc()
                     << "Deallocating free_list : Not all blocks were returned "
-                    << " refcounts " << decnumber(in_use_));
+                    << " refcounts " << hpx::debug::dec<>(in_use_));
             }
 #ifdef RMA_POOL_DEBUG_SET
             for (auto region : region_set_) {
@@ -143,14 +142,14 @@ namespace detail
             }
 #endif
             LOG_TRACE_MSG(PoolType::desc() << "Push block " << *region
-                << "Used " << decnumber(in_use_-1)
-                << "Accesses " << decnumber(accesses_));
+                << "Used " << hpx::debug::dec<>(in_use_-1)
+                << "Accesses " << hpx::debug::dec<>(accesses_));
 
             LOG_EXCLUSIVE(
                 uintptr_t val = uintptr_t(region->get_address());
                 LOG_TRACE_MSG(PoolType::desc()
                     << "Writing 0xdeadbeef to region address "
-                    << hexpointer(val));
+                    << hpx::debug::ptr(val));
                 if (region->get_address()!=nullptr) {
                     // get use the pointer to the region
                     uintptr_t *ptr = reinterpret_cast<uintptr_t*>(val);
@@ -181,8 +180,8 @@ namespace detail
             ++accesses_;
             LOG_TRACE_MSG(PoolType::desc() << "Pop block "
                 << *region
-                << "Used " << decnumber(in_use_)
-                << "Accesses " << decnumber(accesses_));
+                << "Used " << hpx::debug::dec<>(in_use_)
+                << "Accesses " << hpx::debug::dec<>(accesses_));
 
 #ifdef RMA_POOL_DEBUG_SET
             {
@@ -205,10 +204,10 @@ namespace detail
         std::string status() {
             std::stringstream temp;
             temp << "| " << PoolType::desc()
-                 << "ChunkSize " << hexlength(ChunkSize)
-                 << "Free " << decnumber(MaxChunks-in_use_)
-                 << "Used " << decnumber(in_use_)
-                 << "Accesses " << decnumber(accesses_);
+                 << "ChunkSize " << hpx::debug::hex<6>(ChunkSize)
+                 << "Free " << hpx::debug::dec<>(MaxChunks-in_use_)
+                 << "Used " << hpx::debug::dec<>(in_use_)
+                 << "Accesses " << hpx::debug::dec<>(accesses_);
             return temp.str();
         }
 

@@ -20,11 +20,17 @@
 #include <hpx/runtime/parcelset/parcel_buffer.hpp>
 //
 #include <hpx/assertion.hpp>
+#include <hpx/debugging/print.hpp>
 //
 #include <utility>
 #include <cstddef>
 #include <cstdint>
 #include <chrono>
+
+namespace hpx {
+    // cppcheck-suppress ConfigurationNotChecked
+    static hpx::debug::enable_print<true> recv_deb("RECEIVE");
+}   // namespace hpx
 
 namespace hpx {
 namespace parcelset {
@@ -46,7 +52,7 @@ namespace libfabric
         , header_region_(memory_pool.allocate_region(memory_pool.small_.chunk_size()))
         , memory_pool_(&memory_pool)
     {
-        LOG_TRACE_MSG("created receiver: " << hexpointer(this));
+        recv_deb.trace("created receiver: " , hpx::debug::ptr(this));
         // create an rma_receivers per receive and push it onto the rma stack
         create_rma_receiver(true);
         // Once constructed, we need to post the receive...
@@ -76,7 +82,7 @@ namespace libfabric
 //            sent_ack_     += rcv->sent_ack_;
 //            rma_reads_    += rcv->rma_reads_;
 //            recv_deletes_ += rcv->recv_deletes_;
-//            LOG_ERROR_MSG("Cleanup rma_receiver " << decnumber(--active_rma_receivers_));
+//            recv_deb.error("Cleanup rma_receiver " , hpx::debug::dec<>(--active_rma_receivers_));
 //            delete rcv;
 //        }
     }
@@ -88,9 +94,9 @@ namespace libfabric
     bool receiver::handle_new_connection(controller *controller, std::uint64_t len)
     {
         FUNC_START_DEBUG_MSG;
-        LOG_DEBUG_MSG("Processing new connection message of length "
-                      << decnumber(len)
-                      << "pre-posted " << decnumber(--receives_pre_posted_));
+        recv_deb.debug("Processing new connection message of length "
+                      , hpx::debug::dec<>(len)
+                      , "pre-posted " , hpx::debug::dec<>(--receives_pre_posted_));
 
         // We save the received region and swap it with a newly allocated one
         // so that we can post a recv again as soon as possible.
@@ -98,7 +104,8 @@ namespace libfabric
         header_region_ = memory_pool_->allocate_region(memory_pool_->small_.chunk_size());
         pre_post_receive();
 
-        LOG_TRACE_MSG(CRC32_MEM(region->get_address(),
+
+        recv_deb.trace(hpx::debug::mem_crc32(region->get_address(),
                                 len, "Header region (new connection)"));
 
         rma_receiver::header_type *header =
@@ -111,8 +118,8 @@ namespace libfabric
         std::memcpy(source_addr.fabric_data_writable(),
                     header->message_data(),
                     source_addr.array_size);
-        LOG_DEBUG_MSG("Received connection bootstrap locality "
-                      << iplocality(source_addr));
+        recv_deb.debug("Received connection bootstrap locality "
+                      , iplocality(source_addr));
 
         // free up the region we consumed
         memory_pool_->deallocate(region);
@@ -136,11 +143,11 @@ namespace libfabric
         auto f = [](rma_receiver* recv)
         {
             ++active_rma_receivers_;
-            LOG_DEBUG_MSG("Pushing rma_receiver " << decnumber(active_rma_receivers_));
+            recv_deb.debug("Pushing rma_receiver " , hpx::debug::dec<>(active_rma_receivers_));
             if (!receiver::rma_receivers_.push(recv)) {
                 // if the capacity overflowed, just delete this one
                 --active_rma_receivers_;
-                LOG_DEBUG_MSG("stack full rma_receiver " << decnumber(active_rma_receivers_));
+                recv_deb.debug("stack full rma_receiver " , hpx::debug::dec<>(active_rma_receivers_));
                 delete recv;
             }
         };
@@ -148,12 +155,12 @@ namespace libfabric
         // Put a new rma_receiver on the stack
         rma_receiver *recv = new rma_receiver(parcelport_, endpoint_, memory_pool_, std::move(f));
         ++active_rma_receivers_;
-        LOG_DEBUG_MSG("Creating new rma_receiver " << decnumber(active_rma_receivers_));
+        recv_deb.debug("Creating new rma_receiver " , hpx::debug::dec<>(active_rma_receivers_));
         if (push_to_stack) {
             if (!receiver::rma_receivers_.push(recv)) {
                 // if the capacity overflowed, just delete this one
                 --active_rma_receivers_;
-                LOG_DEBUG_MSG("stack full new rma_receiver " << decnumber(active_rma_receivers_));
+                recv_deb.debug("stack full new rma_receiver " , hpx::debug::dec<>(active_rma_receivers_));
                 delete recv;
             }
         }
@@ -172,7 +179,7 @@ namespace libfabric
             recv = create_rma_receiver(false);
         }
         --active_rma_receivers_;
-        LOG_DEBUG_MSG("rma_receiver " << decnumber(active_rma_receivers_));
+        recv_deb.debug("rma_receiver " , hpx::debug::dec<>(active_rma_receivers_));
         //
         recv->src_addr_       = src_addr;
         recv->endpoint_       = endpoint_;
@@ -193,8 +200,8 @@ namespace libfabric
         static_assert(sizeof(std::uint64_t) == sizeof(std::size_t),
             "sizeof(std::uint64_t) != sizeof(std::size_t)");
 
-        LOG_DEBUG_MSG("handling recv message "
-                      << "pre-posted " << decnumber(--receives_pre_posted_));
+        recv_deb.debug("handling recv message "
+                      , "pre-posted " , hpx::debug::dec<>(--receives_pre_posted_));
 
         // If we recieve a message of 8 bytes, we got a tag and need to handle
         // the tag completion...
@@ -205,8 +212,8 @@ namespace libfabric
             // that it can now cleanup - all remote get operations are done.
             sender* snd = *reinterpret_cast<sender **>(header_region_->get_address());
             pre_post_receive();
-            LOG_DEBUG_MSG("Handling sender tag (RMA ack) completion: "
-                << hexpointer(snd));
+            recv_deb.debug("Handling sender tag (RMA ack) completion: "
+                , hpx::debug::ptr(snd));
             ++acks_received_;
             snd->handle_message_completion_ack();
             return;
@@ -233,10 +240,10 @@ namespace libfabric
     {
         FUNC_START_DEBUG_MSG;
         void *desc = header_region_->get_local_key();
-        LOG_DEBUG_MSG("Pre-Posting receive "
-            << *header_region_
-            << "context " << hexpointer(this)
-            << "pre-posted " << decnumber(++receives_pre_posted_));
+        recv_deb.debug("Pre-Posting receive "
+            , *header_region_
+            , "context " , hpx::debug::ptr(this)
+            , "pre-posted " , hpx::debug::dec<>(++receives_pre_posted_));
 
         // this should never actually return true and yield
         bool ok = false;
@@ -253,7 +260,7 @@ namespace libfabric
             }
             else if (ret == -FI_EAGAIN)
             {
-                LOG_ERROR_MSG("reposting fi_recv\n");
+                recv_deb.error("reposting fi_recv\n");
                 std::this_thread::sleep_for(std::chrono::microseconds(1));
             }
             else if (ret != 0)

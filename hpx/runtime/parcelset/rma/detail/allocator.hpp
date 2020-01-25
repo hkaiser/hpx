@@ -16,7 +16,6 @@
 #include <hpx/runtime/parcelset/rma/detail/memory_region_allocator.hpp>
 #include <hpx/runtime/parcelset/rma/memory_pool.hpp>
 //
-#include <plugins/parcelport/parcelport_logging.hpp>
 #include <plugins/parcelport/performance_counter.hpp>
 //
 #include <boost/core/null_deleter.hpp>

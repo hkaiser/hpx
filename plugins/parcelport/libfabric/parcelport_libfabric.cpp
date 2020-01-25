@@ -46,7 +46,6 @@
 // --------------------------------------------------------------------
 #include <hpx/runtime/parcelset/rma/memory_pool.hpp>
 //
-#include <plugins/parcelport/parcelport_logging.hpp>
 #include <plugins/parcelport/performance_counter.hpp>
 #include <plugins/parcelport/unordered_map.hpp>
 //
@@ -74,6 +73,12 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <hpx/debugging/print.hpp>
+namespace hpx {
+    // cppcheck-suppress ConfigurationNotChecked
+    static hpx::debug::enable_print<true> ppt_deb("PPORT  ");
+}   // namespace hpx
 
 using namespace hpx::parcelset::policies;
 
@@ -103,16 +108,16 @@ namespace libfabric
         // if we are not enabled, then skip allocating resources
         parcelport_enabled_ = hpx::util::get_entry_as<bool>(ini,
             "hpx.parcel.libfabric.enable", 0);
-        LOG_DEBUG_MSG("Got enabled " << parcelport_enabled_);
+        ppt_deb.debug("Got enabled " , parcelport_enabled_);
 
         bootstrap_enabled_ = ("libfabric" ==
             hpx::util::get_entry_as<std::string>(ini, "hpx.parcel.bootstrap", ""));
-        LOG_DEBUG_MSG("Libfabric parcelport detects bootstrap : "
-                  << util::get_entry_as<std::string>(ini, "hpx.parcel.bootstrap", "")
-                  << " : bootstrap " << bootstrap_enabled_);
+        ppt_deb.debug("Libfabric parcelport detects bootstrap : "
+                  , util::get_entry_as<std::string>(ini, "hpx.parcel.bootstrap", "")
+                  , " : bootstrap " , bootstrap_enabled_);
 
 //        if (hpx::util::get_entry_as<bool>(ini, "hpx.parcel.mpi.enable", "0")) {
-//            LOG_DEBUG_MSG("Libfabric parcelport MPI enabled : disabling bootstrap");
+//            ppt_deb.debug("Libfabric parcelport MPI enabled : disabling bootstrap");
 //            bootstrap_enabled_ = false;
 //        }
 
@@ -126,15 +131,15 @@ namespace libfabric
         std::string endpoint = ini.get_entry("hpx.parcel.libfabric.endpoint",
             HPX_PARCELPORT_LIBFABRIC_ENDPOINT);
 
-        LOG_DEBUG_MSG("libfabric parcelport function using attributes "
-            << provider << " " << domain << " " << endpoint);
+        ppt_deb.debug("libfabric parcelport function using attributes "
+            , provider , " " , domain , " " , endpoint);
 
         // create our main fabric control structure
         controller_ = std::make_shared<controller>(
             provider, domain, endpoint, this, bootstrap_enabled_);
 
         // get 'this' locality from the controller
-        LOG_DEBUG_MSG("Getting local locality object");
+        ppt_deb.debug("Getting local locality object");
         const locality & local = controller_->here();
         here_ = parcelset::locality(local);
         // and make a note of our ip address for convenience
@@ -151,7 +156,7 @@ namespace libfabric
         {
             background_work(0, parcelport_background_mode_all);
         }
-        LOG_DEBUG_MSG("io service task completed");
+        ppt_deb.debug("io service task completed");
     }
 
     // --------------------------------------------------------------------
@@ -168,7 +173,7 @@ namespace libfabric
         FUNC_START_DEBUG_MSG;
         controller_->startup(this);
 
-        LOG_DEBUG_MSG("Fetching memory pool");
+        ppt_deb.debug("Fetching memory pool");
         chunk_pool_ = &controller_->get_memory_pool();
 
         // setup provider specific allocator for rma_object use
@@ -188,9 +193,9 @@ namespace libfabric
             snd->postprocess_handler_ = [this](sender* s)
                 {
                     --senders_in_use_;
-                    LOG_DEBUG_MSG("senders in use (-- stack sender) "
-                                  << hexpointer(s)
-                                  << decnumber(senders_in_use_));
+                    ppt_deb.debug("senders in use (-- stack sender) "
+                                  , hpx::debug::ptr(s)
+                                  , hpx::debug::dec<>(senders_in_use_));
                     senders_.push(s);
                     trigger_pending_work();
                 };
@@ -216,7 +221,7 @@ namespace libfabric
                                    unsigned int flags)
     {
         FUNC_START_DEBUG_MSG;
-        LOG_DEBUG_MSG("send_raw_data (bootstrap) " << hexnumber(size));
+        ppt_deb.debug("send_raw_data (bootstrap) " , hpx::debug::hex<4>(size));
         HPX_ASSERT(size<HPX_PARCELPORT_LIBFABRIC_MESSAGE_HEADER_SIZE);
 
         // keep trying until we get a sender as we cannot block/yield
@@ -225,7 +230,7 @@ namespace libfabric
         while (!sndr) {
             sndr = get_sender(dest);
             if (sndr) {
-                LOG_DEBUG_MSG("send_raw_data gets sender " << hexpointer(sndr));
+                ppt_deb.debug("send_raw_data gets sender " , hpx::debug::ptr(sndr));
             }
         }
 
@@ -241,7 +246,7 @@ namespace libfabric
         std::memcpy(sndr->buffer_.data_.begin(), data, size);
         sndr->buffer_.size_ = sndr->buffer_.data_.size();
         sndr->handler_ = [](error_code const &){
-            LOG_DEBUG_MSG("send_raw_data (bootstrap) send completion handled");
+            ppt_deb.debug("send_raw_data (bootstrap) send completion handled");
         };
 
         sndr->async_write_impl(flags);
@@ -252,9 +257,9 @@ namespace libfabric
     void parcelport::send_bootstrap_address()
     {
         FUNC_START_DEBUG_MSG;
-        LOG_DEBUG_MSG("Sending bootstrap address to agas server : here = "
-                      << ipaddress(controller_->here_.ip_address()) << ":"
-                      << decnumber(controller_->here_.port()));
+        ppt_deb.debug("Sending bootstrap address to agas server : here = "
+                      , hpx::debug::ipaddr(&controller_->here_.ip_address()) , ":"
+                      , hpx::debug::dec<>(controller_->here_.port()));
 
         bootstrap_complete = false;
         send_raw_data(controller_->agas_,
@@ -267,7 +272,7 @@ namespace libfabric
     // --------------------------------------------------------------------
     void parcelport::set_bootstrap_complete()
     {
-        LOG_DEBUG_MSG("bootstrap complete");
+        ppt_deb.debug("bootstrap complete");
         bootstrap_complete = true;
     }
 
@@ -281,14 +286,14 @@ namespace libfabric
         for (const libfabric::locality &addr : addresses) {
             if (addr == controller_->agas_) {
                 // agas (rank 0) should already be in vector, skip it
-                LOG_DEBUG_MSG("bootstrap skipping agas " << iplocality(addr));
+                ppt_deb.debug("bootstrap skipping agas " , iplocality(addr));
                 continue;
             }
             // add this address to vector and get rank assignment
             auto full_addr = controller_->insert_address(addr);
             if (addr == here) {
                 // update controller 'here' address with new rank assignment
-                LOG_DEBUG_MSG("bootstrap we are " << iplocality(full_addr));
+                ppt_deb.debug("bootstrap we are " , iplocality(full_addr));
                 controller_->here_ = full_addr;
                 here_ = parcelset::locality(full_addr);
             }
@@ -313,14 +318,14 @@ namespace libfabric
         {
             snd->dst_addr_ = dest.fi_address();
             ++senders_in_use_;
-            LOG_DEBUG_MSG("get_sender "
-                << hexpointer(snd)
-                << " : get address from "
-                << iplocality(here_.get<libfabric::locality>())
-                << "to " << iplocality(dest)
-                << "fi_addr (rank) " << hexnumber(snd->dst_addr_)
-                << "senders in use (++ get_sender) "
-                << decnumber(senders_in_use_));
+            ppt_deb.debug("get_sender "
+                , hpx::debug::ptr(snd)
+                , " : get address from "
+                , iplocality(here_.get<libfabric::locality>())
+                , "to " , iplocality(dest)
+                , "fi_addr (rank) " , hpx::debug::hex<4>(snd->dst_addr_)
+                , "senders in use (++ get_sender) "
+                , hpx::debug::dec<>(senders_in_use_));
         }
         return snd;
     }
@@ -344,7 +349,7 @@ namespace libfabric
         // to optimize performance when there are free senders and we can use them
         bool empty = senders_.empty();
         if (empty) {
-            LOG_DEBUG_MSG("can_send_immediate false");
+            ppt_deb.debug("can_send_immediate false");
         }
         return !empty;
     }
@@ -370,13 +375,13 @@ namespace libfabric
         //
         new_sender->dst_addr_ = dest.get<libfabric::locality>().fi_address();
         ++senders_in_use_;
-        LOG_DEBUG_MSG("create_connection_raw new sender " << decnumber(senders_in_use_));
+        ppt_deb.debug("create_connection_raw new sender " , hpx::debug::dec<>(senders_in_use_));
         new_sender->postprocess_handler_ = [this](sender* s)
             {
             --senders_in_use_;
-                LOG_DEBUG_MSG("senders in use (-- temp sender) "
-                              << hexpointer(s)
-                              << decnumber(senders_in_use_));
+                ppt_deb.debug("senders in use (-- temp sender) "
+                              , hpx::debug::ptr(s)
+                              , hpx::debug::dec<>(senders_in_use_));
                 // do not push onto the sender stack (it is a temporary sender)
                 trigger_pending_work();
                 delete s;
@@ -393,9 +398,9 @@ namespace libfabric
     {
         FUNC_START_DEBUG_MSG;
         s->postprocess_handler_(s);
-        LOG_DEBUG_MSG("senders in use (-- reclaim_connection) "
-                      << hexpointer(s)
-                      << decnumber(senders_in_use_));
+        ppt_deb.debug("senders in use (-- reclaim_connection) "
+                      , hpx::debug::ptr(s)
+                      , hpx::debug::dec<>(senders_in_use_));
         FUNC_END_DEBUG_MSG;
     }
 
@@ -422,17 +427,17 @@ namespace libfabric
         unsigned int acks_received = 0;
         //
         while (senders_.pop(snd)) {
-            LOG_DEBUG_MSG("Popped a sender for delete " << hexpointer(snd));
+            ppt_deb.debug("Popped a sender for delete " , hpx::debug::ptr(snd));
             sends_posted  += snd->sends_posted_;
             sends_deleted += snd->sends_deleted_;
             acks_received += snd->acks_received_;
             delete snd;
         }
-        LOG_DEBUG_MSG(
-               "sends_posted "  << decnumber(sends_posted)
-            << "sends_deleted " << decnumber(sends_deleted)
-            << "acks_received " << decnumber(acks_received)
-            << "non_rma-send "  << decnumber(sends_posted-acks_received));
+        ppt_deb.debug(
+               "sends_posted "  , hpx::debug::dec<>(sends_posted)
+            , "sends_deleted " , hpx::debug::dec<>(sends_deleted)
+            , "acks_received " , hpx::debug::dec<>(acks_received)
+            , "non_rma-send "  , hpx::debug::dec<>(sends_posted-acks_received));
         //
         controller_ = nullptr;
         FUNC_END_DEBUG_MSG;
@@ -443,7 +448,7 @@ namespace libfabric
     bool parcelport::can_bootstrap() const {
         FUNC_START_DEBUG_MSG;
         bool can_boot = HPX_PARCELPORT_LIBFABRIC_HAVE_BOOTSTRAPPING();
-        LOG_TRACE_MSG("Returning " << can_boot << " from can_bootstrap")
+        ppt_deb.trace("Returning " , can_boot , " from can_bootstrap")
         FUNC_END_DEBUG_MSG;
         return can_boot;
     }
@@ -455,7 +460,7 @@ namespace libfabric
         FUNC_START_DEBUG_MSG;
         // return hostname:iblibfabric ip address
         std::stringstream temp;
-        temp << boost::asio::ip::host_name() << ":" << ipaddress(ip_addr_);
+        temp << boost::asio::ip::host_name() << ":" << hpx::debug::ipaddr(&ip_addr_);
         std::string tstr = temp.str();
         FUNC_END_DEBUG_MSG;
         return tstr.substr(0, tstr.size()-1);
@@ -470,7 +475,7 @@ namespace libfabric
         // load all components as described in the configuration information
         if (!bootstrap_enabled_)
         {
-            //LOG_ERROR_MSG("Should only return agas locality when bootstrapping");
+            //ppt_deb.error("Should only return agas locality when bootstrapping");
         }
         FUNC_END_DEBUG_MSG;
         return controller_->agas_;
@@ -492,9 +497,9 @@ namespace libfabric
             temp.find(match)!=std::string::npos)
         {
             if (temp.size()>0) {
-                LOG_DEVEL_MSG("Rank "
-                    << decnumber(this->controller_->here_.fi_address())
-                    << "Suspended threads " << temp);
+                ppt_deb.debug("Rank "
+                    , hpx::debug::dec<>(this->controller_->here_.fi_address())
+                    , "Suspended threads " , temp);
             }
         }
     }
@@ -502,13 +507,13 @@ namespace libfabric
     // --------------------------------------------------------------------
     /// stop the parcelport, prior to shutdown
     void parcelport::do_stop() {
-        LOG_DEBUG_MSG("Entering libfabric stop ");
+        ppt_deb.debug("Entering libfabric stop ");
         FUNC_START_DEBUG_MSG;
         if (!stopped_) {
             // we don't want multiple threads trying to stop the clients
             scoped_lock lock(stop_mutex);
 
-            LOG_DEBUG_MSG("Removing all initiated connections");
+            ppt_deb.debug("Removing all initiated connections");
             controller_->disconnect_all();
 
             // wait for all clients initiated elsewhere to be disconnected
@@ -517,11 +522,11 @@ namespace libfabric
                 LOG_TIMED_INIT(disconnect_poll);
                 LOG_TIMED_BLOCK(disconnect_poll, DEVEL, 5.0,
                     {
-                        LOG_DEBUG_MSG("Polling before shutdown");
+                        ppt_deb.debug("Polling before shutdown");
                     }
                 )
             }
-            LOG_DEBUG_MSG("stopped removing clients and terminating");
+            ppt_deb.debug("stopped removing clients and terminating");
         }
         stopped_ = true;
         // Stop receiving and sending of parcels
@@ -532,7 +537,7 @@ namespace libfabric
     bool parcelport::async_write(Handler && handler,
         sender *snd, snd_buffer_type &buffer)
     {
-        LOG_DEBUG_MSG("parcelport::async_write using sender " << hexpointer(snd));
+        ppt_deb.debug("parcelport::async_write using sender " , hpx::debug::ptr(snd));
         snd->buffer_ = std::move(buffer);
         HPX_ASSERT(!snd->handler_);
         snd->handler_ = std::forward<Handler>(handler);

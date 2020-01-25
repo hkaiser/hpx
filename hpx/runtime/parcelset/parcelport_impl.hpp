@@ -46,6 +46,11 @@
 #include <utility>
 #include <vector>
 
+namespace hpx {
+    // cppcheck-suppress ConfigurationNotChecked
+    static hpx::debug::enable_print<true> ppimpl_deb("PP_IMPL_");
+}   // namespace hpx
+
 ///////////////////////////////////////////////////////////////////////////////
 namespace hpx { namespace parcelset
 {
@@ -278,7 +283,7 @@ namespace hpx { namespace parcelset
                     if (connection_handler_traits<ConnectionHandler>::
                         send_immediate_parcels::value )
                     {
-                        std::cout << "multiple parcels_await_apply called " <<  std::endl;
+                        std::cout << "multiple parcels_await_apply called " << std::endl;
                         if (can_send_immediate_impl<ConnectionHandler>()) {
                             send_immediate_impl<ConnectionHandler>(
                                 *this, nullptr, dest, handlers.data(), parcels.data(),
@@ -331,11 +336,10 @@ namespace hpx { namespace parcelset
         bool do_background_work(
             std::size_t num_thread, parcelport_background_mode mode) override
         {
-            LOG_TIMED_INIT(background);
-            LOG_TIMED_BLOCK(background, DEVEL, 60.0, {
-                LOG_DEVEL_MSG("do_background_work " << decnumber(num_enqueued_parcels()));
-                connection_handler().suspended_task_debug("");
-            });
+//            static auto background = ppimpl_deb.make_timer(
+//                20, debug::str<>("Cleanup"), "do_background_work");
+//            ppimpl_deb.timed(background, hpx::debug::dec<>(num_enqueued_parcels()));
+                // timed block connection_handler().suspended_task_debug("");
 
             trigger_pending_work();
             return do_background_work_impl<ConnectionHandler>(num_thread, mode);
@@ -574,7 +578,7 @@ namespace hpx { namespace parcelset
             // If we couldn't get a sender ... enqueue the parcel and move on
             if (num_parcels != encoded_parcels && fs != nullptr)
             {
-                LOG_DEBUG_MSG("Overflow parcels " << decnumber(num_parcels-encoded_parcels));
+                ppimpl_deb.debug("Overflow parcels " , hpx::debug::dec<>(num_parcels-encoded_parcels));
                 std::vector<parcel> overflow_parcels(
                     std::make_move_iterator(ps + encoded_parcels),
                     std::make_move_iterator(ps + num_parcels));

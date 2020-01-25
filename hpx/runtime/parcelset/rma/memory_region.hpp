@@ -7,7 +7,7 @@
 #define HPX_PARCELSET_POLICIES_RMA_MEMORY_REGION
 
 #include <hpx/traits/rma_memory_region_traits.hpp>
-#include <plugins/parcelport/parcelport_logging.hpp>
+#include <hpx/debugging/print.hpp>
 //
 #include <memory>
 #include <iomanip>
@@ -123,12 +123,12 @@ namespace rma
         friend std::ostream & operator<<(std::ostream & os,
             memory_region const & region)
         {
-            os  << "region " << hexpointer(&region)
-                << "base address " << hexpointer(region.base_addr_)
-                << "address " << hexpointer(region.address_)
-                << "flags " << hexbyte(region.flags_)
-                << "size " << hexlength(region.size_)
-                << "used_space_ " << hexlength(region.used_space_);
+            os  << "region " << hpx::debug::ptr(&region)
+                << " base address " << hpx::debug::ptr(region.base_addr_)
+                << " address " << hpx::debug::ptr(region.address_)
+                << " flags " << hpx::debug::hex<2>(region.flags_)
+                << " size " << hpx::debug::hex<6>(region.size_)
+                << " used_space " << hpx::debug::hex<6>(region.used_space_);
             return os;
         }
 

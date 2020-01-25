@@ -9,6 +9,7 @@
 #include <plugins/parcelport/libfabric/libfabric_region_provider.hpp>
 #include <plugins/parcelport/libfabric/parcelport_libfabric.hpp>
 #include <plugins/parcelport/libfabric/sender.hpp>
+#include <hpx/debugging/print.hpp>
 //
 #include <hpx/assertion.hpp>
 #include <hpx/functional/unique_function.hpp>
@@ -49,14 +50,15 @@ namespace libfabric
         for (auto &c : buffer_.chunks_)
         {
             // Debug only, dump out the chunk info
-            LOG_DEBUG_MSG("write : chunk : size " << hexnumber(c.size_)
-                    << "type "   << decnumber((uint64_t)c.type_)
-                    << "rma "    << hexpointer(c.rma_)
-                    << "cpos "   << hexpointer(c.data_.cpos_)
-                    << "index "  << decnumber(c.data_.index_));
+            send_deb.debug("write : chunk : size " , hpx::debug::hex<>(c.size_)
+                    , "type "   , hpx::debug::dec<>((uint64_t)c.type_)
+                    , "rma "    , hpx::debug::ptr(c.rma_)
+                    , "cpos "   , hpx::debug::ptr(c.data_.cpos_)
+                    , "index "  , hpx::debug::dec<>(c.data_.index_));
             if (c.type_ == serialization::chunk_type_pointer)
             {
-                LOG_EXCLUSIVE(util::high_resolution_timer regtimer);
+                auto regtimer = send_deb.declare_variable<util::high_resolution_timer>();
+                (void)regtimer; // silenced unused var when optimized out
 
                 // create a new memory region from the user supplied pointer
                 region_type *zero_copy_region =
@@ -66,20 +68,20 @@ namespace libfabric
 
                 // set the region remote access key in the chunk space
                 c.rma_  = zero_copy_region->get_remote_key();
-                LOG_DEBUG_MSG("Time to register memory (ns) "
-                    << decnumber(regtimer.elapsed_nanoseconds()));
-                LOG_DEBUG_MSG("Created zero-copy rdma Get region "
-                    << decnumber(index) << *zero_copy_region
-                    << "for rma " << hexpointer(c.rma_));
+//                send_deb.debug("Time to register memory (ns) "
+//                    , hpx::debug::dec<>(regtimer.elapsed_nanoseconds()));
+                send_deb.debug("Created zero-copy rdma Get region "
+                    , hpx::debug::dec<>(index) , *zero_copy_region
+                    , "for rma " , hpx::debug::ptr(c.rma_));
 
-                LOG_TRACE_MSG(
-                    CRC32_MEM(zero_copy_region->get_address(),
+                send_deb.trace(
+                    hpx::debug::mem_crc32(zero_copy_region->get_address(),
                         zero_copy_region->get_message_length(),
                         "zero_copy_region (pre-send) "));
             }
             else if (c.type_ == serialization::chunk_type_rma)
             {
-                LOG_DEBUG_MSG("an RMA chunk was found");
+                send_deb.debug("an RMA chunk was found");
                 rma_chunks++;
             }
             ++index;
@@ -88,10 +90,10 @@ namespace libfabric
         // create the header using placement new in the pinned memory block
         char *header_memory = (char*)(header_region_->get_address());
 
-        LOG_DEBUG_MSG("Placement new for header");
+        send_deb.debug("Placement new for header");
         header_ = new(header_memory) header_type(buffer_, this);
         header_region_->set_message_length(header_->header_length());
-        LOG_DEBUG_MSG("header " << *header_);
+        send_deb.debug("header " , *header_);
 
         // Get the block of pinned memory where the message was encoded
         // during serialization
@@ -99,9 +101,9 @@ namespace libfabric
         message_region_->set_message_length(header_->message_size());
 
         HPX_ASSERT(header_->message_size() == buffer_.data_.size());
-        LOG_DEBUG_MSG("Found region allocated during encode_parcel : address "
-            << hexpointer(buffer_.data_.m_array_)
-            << *message_region_);
+        send_deb.debug("Found region allocated during encode_parcel : address "
+            , hpx::debug::ptr(buffer_.data_.m_array_)
+            , *message_region_);
 
         // The number of completions we need before cleaning up:
         // 1 (header block send) + 1 (ack message if we have RMA chunks)
@@ -119,22 +121,22 @@ namespace libfabric
         }
 
         if (header_->chunk_data()) {
-            LOG_DEBUG_MSG("Sender " << hexpointer(this)
-                << "Chunk info is piggybacked");
+            send_deb.debug("Sender " , hpx::debug::ptr(this)
+                , "Chunk info is piggybacked");
         }
         else {
-            LOG_TRACE_MSG("Setting up header-chunk rma data with "
-                << "zero-copy chunks " << decnumber(rma_regions_.size())
-                << "rma chunks " << decnumber(rma_chunks));
+            send_deb.trace("Setting up header-chunk rma data with "
+                , "zero-copy chunks " , hpx::debug::dec<>(rma_regions_.size())
+                , "rma chunks " , hpx::debug::dec<>(rma_chunks));
             auto &cb = header_->chunk_header_ptr()->chunk_rma;
             chunk_region_  = memory_pool_->allocate_region(cb.size_);
             cb.data_.pos_  = chunk_region_->get_address();
             cb.rma_        = chunk_region_->get_remote_key();
             std::memcpy(cb.data_.pos_, buffer_.chunks_.data(), cb.size_);
-            LOG_DEBUG_MSG("Set up header-chunk rma data with "
-                << "size "   << decnumber(cb.size_)
-                << "rma "    << hexpointer(cb.rma_)
-                << "addr "   << hexpointer(cb.data_.cpos_));
+            send_deb.debug("Set up header-chunk rma data with "
+                , "size "   , hpx::debug::dec<>(cb.size_)
+                , "rma "    , hpx::debug::ptr(cb.rma_)
+                , "addr "   , hpx::debug::ptr(cb.data_.cpos_));
         }
 
         if ((flags & header_type::bootstrap_flag) != 0)
@@ -144,14 +146,14 @@ namespace libfabric
 
         if (header_->message_piggy_back())
         {
-            LOG_DEBUG_MSG("Sender " << hexpointer(this)
-                << "Main message is piggybacked");
+            send_deb.debug("Sender " , hpx::debug::ptr(this)
+                , "Main message is piggybacked");
 
-            LOG_TRACE_MSG(CRC32_MEM(header_region_->get_address(),
+            send_deb.trace(hpx::debug::mem_crc32(header_region_->get_address(),
                 header_region_->get_message_length(),
                 "Header region (send piggyback)"));
 
-            LOG_TRACE_MSG(CRC32_MEM(message_region_->get_address(),
+            send_deb.trace(hpx::debug::mem_crc32(message_region_->get_address(),
                 message_region_->get_message_length(),
                 "Message region (send piggyback)"));
 
@@ -168,20 +170,20 @@ namespace libfabric
                     ok = true;
                 }
                 else if (ret == -FI_EAGAIN) {
-                    LOG_ERROR_MSG("Reposting fi_sendv...");
+                    send_deb.error("Reposting fi_sendv...");
                     parcelport_->background_work(0, parcelport_background_mode_all);
                 }
                 else if (ret == -FI_ENOENT) {
                     if (hpx::threads::get_self_id()==hpx::threads::invalid_thread_id) {
                         // during bootstrap, this might happen on an OS thread
                         // so use std::this_thread::sleep to really stop activity
-                        LOG_ERROR_MSG("No destination endpoint (bootstrap?), "
-                                      << "retrying after 1s ...");
+                        send_deb.error("No destination endpoint (bootstrap?), "
+                                      , "retrying after 1s ...");
                         std::this_thread::sleep_for(std::chrono::seconds(1));
                     }
                     else {
                         // if a node has failed, we can recover @TODO : put something here
-                        LOG_ERROR_MSG("No destination endpoint, retrying after 1s ...");
+                        send_deb.error("No destination endpoint, retrying after 1s ...");
                         std::terminate();
                     }
                 }
@@ -196,16 +198,16 @@ namespace libfabric
             header_->set_message_rdma_info(
                 message_region_->get_remote_key(), message_region_->get_address());
 
-            LOG_DEBUG_MSG("Sender " << hexpointer(this)
-                << "message region NOT piggybacked "
-                << hexnumber(buffer_.data_.size())
-                << *message_region_);
+            send_deb.debug("Sender " , hpx::debug::ptr(this)
+                , "message region NOT piggybacked "
+                , hpx::debug::hex<>(buffer_.data_.size())
+                , *message_region_);
 
-            LOG_TRACE_MSG(CRC32_MEM(header_region_->get_address(),
+            send_deb.trace(hpx::debug::mem_crc32(header_region_->get_address(),
                 header_region_->get_message_length(),
                 "Header region (pre-send)"));
 
-            LOG_TRACE_MSG(CRC32_MEM(message_region_->get_address(),
+            send_deb.trace(hpx::debug::mem_crc32(message_region_->get_address(),
                 message_region_->get_message_length(),
                 "Message region (send for rdma fetch)"));
 
@@ -221,7 +223,7 @@ namespace libfabric
                 }
                 else if (ret == -FI_EAGAIN)
                 {
-                    LOG_ERROR_MSG("reposting fi_send...\n");
+                    send_deb.error("reposting fi_send...\n");
                     parcelport_->background_work(0, parcelport_background_mode_all);
                 }
                 else if (ret)
@@ -236,20 +238,20 @@ namespace libfabric
     // --------------------------------------------------------------------
     void sender::handle_send_completion()
     {
-        LOG_DEBUG_MSG("Sender " << hexpointer(this)
-            << "handle send_completion "
-            << "RMA regions " << decnumber(rma_regions_.size())
-            << "completion count " << decnumber(completion_count_));
+        send_deb.debug("Sender " , hpx::debug::ptr(this)
+            , "handle send_completion "
+            , "RMA regions " , hpx::debug::dec<>(rma_regions_.size())
+            , "completion count " , hpx::debug::dec<>(completion_count_));
         cleanup();
     }
 
     // --------------------------------------------------------------------
     void sender::handle_message_completion_ack()
     {
-        LOG_DEBUG_MSG("Sender " << hexpointer(this)
-            << "handle_message_completion_ack ( "
-            << "RMA regions " << decnumber(rma_regions_.size())
-            << "completion count " << decnumber(completion_count_));
+        send_deb.debug("Sender " , hpx::debug::ptr(this)
+            , "handle_message_completion_ack ( "
+            , "RMA regions " , hpx::debug::dec<>(rma_regions_.size())
+            , "completion count " , hpx::debug::dec<>(completion_count_));
         ++acks_received_;
         cleanup();
     }
@@ -257,8 +259,8 @@ namespace libfabric
     // --------------------------------------------------------------------
     void sender::cleanup()
     {
-        LOG_DEBUG_MSG("Sender " << hexpointer(this)
-            << "decrementing completion_count from " << decnumber(completion_count_));
+        send_deb.debug("Sender " , hpx::debug::ptr(this)
+            , "decrementing completion_count from " , hpx::debug::dec<>(completion_count_));
 
         // if we need to wait for more completion events, return without cleaning
         if (--completion_count_ > 0)
@@ -288,17 +290,17 @@ namespace libfabric
         buffer_.data_point_.time_ =
             util::high_resolution_clock::now() - buffer_.data_point_.time_;
         parcelport_->add_sent_data(buffer_.data_point_);
-        LOG_DEBUG_MSG("Sender " << hexpointer(this)
-            << "calling postprocess_handler");
+        send_deb.debug("Sender " , hpx::debug::ptr(this)
+            , "calling postprocess_handler");
         postprocess_handler_(this);
-        LOG_DEBUG_MSG("Sender " << hexpointer(this)
-            << "completed cleanup/postprocess_handler");
+        send_deb.debug("Sender " , hpx::debug::ptr(this)
+            , "completed cleanup/postprocess_handler");
     }
 
     // --------------------------------------------------------------------
     void sender::handle_error(struct fi_cq_err_entry err)
     {
-        LOG_ERROR_MSG("resending message after error " << hexpointer(this));
+        send_deb.error("resending message after error " , hpx::debug::ptr(this));
 
         if (header_->message_piggy_back())
         {
@@ -316,7 +318,7 @@ namespace libfabric
                 }
                 else if (ret == -FI_EAGAIN)
                 {
-                    LOG_ERROR_MSG("reposting fi_sendv...\n");
+                    send_deb.error("reposting fi_sendv...\n");
                     parcelport_->background_work(0, parcelport_background_mode_all);
                 }
                 else if (ret)
@@ -343,7 +345,7 @@ namespace libfabric
                 }
                 else if (ret == -FI_EAGAIN)
                 {
-                    LOG_ERROR_MSG("reposting fi_send...\n");
+                    send_deb.error("reposting fi_send...\n");
                     parcelport_->background_work(0, parcelport_background_mode_all);
                 }
                 else if (ret)
@@ -358,10 +360,10 @@ namespace libfabric
     std::ostream & operator<<(std::ostream & os, const sender &s)
     {
         if (s.header_) {
-            os << "sender " << hexpointer(&s) << "header block " << *(s.header_);
+            os << "sender " << hpx::debug::ptr(&s) << "header block " << *(s.header_);
         }
         else {
-            os << "sender " << hexpointer(&s) << "header block nullptr";
+            os << "sender " << hpx::debug::ptr(&s) << "header block nullptr";
         }
         return os;
     }

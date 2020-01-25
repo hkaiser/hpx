@@ -44,7 +44,6 @@
 //
 #include <plugins/parcelport/unordered_map.hpp>
 #include <plugins/parcelport/performance_counter.hpp>
-#include <plugins/parcelport/parcelport_logging.hpp>
 //
 #include <plugins/parcelport/libfabric/header.hpp>
 #include <plugins/parcelport/libfabric/locality.hpp>

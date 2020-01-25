@@ -13,7 +13,6 @@
 #include <hpx/debugging/print.hpp>
 #include <hpx/runtime/parcelset/parcel_buffer.hpp>
 #include <hpx/runtime/parcelset/rma/memory_region.hpp>
-#include <plugins/parcelport/parcelport_logging.hpp>
 //
 #include <algorithm>
 #include <array>

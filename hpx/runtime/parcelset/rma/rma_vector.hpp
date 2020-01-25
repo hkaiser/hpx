@@ -11,8 +11,6 @@
 #include <hpx/runtime/parcelset/rma/memory_region.hpp>
 #include <hpx/runtime/parcelset/rma/memory_pool.hpp>
 //
-#include <plugins/parcelport/parcelport_logging.hpp>
-//
 #include <boost/shared_array.hpp>
 //
 #include <vector>
@@ -315,16 +313,16 @@ namespace rma
                 LOG_TRACE_MSG("rmavector deleter callback");
                 if (mp->region_) {
                     LOG_TRACE_MSG("rmavector shared array destructor "
-                          << "this "   << hexpointer(this)
-                          << "region "   << hexpointer(mp->region_)
-                          << "array "    << hexpointer(mp->data_));
+                          << "this "   << hpx::debug::ptr(this)
+                          << "region "   << hpx::debug::ptr(mp->region_)
+                          << "array "    << hpx::debug::ptr(mp->data_));
                     HPX_ASSERT(mp->data_ == mp->region_->get_address());
                     mp->pool_->release_region(mp->region_);
                     delete mp;
                 }
                 else {
                     LOG_ERROR_MSG("shared array 2 destructor "
-                        << "this " << hexpointer(this));
+                        << "this " << hpx::debug::ptr(this));
                 }
             });
             //
@@ -374,13 +372,13 @@ namespace rma
         template <typename P>
         void print_debug(const char *msg, P p) const {
             LOG_TRACE_MSG("rmavector "
-                << "this "     << hexpointer(this)
+                << "this "     << hpx::debug::ptr(this)
                 << msg << " "  << p << " "
-                << "region "   << hexpointer(m_data_ ? m_data_->region_ : nullptr)
-                << "array "    << hexpointer(m_data_ ? m_data_->data_ : nullptr)
-                << "refcount " << hexnumber(m_data_ ? m_data_.use_count() : 0)
+                << "region "   << hpx::debug::ptr(m_data_ ? m_data_->region_ : nullptr)
+                << "array "    << hpx::debug::ptr(m_data_ ? m_data_->data_ : nullptr)
+                << "refcount " << hpx::debug::hex<4>(m_data_ ? m_data_.use_count() : 0)
                 << "size "     << hexuint32(m_size_)
-                << "alloc "    << hexpointer(m_alloc_));
+                << "alloc "    << hpx::debug::ptr(m_alloc_));
         }
     };
 }}}

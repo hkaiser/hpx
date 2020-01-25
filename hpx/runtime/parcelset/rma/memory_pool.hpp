@@ -15,7 +15,6 @@
 #include <hpx/runtime/parcelset/rma/detail/memory_region_impl.hpp>
 #include <hpx/runtime/parcelset/rma/detail/memory_region_allocator.hpp>
 #include <hpx/runtime/parcelset/rma/detail/memory_pool_stack.hpp>
-#include <plugins/parcelport/parcelport_logging.hpp>
 #include <plugins/parcelport/performance_counter.hpp>
 #include <plugins/parcelport/unordered_map.hpp>
 //
@@ -180,7 +179,7 @@ namespace rma
                 << medium_.status()
                 << large_.status()
                 << large_.status()
-                << "temp regions " << decnumber(temp_regions));
+                << "temp regions " << hpx::debug::dec<>(temp_regions));
 */
             return region;
         }
@@ -195,13 +194,13 @@ namespace rma
                     --temp_regions;
                     LOG_TRACE_MSG("Deallocating temp region "
                         << *region
-                        << "temp regions " << decnumber(temp_regions));
+                        << "temp regions " << hpx::debug::dec<>(temp_regions));
                 }
                 else if (region->get_user_region()) {
                     --user_regions;
                     LOG_TRACE_MSG("Deleting (user region) "
                         << *region
-                        << "user regions " << decnumber(user_regions));
+                        << "user regions " << hpx::debug::dec<>(user_regions));
                 }
                 delete region;
                 return;
@@ -227,7 +226,7 @@ namespace rma
                 << small_.status()
                 << medium_.status()
                 << large_.status()
-                << "temp regions " << decnumber(temp_regions));
+                << "temp regions " << hpx::debug::dec<>(temp_regions));
 */
         }
 
@@ -242,7 +241,7 @@ namespace rma
             ++temp_regions;
             LOG_TRACE_MSG("Allocating temp region "
                 << *region
-                << "temp regions " << decnumber(temp_regions));
+                << "temp regions " << hpx::debug::dec<>(temp_regions));
             return region;
         }
 
@@ -269,12 +268,12 @@ namespace rma
             LOG_TRACE_MSG("Expensive region_from_address");
             auto present = region_alloc_pointer_map_.is_in_map(addr);
             if (present.second) {
-                LOG_TRACE_MSG("Found region in alloc map " << hexpointer(addr)
+                LOG_TRACE_MSG("Found region in alloc map " << hpx::debug::ptr(addr)
                     << *(present.first->second));
                 return (present.first->second);
             }
             LOG_ERROR_MSG("returning nullptr from region_from_address "
-                << hexpointer(addr));
+                << hpx::debug::ptr(addr));
             return nullptr;
         }
 

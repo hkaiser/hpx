@@ -11,8 +11,6 @@
 //
 #include <hpx/runtime/parcelset/rma/memory_pool.hpp>
 //
-#include <plugins/parcelport/parcelport_logging.hpp>
-//
 #include <vector>
 #include <functional>
 #include <cstddef>
@@ -59,9 +57,9 @@ namespace libfabric
         {
             LOG_TRACE_MSG("pinned_memory_vector alloc "
                 << "size " << hexuint32(m_size_)
-                << "array " << hexpointer(m_array_)
-                << "region " << hexpointer(m_region_)
-                << "alloc " << hexpointer(m_alloc_));
+                << "array " << hpx::debug::ptr(m_array_)
+                << "region " << hpx::debug::ptr(m_region_)
+                << "alloc " << hpx::debug::ptr(m_alloc_));
         }
 
         // construct from existing memory chunk, provide allocator, deleter etc
@@ -71,9 +69,9 @@ namespace libfabric
         {
             LOG_TRACE_MSG("pinned_memory_vector exist "
                 << "size " << hexuint32(m_size_)
-                << "array " << hexpointer(m_array_)
-                << "region " << hexpointer(m_region_)
-                << "alloc " << hexpointer(m_alloc_));
+                << "array " << hpx::debug::ptr(m_array_)
+                << "region " << hpx::debug::ptr(m_region_)
+                << "alloc " << hpx::debug::ptr(m_alloc_));
         }
 
         // move constructor,
@@ -84,9 +82,9 @@ namespace libfabric
         {
             LOG_TRACE_MSG("pinned_memory_vector moved "
                 << "size " << hexuint32(m_size_)
-                << "array " << hexpointer(m_array_)
-                << "region " << hexpointer(m_region_)
-                << "alloc " << hexpointer(m_alloc_));
+                << "array " << hpx::debug::ptr(m_array_)
+                << "region " << hpx::debug::ptr(m_region_)
+                << "alloc " << hpx::debug::ptr(m_alloc_));
             other.m_size_ = 0;
             other.m_array_ = 0;
             other.m_cb_ = nullptr;
@@ -98,9 +96,9 @@ namespace libfabric
             if (m_array_ && m_cb_) {
                 LOG_TRACE_MSG("pinned_memory_vector delete "
                     << "size " << hexuint32(m_size_)
-                    << "array " << hexpointer(m_array_)
-                    << "region " << hexpointer(m_region_)
-                    << "alloc " << hexpointer(m_alloc_));
+                    << "array " << hpx::debug::ptr(m_array_)
+                    << "region " << hpx::debug::ptr(m_region_)
+                    << "alloc " << hpx::debug::ptr(m_alloc_));
                 m_cb_();
             }
         }
@@ -115,9 +113,9 @@ namespace libfabric
             m_region_ = other.m_region_;
             LOG_TRACE_MSG("pinned_memory_vector assigned/moved "
                 << "size " << hexuint32(m_size_)
-                << "array " << hexpointer(m_array_)
-                << "region " << hexpointer(m_region_)
-                << "alloc " << hexpointer(m_alloc_));
+                << "array " << hpx::debug::ptr(m_array_)
+                << "region " << hpx::debug::ptr(m_region_)
+                << "alloc " << hpx::debug::ptr(m_alloc_));
             other.m_size_   = 0;
             other.m_array_  = 0;
             other.m_cb_     = nullptr;
@@ -175,19 +173,19 @@ namespace libfabric
         inline void resize(std::size_t s) {
             LOG_TRACE_MSG("pinned_memory_vector "
                 << "size " << hexuint32(m_size_)
-                << "array " << hexpointer(m_array_)
-                << "region " << hexpointer(m_region_)
-                << "alloc " << hexpointer(m_alloc_)
-                << "resizing from " << hexlength(m_size_)
-                    << " to " << hexlength(s));
+                << "array " << hpx::debug::ptr(m_array_)
+                << "region " << hpx::debug::ptr(m_region_)
+                << "alloc " << hpx::debug::ptr(m_alloc_)
+                << "resizing from " << hpx::debug::hex<6>(m_size_)
+                    << " to " << hpx::debug::hex<6>(s));
 
             if (m_region_) {
                 LOG_TRACE_MSG("Region in resize " << *m_region_);
 
                 if (s > m_region_->get_size()) {
                     LOG_ERROR_MSG(
-                        "Resizing from " << hexlength(m_region_->get_size())
-                        << " to " << hexlength(s)
+                        "Resizing from " << hpx::debug::hex<6>(m_region_->get_size())
+                        << " to " << hpx::debug::hex<6>(s)
                         << *m_region_);
                     throw std::runtime_error(
                         "pinned_memory_vector should never be resized once an "
@@ -205,9 +203,9 @@ namespace libfabric
         void reserve(std::size_t s) {
             LOG_TRACE_MSG("pinned_memory_vector "
                 << "size " << hexuint32(m_size_)
-                << "array " << hexpointer(m_array_)
-                << "region " << hexpointer(m_region_)
-                << "alloc " << hexpointer(m_alloc_)
+                << "array " << hpx::debug::ptr(m_array_)
+                << "region " << hpx::debug::ptr(m_region_)
+                << "alloc " << hpx::debug::ptr(m_alloc_)
                 << "reserving from " << m_size_ << " to " << s);
             if (m_array_ || m_region_) {
                 throw std::runtime_error(

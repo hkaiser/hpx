@@ -8,9 +8,15 @@
 
 #include <hpx/traits/rma_memory_region_traits.hpp>
 #include <hpx/runtime/parcelset/rma/memory_region.hpp>
+#include <hpx/debugging/print.hpp>
 //
 #include <memory>
-//
+
+namespace hpx {
+    // cppcheck-suppress ConfigurationNotChecked
+    static hpx::debug::enable_print<false> memr_deb("MEM_REG1");
+}    // namespace hpx
+
 namespace hpx {
 namespace parcelset {
 namespace rma {
@@ -59,17 +65,17 @@ namespace detail
                 0, (uint64_t)address_, 0, &(region_), nullptr);
 
             if (ret) {
-                LOG_ERROR_MSG(
+                memr_deb.debug(
                     "error registering region "
-                    << hexpointer(buffer) << hexlength(length));
+                    , hpx::debug::ptr(buffer) , hpx::debug::hex<6>(length));
             }
             else {
-                LOG_TRACE_MSG(
+                memr_deb.trace(
                     "OK registering region "
-                    << hexpointer(buffer) << hexpointer(address_)
-                    << "desc " << hexpointer(fi_mr_desc(region_))
-                    << "rkey " << hexpointer(fi_mr_key(region_))
-                    << "length " << hexlength(size_));
+                    , hpx::debug::ptr(buffer) , hpx::debug::ptr(address_)
+                    , "desc " , hpx::debug::ptr(fi_mr_desc(region_))
+                    , "rkey " , hpx::debug::ptr(fi_mr_key(region_))
+                    , "length " , hpx::debug::hex<6>(size_));
             }
         }
 
@@ -80,8 +86,8 @@ namespace detail
             // Allocate storage for the memory region.
             void *buffer = new char[length];
             if (buffer != nullptr) {
-                LOG_TRACE_MSG("allocated storage for memory region with malloc OK "
-                    << hexnumber(length));
+                memr_deb.trace("allocated storage for memory region with malloc OK "
+                    , hpx::debug::hex<4>(length));
             }
             address_    = static_cast<char*>(buffer);
             base_addr_  = static_cast<char*>(buffer);
@@ -94,23 +100,23 @@ namespace detail
                 0, (uint64_t)address_, 0, &(region_), nullptr);
 
             if (ret) {
-                LOG_ERROR_MSG(
+                memr_deb.debug(
                     "error registering region "
-                    << hexpointer(buffer) << hexlength(length));
+                    , hpx::debug::ptr(buffer) , hpx::debug::hex<6>(length));
             }
             else {
-                LOG_TRACE_MSG(
+                memr_deb.trace(
                     "OK registering region "
-                    << hexpointer(buffer) << hexpointer(address_)
-                    << "desc " << hexpointer(fi_mr_desc(region_))
-                    << "rkey " << hexpointer(fi_mr_key(region_))
-                    << "length " << hexlength(size_));
+                    , hpx::debug::ptr(buffer) , hpx::debug::ptr(address_)
+                    , "desc " , hpx::debug::ptr(fi_mr_desc(region_))
+                    , "rkey " , hpx::debug::ptr(fi_mr_key(region_))
+                    , "length " , hpx::debug::hex<6>(size_));
             }
 
-            LOG_TRACE_MSG("allocated/registered memory region " << hexpointer(this)
-                << "with local key " << hexnumber(get_local_key())
-                << "at address " << hexpointer(get_address())
-                << "with length " << hexlength(get_size()));
+            memr_deb.trace("allocated/registered memory region " , hpx::debug::ptr(this)
+                , "with local key " , hpx::debug::ptr(get_local_key())
+                , "at address " , hpx::debug::ptr(get_address())
+                , "with length " , hpx::debug::hex<6>(get_size()));
             return 0;
         }
 
@@ -128,25 +134,24 @@ namespace detail
         int release(void)
         {
             if (region_ != nullptr) {
-                LOG_TRACE_MSG("About to release memory region with local key "
-                    << hexpointer(get_local_key()));
+                memr_deb.trace("About to release memory region with local key "
+                    , hpx::debug::ptr(get_local_key()));
                 // get these before deleting/unregistering (for logging)
                 const void *buffer = get_base_address();
-                LOG_EXCLUSIVE(
-                    uint32_t length = get_size();
-                );
+                auto length = memr_deb.declare_variable<uint64_t>(get_size());
+                (void)length;
                 //
                 if (traits::rma_memory_region_traits<RegionProvider>::
                     unregister_memory(region_))
                 {
-                    LOG_ERROR_MSG("Error, fi_close mr failed\n");
+                    memr_deb.debug("Error, fi_close mr failed\n");
                     return -1;
                 }
                 else {
-                    LOG_TRACE_MSG("deregistered memory region with local key "
-                        << hexpointer(get_local_key())
-                        << "at address " << hexpointer(buffer)
-                        << "with length " << hexlength(length));
+                    memr_deb.trace("deregistered memory region with local key "
+                        , hpx::debug::ptr(get_local_key())
+                        , "at address " , hpx::debug::ptr(buffer)
+                        , "with length " , hpx::debug::hex<6>(length));
                 }
                 if (!get_user_region()) {
                     delete [](static_cast<const char*>(buffer));

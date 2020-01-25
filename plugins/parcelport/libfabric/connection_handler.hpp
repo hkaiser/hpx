@@ -11,7 +11,6 @@
 #include <hpx/runtime/parcelset/locality.hpp>
 #include <hpx/runtime/parcelset/parcelport_impl.hpp>
 //
-#include <plugins/parcelport/parcelport_logging.hpp>
 #include <plugins/parcelport/libfabric/fabric_error.hpp>
 #include <plugins/parcelport/libfabric/sender.hpp>
 //

@@ -8,7 +8,6 @@
 
 #include <hpx/config/parcelport_defines.hpp>
 //
-#include <plugins/parcelport/parcelport_logging.hpp>
 #include <hpx/runtime/parcelset/rma/memory_region.hpp>
 #include <hpx/runtime/parcelset/rma/detail/memory_region_impl.hpp>
 #include <hpx/runtime/parcelset/rma/detail/memory_region_allocator.hpp>
@@ -57,7 +56,7 @@ namespace rma {
             : pool_(other.pool_)
         {
             LOG_TRACE_MSG("Copy constructor for allocator "
-                << hexpointer(pool_));
+                << hpx::debug::ptr(pool_));
         }
 
         // polymorphic destructor, the allocator does not 'own' the pool,
@@ -66,7 +65,7 @@ namespace rma {
 
         virtual void deallocate_region(memory_region *region)
         {
-            //LOG_TRACE_MSG("deallocate " << hexlength(n*sizeof(value_type)));
+            //LOG_TRACE_MSG("deallocate " << hpx::debug::hex<6>(n*sizeof(value_type)));
             pool_->release_region(region);
         }
 

@@ -7,8 +7,6 @@
 #ifndef HPX_PARCELSET_POLICIES_LIBFABRIC_fabric_error_HPP
 #define HPX_PARCELSET_POLICIES_LIBFABRIC_fabric_error_HPP
 
-#include <plugins/parcelport/parcelport_logging.hpp>
-//
 #include <stdexcept>
 #include <string>
 #include <string.h>
@@ -29,7 +27,7 @@ public:
         : std::runtime_error(std::to_string(-err) + " " + std::string(fi_strerror(-err)) + msg),
           error_(err)
     {
-        LOG_ERROR_MSG(msg << " : code " << decnumber(-err) << " : " << fi_strerror(-err));
+        LOG_ERROR_MSG(msg << " : code " << hpx::debug::dec<>(-err) << " : " << fi_strerror(-err));
         std::terminate();
     }
 
@@ -37,7 +35,7 @@ public:
         : std::runtime_error(std::string(fi_strerror(-err))),
           error_(-err)
     {
-        LOG_ERROR_MSG("code " << decnumber(-err) << " : " << what());
+        LOG_ERROR_MSG("code " << hpx::debug::dec<>(-err) << " : " << what());
         std::terminate();
     }
 

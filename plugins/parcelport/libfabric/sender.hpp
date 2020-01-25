@@ -15,6 +15,7 @@
 #include <plugins/parcelport/performance_counter.hpp>
 
 #include <hpx/runtime/parcelset/locality.hpp>
+#include <hpx/debugging/print.hpp>
 
 #include <hpx/assertion.hpp>
 #include <hpx/functional/unique_function.hpp>
@@ -25,6 +26,11 @@
 #include <memory>
 // include for iovec
 #include <sys/uio.h>
+
+namespace hpx {
+    // cppcheck-suppress ConfigurationNotChecked
+    static hpx::debug::enable_print<true> send_deb("SENDER ");
+}   // namespace hpx
 
 namespace hpx {
 namespace parcelset {
@@ -71,7 +77,7 @@ namespace libfabric
             // the header region is reused multiple times
             header_region_ =
                 memory_pool_->allocate_region(memory_pool_->small_.chunk_size());
-            LOG_DEBUG_MSG("Create sender: " << hexpointer(this));
+            send_deb.debug("Create sender" , hpx::debug::ptr(this));
         }
 
         // --------------------------------------------------------------------
@@ -83,8 +89,9 @@ namespace libfabric
         // --------------------------------------------------------------------
         snd_buffer_type get_new_buffer()
         {
-            LOG_DEBUG_MSG("Returning a new buffer object from sender "
-                << hexpointer(this));
+            send_deb.debug("get_new_buffer"
+                , "Returning a new buffer object from sender"
+                , hpx::debug::ptr(this));
             return snd_buffer_type(snd_data_type(memory_pool_), memory_pool_);
         }
 
