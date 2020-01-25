@@ -17,35 +17,8 @@
 //
 #include <hpx/config.hpp>
 #include <hpx/config/parcelport_defines.hpp>
-#include <hpx/util/detail/pp/stringize.hpp>
 //
-#include <boost/preprocessor.hpp>
-#if defined(__linux) || defined(__linux__)
-#include <sched.h>
-#else
-#define sched_getcpu() '#'
-#endif
-
-// ------------------------------------------------------------------
-// Set flags to help simplify the log defines
-// ------------------------------------------------------------------
-
-// full logging support, we want everything
-#if   defined(HPX_PARCELPORT_VERBS_HAVE_LOGGING)      || \
-      defined(HPX_PARCELPORT_LIBFABRIC_HAVE_LOGGING)
-#  define HPX_PARCELPORT_LOGGING_INCLUDE_FILES
-//#  define HPX_PARCELPORT_LOGGING_HAVE_TRACE_LOG
-#  define HPX_PARCELPORT_LOGGING_HAVE_DEBUG_LOG
-#  define HPX_PARCELPORT_LOGGING_HAVE_TIMED_LOG
-#  define HPX_PARCELPORT_LOGGING_HAVE_DEVEL_LOG
-
-// just a subset of logging for dev mode enabled
-#elif defined(HPX_PARCELPORT_VERBS_HAVE_DEV_MODE)     || \
-      defined(HPX_PARCELPORT_LIBFABRIC_HAVE_DEV_MODE)
-#  define HPX_PARCELPORT_LOGGING_INCLUDE_FILES
-#  define HPX_PARCELPORT_LOGGING_HAVE_TIMED_LOG
-#  define HPX_PARCELPORT_LOGGING_HAVE_DEVEL_LOG
-#endif
+#include <hpx/debugging/print.hpp>
 
 // ------------------------------------------------------------------
 // useful macros for formatting log messages
@@ -74,26 +47,6 @@
     << "(" << std::dec << p.fi_address() << ") "
 
 // ------------------------------------------------------------------
-// include files needed for boost::log
-// ------------------------------------------------------------------
-#ifdef HPX_PARCELPORT_LOGGING_INCLUDE_FILES
-#include <hpx/runtime/threads/thread.hpp>
-#include <boost/log/expressions.hpp>
-#include <boost/log/expressions/formatter.hpp>
-#include <boost/log/expressions/formatters.hpp>
-#include <boost/log/expressions/formatters/stream.hpp>
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/severity_logger.hpp>
-#include <boost/log/trivial.hpp>
-#include <boost/log/utility/formatting_ostream.hpp>
-#include <boost/log/utility/manipulators/to_log.hpp>
-#include <boost/log/utility/setup/common_attributes.hpp>
-#include <boost/log/utility/setup/console.hpp>
-#endif
-
-#include <boost/crc.hpp>
-
-// ------------------------------------------------------------------
 // helper classes/functions used in logging
 // ------------------------------------------------------------------
 namespace hpx {
@@ -101,31 +54,6 @@ namespace parcelset {
 namespace policies {
 namespace libfabric {
 namespace detail {
-
-    // ------------------------------------------------------------------
-    // helper class for printing thread ID
-    // ------------------------------------------------------------------
-    struct rdma_thread_print_helper {};
-
-    inline std::ostream& operator<<(
-        std::ostream& os, const rdma_thread_print_helper&)
-    {
-#ifdef HPX_PARCELPORT_LOGGING_INCLUDE_FILES
-        if (hpx::threads::get_self_id()==hpx::threads::invalid_thread_id) {
-            os << "------------------ ";
-        }
-        else {
-            hpx::threads::thread_data *dummy =
-                hpx::this_thread::get_id().native_handle().get();
-            os << hexpointer(dummy);
-        }
-        os << nhex(12) << std::this_thread::get_id() << " cpu "
-           << decnumber(sched_getcpu());
-#else
-        os << "------------------ ";
-#endif
-        return os;
-    }
 
 #ifdef HPX_PARCELPORT_LOGGING_HAVE_TRACE_LOG
     // ------------------------------------------------------------------
@@ -162,111 +90,24 @@ namespace detail {
 
 }}}}}    // namespace hpx::parcelset::policies::libfabric::detail
 
-#define THREAD_ID                                                              \
-    "" << hpx::parcelset::policies::libfabric::detail::                        \
-            rdma_thread_print_helper()
 
-// ------------------------------------------------------------------
-// Trace messages are enabled for full debug
-// ------------------------------------------------------------------
-#ifdef HPX_PARCELPORT_LOGGING_HAVE_TRACE_LOG
-#  define LOG_TRACE_MSG(x) BOOST_LOG_TRIVIAL(trace)   << THREAD_ID << " " << x;
-
-# define CRC32(buf,len) "" \
-    << hpx::parcelset::policies::libfabric::detail::crc32(buf,len)
-
-# define CRC32_MEM(buf, len, txt) "" \
-    << hpx::parcelset::policies::libfabric::detail::mem_crc32(buf, len, txt)
-#else
 #define LOG_TRACE_MSG(x)
-#endif
-
-// ------------------------------------------------------------------
-// if enabled : define all main logging macros
-// ------------------------------------------------------------------
-#ifdef HPX_PARCELPORT_LOGGING_HAVE_DEBUG_LOG
-
-#define LOG_DEBUG_MSG(x) BOOST_LOG_TRIVIAL(debug) << THREAD_ID << " " << x;
-#define LOG_INFO_MSG(x) BOOST_LOG_TRIVIAL(info) << THREAD_ID << " " << x;
-#define LOG_WARN_MSG(x) BOOST_LOG_TRIVIAL(warning) << THREAD_ID << " " << x;
-#define LOG_ERROR_MSG(x) BOOST_LOG_TRIVIAL(error) << THREAD_ID << " " << x;
-#define LOG_FATAL_MSG(x) BOOST_LOG_TRIVIAL(fatal) << THREAD_ID << " " << x;
-//
-#define LOG_EXCLUSIVE(x) x
+#define LOG_EXCLUSIVE(x)
 //
 #define FUNC_START_DEBUG_MSG LOG_TRACE_MSG("*** Enter " << __func__);
 #define FUNC_END_DEBUG_MSG LOG_TRACE_MSG("### Exit  " << __func__);
 //
-#define LOG_FORMAT_MSG(x)                                                      \
-    (dynamic_cast<std::ostringstream&>(                                        \
-         std::ostringstream().seekp(0, std::ios_base::cur)                     \
-         << x << __FILE__ << " " << std::dec << __LINE__))                     \
-        .str()
-
-#else
+#define LOG_FORMAT_MSG(x)
 #define LOG_DEBUG_MSG(x)
 #define LOG_INFO_MSG(x)
 #define LOG_WARN_MSG(x)
-#define LOG_ERROR_MSG(x)                                                       \
-    std::cout << "00: <ERROR> " << THREAD_ID << " " << x << " " << __FILE__    \
-              << " " << std::dec << __LINE__ << std::endl;
+#define LOG_ERROR_MSG(x)
 #define LOG_FATAL_MSG(x) LOG_ERROR_MSG(x)
 //
-#define LOG_EXCLUSIVE(x)
-//
-#define FUNC_START_DEBUG_MSG
-#define FUNC_END_DEBUG_MSG
-//
-#define LOG_FORMAT_MSG(x) ""
-
-#endif
-
-// ------------------------------------------------------------------
-// dev logging: just enable the LOG_DEVEL macro to bypass most log output
-// but still show some that have been specially marked
-// ------------------------------------------------------------------
-#ifdef HPX_PARCELPORT_LOGGING_HAVE_DEVEL_LOG
-#define LOG_DEVEL_MSG(x)                                                       \
-    BOOST_LOG_TRIVIAL(debug) << "" << THREAD_ID << " " << x;
-#else
 #define LOG_DEVEL_MSG(x)
-#endif
-
-// ------------------------------------------------------------------
-// Timed log macros : used during long loops to avoid excessive output
-// only prints the log messge every N seconds
-// ------------------------------------------------------------------
-#ifdef HPX_PARCELPORT_LOGGING_HAVE_TIMED_LOG
-
-#define LOG_TIMED_INIT(name)                                                   \
-    using namespace std::chrono;                                               \
-    static time_point<system_clock> log_timed_start_##name =                   \
-        system_clock::now();
-
-#define LOG_TIMED_MSG(name, level, delay, x)                                   \
-    time_point<system_clock> log_timed_now_##name = system_clock::now();       \
-    duration<double> log_timed_elapsed_##name =                                \
-        log_timed_now_##name - log_timed_start_##name;                         \
-    if (log_timed_elapsed_##name.count() > delay)                              \
-    {                                                                          \
-        LOG_DEVEL_MSG(x);                                                      \
-        log_timed_start_##name = log_timed_now_##name;                         \
-    }
-
-#define LOG_TIMED_BLOCK(name, level, delay, x)                                 \
-    time_point<system_clock> log_timed_now_##name = system_clock::now();       \
-    duration<double> log_timed_elapsed_##name =                                \
-        log_timed_now_##name - log_timed_start_##name;                         \
-    if (log_timed_elapsed_##name.count() > delay)                              \
-    {                                                                          \
-        log_timed_start_##name = log_timed_now_##name;                         \
-        x;                                                                     \
-    }
-
-#else
+//
 #define LOG_TIMED_INIT(name)
 #define LOG_TIMED_MSG(name, level, delay, x)
 #define LOG_TIMED_BLOCK(name, level, delay, x)
-#endif
 
 #endif
