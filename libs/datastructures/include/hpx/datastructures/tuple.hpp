@@ -451,6 +451,7 @@ namespace hpx { namespace util {
     {
     };
 
+#if defined(HPX_DATASTRUCTURES_HAVE_ADAPT_STD_TUPLE)
     template <typename T0, typename T1>
     struct tuple_size<std::pair<T0, T1>>
       : std::integral_constant<std::size_t, 2>
@@ -469,7 +470,6 @@ namespace hpx { namespace util {
     {
     };
 
-#if defined(HPX_DATASTRUCTURES_HAVE_ADAPT_STD_TUPLE)
     template <typename... Ts>
     struct tuple_size<std::tuple<Ts...>> : std::tuple_size<std::tuple<Ts...>>
     {
@@ -519,6 +519,7 @@ namespace hpx { namespace util {
         }
     };
 
+#if defined(HPX_DATASTRUCTURES_HAVE_ADAPT_STD_TUPLE)
     template <typename T0, typename T1>
     struct tuple_element<0, std::pair<T0, T1>>
     {
@@ -591,7 +592,6 @@ namespace hpx { namespace util {
         }
     };
 
-#if defined(HPX_DATASTRUCTURES_HAVE_ADAPT_STD_TUPLE)
     template <std::size_t I, typename... Ts>
     struct tuple_element<I, std::tuple<Ts...>>
     {

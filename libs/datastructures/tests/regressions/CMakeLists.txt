@@ -1,4 +1,4 @@
-# Copyright (c) 2019 The STE||AR-Group
+# Copyright (c) 2019-2020 The STE||AR-Group
 #
 # SPDX-License-Identifier: BSL-1.0
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -8,6 +8,12 @@ set(tests
   optional_swap_3200
   tuple_serialization_803
 )
+
+if(HPX_DATASTRUCTURES_WITH_ADAPT_STD_TUPLE)
+  set(tests ${tests}
+    std_pair_get_4371
+  )
+endif()
 
 foreach(test ${tests})
   set(sources
