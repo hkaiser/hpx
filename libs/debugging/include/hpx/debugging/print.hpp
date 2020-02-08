@@ -34,6 +34,25 @@
 
 #undef HPX_HAVE_CXX17_FOLD_EXPRESSIONS
 
+#define LOG_EXCLUSIVE(x)
+//
+#define FUNC_START_DEBUG_MSG LOG_TRACE_MSG("*** Enter " << __func__);
+#define FUNC_END_DEBUG_MSG LOG_TRACE_MSG("### Exit  " << __func__);
+//
+#define LOG_FORMAT_MSG(x)
+#define LOG_DEBUG_MSG(x)
+#define LOG_TRACE_MSG(...)
+#define LOG_INFO_MSG(x)
+#define LOG_WARN_MSG(x)
+#define LOG_ERROR_MSG(x)
+#define LOG_FATAL_MSG(x) LOG_ERROR_MSG(x)
+//
+#define LOG_DEVEL_MSG(x)
+//
+#define LOG_TIMED_INIT(name)
+#define LOG_TIMED_MSG(name, level, delay, x)
+#define LOG_TIMED_BLOCK(name, level, delay, x)
+
 // ------------------------------------------------------------
 // This file provides a simple to use printf style debugging
 // tool that can be used on a per file basis to enable ouput.
