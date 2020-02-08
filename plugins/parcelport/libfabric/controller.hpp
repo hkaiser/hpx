@@ -73,6 +73,9 @@
 # include "rdma/fi_ext_gni.h"
 #endif
 
+#define HPX_LIBFABRIC_FI_VERSION_MAJOR 1
+#define HPX_LIBFABRIC_FI_VERSION_MINOR 9
+
 #include <hpx/debugging/print.hpp>
 namespace hpx {
     // cppcheck-suppress ConfigurationNotChecked
@@ -496,7 +499,7 @@ namespace libfabric
 
             uint64_t flags = 0;
             cnt_deb.debug("Getting initial info about fabric");
-            int ret = fi_getinfo(FI_VERSION(1, 8),
+            int ret = fi_getinfo(FI_VERSION(HPX_LIBFABRIC_FI_VERSION_MAJOR, HPX_LIBFABRIC_FI_VERSION_MINOR),
                 nullptr, nullptr, flags, fabric_hints_, &fabric_info_);
             if (ret) {
                 throw fabric_error(ret, "Failed to get fabric info");
