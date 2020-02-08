@@ -48,7 +48,7 @@
 
 namespace hpx {
     // cppcheck-suppress ConfigurationNotChecked
-    static hpx::debug::enable_print<true> ppimpl_deb("PP_IMPL_");
+    static hpx::debug::enable_print<false> ppimpl_deb("PP_IMPL_");
 }   // namespace hpx
 
 ///////////////////////////////////////////////////////////////////////////////

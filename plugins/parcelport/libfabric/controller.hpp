@@ -76,7 +76,7 @@
 #include <hpx/debugging/print.hpp>
 namespace hpx {
     // cppcheck-suppress ConfigurationNotChecked
-    static hpx::debug::enable_print<true> cnt_deb("CONTROL");
+    static hpx::debug::enable_print<false> cnt_deb("CONTROL");
 }   // namespace hpx
 
 // ------------------------------------------------------------------

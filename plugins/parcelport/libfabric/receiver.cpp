@@ -29,7 +29,7 @@
 
 namespace hpx {
     // cppcheck-suppress ConfigurationNotChecked
-    static hpx::debug::enable_print<true> recv_deb("RECEIVE");
+    static hpx::debug::enable_print<false> recv_deb("RECEIVE");
 }   // namespace hpx
 
 namespace hpx {

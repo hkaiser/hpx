@@ -24,7 +24,7 @@
 
 namespace hpx {
     // cppcheck-suppress ConfigurationNotChecked
-    static hpx::debug::enable_print<true> head_deb("HEADER_");
+    static hpx::debug::enable_print<false> head_deb("HEADER_");
 }    // namespace hpx
 
 // A generic header structure that can be used by parcelports

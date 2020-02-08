@@ -26,7 +26,7 @@
 #include <hpx/debugging/print.hpp>
 namespace hpx {
     // cppcheck-suppress ConfigurationNotChecked
-    static hpx::debug::enable_print<true> rma_deb("RMA_RCV");
+    static hpx::debug::enable_print<false> rma_deb("RMA_RCV");
 }   // namespace hpx
 
 namespace hpx {

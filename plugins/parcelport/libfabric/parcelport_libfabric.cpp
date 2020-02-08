@@ -77,7 +77,7 @@
 #include <hpx/debugging/print.hpp>
 namespace hpx {
     // cppcheck-suppress ConfigurationNotChecked
-    static hpx::debug::enable_print<true> ppt_deb("PPORT  ");
+    static hpx::debug::enable_print<false> ppt_deb("PPORT  ");
 }   // namespace hpx
 
 using namespace hpx::parcelset::policies;
