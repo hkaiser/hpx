@@ -8,10 +8,10 @@
 
 #include <hpx/hpx.hpp>
 #include <hpx/include/components.hpp>
-#include <hpx/synchronization/mutex.hpp>
-#include <hpx/runtime/actions/component_action.hpp>
-#include <hpx/runtime/components/server/locking_hook.hpp>
+#include <hpx/modules/actions_base.hpp>
 #include <hpx/modules/timing.hpp>
+#include <hpx/runtime/components/server/locking_hook.hpp>
+#include <hpx/synchronization/mutex.hpp>
 #include <hpx/util/storage/tuple.hpp>
 
 #include <algorithm>

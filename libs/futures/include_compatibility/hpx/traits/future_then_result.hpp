@@ -10,6 +10,8 @@
 #include <hpx/futures/config/defines.hpp>
 #include <hpx/futures/traits/future_then_result.hpp>
 
+// different versions of clang-format do different things
+// clang-format off
 #if HPX_FUTURES_HAVE_DEPRECATION_WARNINGS
 #if defined(HPX_MSVC)
 #pragma message(                                                               \
@@ -20,3 +22,4 @@
     please include hpx/futures/traits/future_then_result.hpp instead"
 #endif
 #endif
+// clang-format on

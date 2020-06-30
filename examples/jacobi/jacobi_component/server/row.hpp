@@ -10,6 +10,7 @@
 #include "../row_range.hpp"
 
 #include <hpx/assert.hpp>
+#include <hpx/include/actions.hpp>
 #include <hpx/include/components.hpp>
 #include <hpx/memory/intrusive_ptr.hpp>
 

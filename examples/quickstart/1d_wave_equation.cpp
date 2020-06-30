@@ -21,12 +21,12 @@
 //
 
 // Include statements.
-#include <hpx/modules/format.hpp>
 #include <hpx/hpx_init.hpp>
 #include <hpx/include/async.hpp>
 #include <hpx/include/iostreams.hpp>
 #include <hpx/lcos/future_wait.hpp>
-#include <hpx/runtime/actions/plain_action.hpp>
+#include <hpx/modules/actions_base.hpp>
+#include <hpx/modules/format.hpp>
 #include <hpx/modules/timing.hpp>
 
 #include <boost/math/constants/constants.hpp>
