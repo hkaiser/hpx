@@ -111,7 +111,7 @@ namespace hpx { namespace parallel { namespace util { namespace detail {
         template <typename T, typename Cleanup>
         static void call(std::vector<hpx::future<T>>& workitems,
             std::list<std::exception_ptr>& errors, Cleanup&& cleanup,
-            bool throw_errors = true)
+            bool throw_errors)
         {
 #if defined(HPX_COMPUTE_DEVICE_CODE)
             HPX_ASSERT(false);
@@ -222,7 +222,7 @@ namespace hpx { namespace parallel { namespace util { namespace detail {
 
         template <typename T, typename Cleanup>
         static void call(std::vector<hpx::future<T>> const& workitems,
-            std::list<std::exception_ptr>&, Cleanup&&, bool = true)
+            std::list<std::exception_ptr>&, Cleanup&&, bool)
         {
 #if defined(HPX_COMPUTE_DEVICE_CODE)
             HPX_ASSERT(false);
