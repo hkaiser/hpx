@@ -19,8 +19,8 @@
 #include <hpx/performance_counters/counter_creators.hpp>
 #include <hpx/performance_counters/manage_counter_type.hpp>
 #include <hpx/runtime/components/component_commandline.hpp>
-#include <hpx/runtime/components/component_factory_base.hpp>
 #include <hpx/runtime/components/component_startup_shutdown.hpp>
+#include <hpx/runtime_configuration/component_factory_base.hpp>
 #include <hpx/runtime_local/thread_mapper.hpp>
 
 #include <hpx/modules/program_options.hpp>
