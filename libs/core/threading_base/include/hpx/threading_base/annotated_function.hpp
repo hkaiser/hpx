@@ -80,7 +80,7 @@ namespace hpx { namespace util {
         explicit annotate_function(char const* name)
         {
             auto* self = hpx::threads::get_self_ptr();
-            if (self != nullptr)
+            if (self != nullptr && name != nullptr)
             {
                 desc_ = threads::get_thread_id_data(self->get_thread_id())
                             ->set_description(name);
@@ -96,7 +96,7 @@ namespace hpx { namespace util {
         explicit annotate_function(std::string name)
         {
             auto* self = hpx::threads::get_self_ptr();
-            if (self != nullptr)
+            if (self != nullptr && !name.empty())
             {
                 char const* name_c_str =
 #if defined(HPX_HAVE_APEX)

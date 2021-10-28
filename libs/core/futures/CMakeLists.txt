@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020 The STE||AR-Group
+# Copyright (c) 2019-2021 The STE||AR-Group
 #
 # SPDX-License-Identifier: BSL-1.0
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -13,6 +13,7 @@ set(futures_headers
     hpx/futures/detail/future_data.hpp
     hpx/futures/detail/future_transforms.hpp
     hpx/futures/packaged_continuation.hpp
+    hpx/futures/packaged_task.hpp
     hpx/futures/promise.hpp
     hpx/futures/traits/acquire_future.hpp
     hpx/futures/traits/acquire_shared_state.hpp
@@ -34,6 +35,7 @@ set(futures_compat_headers
     hpx/lcos/future.hpp => hpx/future.hpp
     hpx/lcos/local/futures_factory.hpp => hpx/future.hpp
     hpx/lcos/local/packaged_continuation.hpp => hpx/future.hpp
+    hpx/lcos/local/packaged_task.hpp => hpx/future.hpp
     hpx/lcos/local/promise.hpp => hpx/future.hpp
     hpx/lcos_local/promise.hpp => hpx/future.hpp
     hpx/traits/acquire_future.hpp => hpx/future.hpp

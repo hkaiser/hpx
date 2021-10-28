@@ -104,6 +104,12 @@ namespace hpx { namespace lcos { namespace local {
             {
                 this->check_started();
 
+                if (policy == launch::sync)
+                {
+                    this->run();
+                    return threads::invalid_thread_id;
+                }
+
                 hpx::intrusive_ptr<base_type> this_(this);
                 if (policy == launch::fork)
                 {

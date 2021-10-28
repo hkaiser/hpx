@@ -1,4 +1,4 @@
-# Copyright (c) 2019 The STE||AR-Group
+# Copyright (c) 2019-2021 The STE||AR-Group
 #
 # SPDX-License-Identifier: BSL-1.0
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -13,7 +13,6 @@ set(lcos_local_headers
     hpx/lcos_local/composable_guard.hpp
     hpx/lcos_local/conditional_trigger.hpp
     hpx/lcos_local/detail/preprocess_future.hpp
-    hpx/lcos_local/packaged_task.hpp
     hpx/lcos_local/receive_buffer.hpp
     hpx/lcos_local/trigger.hpp
 )

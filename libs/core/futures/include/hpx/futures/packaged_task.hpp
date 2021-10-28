@@ -10,9 +10,9 @@
 #include <hpx/errors/try_catch_exception_ptr.hpp>
 #include <hpx/functional/traits/is_invocable.hpp>
 #include <hpx/functional/unique_function.hpp>
-#include <hpx/futures/detail/future_data.hpp>
+#include <hpx/futures/future.hpp>
+#include <hpx/futures/promise.hpp>
 #include <hpx/modules/errors.hpp>
-#include <hpx/modules/futures.hpp>
 #include <hpx/threading_base/annotated_function.hpp>
 
 #include <exception>
@@ -36,7 +36,7 @@ namespace hpx { namespace lcos { namespace local {
 
         template <typename F, typename FD = std::decay_t<F>,
             typename Enable =
-                std::enable_if_t<!std::is_same<FD, packaged_task>::value &&
+                std::enable_if_t<!std::is_same_v<FD, packaged_task> &&
                     is_invocable_r_v<R, FD&, Ts...>>>
         explicit packaged_task(F&& f)
           : function_(std::forward<F>(f))
@@ -46,7 +46,7 @@ namespace hpx { namespace lcos { namespace local {
 
         template <typename Allocator, typename F, typename FD = std::decay_t<F>,
             typename Enable =
-                std::enable_if_t<!std::is_same<FD, packaged_task>::value &&
+                std::enable_if_t<!std::is_same_v<FD, packaged_task> &&
                     is_invocable_r_v<R, FD&, Ts...>>>
         explicit packaged_task(std::allocator_arg_t, Allocator const& a, F&& f)
           : function_(std::forward<F>(f))
@@ -87,7 +87,21 @@ namespace hpx { namespace lcos { namespace local {
             }
 
             hpx::util::annotate_function annotate(function_);
-            invoke_impl(std::is_void<R>(), std::forward<Ts>(vs)...);
+            hpx::detail::try_catch_exception_ptr(
+                [&]() {
+                    if constexpr (std::is_void_v<R>)
+                    {
+                        function_(std::move(vs)...);
+                        promise_.set_value();
+                    }
+                    else
+                    {
+                        promise_.set_value(function_(std::move(vs)...));
+                    }
+                },
+                [&](std::exception_ptr ep) {
+                    promise_.set_exception(std::move(ep));
+                });
         }
 
         // result retrieval
@@ -127,35 +141,8 @@ namespace hpx { namespace lcos { namespace local {
         }
 
     private:
-        // synchronous execution
-        template <typename... Vs>
-        void invoke_impl(/*is_void=*/std::false_type, Vs&&... vs)
-        {
-            hpx::detail::try_catch_exception_ptr(
-                [&]() {
-                    promise_.set_value(function_(std::forward<Vs>(vs)...));
-                },
-                [&](std::exception_ptr ep) {
-                    promise_.set_exception(std::move(ep));
-                });
-        }
-
-        template <typename... Vs>
-        void invoke_impl(/*is_void=*/std::true_type, Vs&&... vs)
-        {
-            hpx::detail::try_catch_exception_ptr(
-                [&]() {
-                    function_(std::forward<Ts>(vs)...);
-                    promise_.set_value();
-                },
-                [&](std::exception_ptr ep) {
-                    promise_.set_exception(std::move(ep));
-                });
-        }
-
-    private:
         function_type function_;
-        local::promise<R> promise_;
+        hpx::lcos::local::promise<R> promise_;
     };
 }}}    // namespace hpx::lcos::local
 
