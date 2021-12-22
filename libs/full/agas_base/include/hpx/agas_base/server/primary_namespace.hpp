@@ -449,29 +449,30 @@ HPX_REGISTER_BASE_LCO_WITH_VALUE_DECLARATION(
 #if !defined(HPX_COMPUTE_DEVICE_CODE) && defined(HPX_HAVE_NETWORKING)
 namespace hpx { namespace traits {
 
-    // Parcel routing forwards the message handler request to the routed action
-    template <>
-    struct action_message_handler<agas::server::primary_namespace::route_action>
-    {
-        static parcelset::policies::message_handler* call(
-            parcelset::parcelhandler* ph, parcelset::locality const& loc,
-            parcelset::parcel const& p)
-        {
-            return agas::server::primary_namespace::get_message_handler(
-                ph, loc, p);
-        }
-    };
+//    // Parcel routing forwards the message handler request to the routed action
+//    template <>
+//    struct action_message_handler<agas::server::primary_namespace::route_action>
+//    {
+//        static parcelset::policies::message_handler* call(
+//            parcelset::parcelhandler* ph, parcelset::locality const& loc,
+//            parcelset::parcel const& p)
+//        {
+//            return agas::server::primary_namespace::get_message_handler(
+//                ph, loc, p);
+//        }
+//    };
 
     // Parcel routing forwards the binary filter request to the routed action
-    template <>
-    struct action_serialization_filter<
-        agas::server::primary_namespace::route_action>
-    {
-        static serialization::binary_filter* call(parcelset::parcel const& p)
-        {
-            return agas::server::primary_namespace::get_serialization_filter(p);
-        }
-    };
+//    template <>
+//    struct action_serialization_filter<
+//        agas::server::primary_namespace::route_action>
+//    {
+//        static serialization::binary_filter* call(
+//            parcelset::parcel const& p)
+//        {
+//            return agas::server::primary_namespace::get_serialization_filter(p);
+//        }
+//    };
 }}    // namespace hpx::traits
 #endif
 

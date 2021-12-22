@@ -19,7 +19,7 @@
 #include <hpx/naming_base/id_type.hpp>
 #include <hpx/runtime/parcelset/detail/data_point.hpp>
 #include <hpx/runtime/parcelset/detail/parcel_route_handler.hpp>
-#include <hpx/runtime/parcelset/parcel.hpp>
+#include <hpx/parcelset/parcel.hpp>
 #include <hpx/runtime_distributed/runtime_fwd.hpp>
 #include <hpx/runtime_local/report_error.hpp>
 #include <hpx/serialization/serialize.hpp>
@@ -168,8 +168,7 @@ namespace hpx { namespace parcelset {
                         action_data.serialization_time_ =
                             add_parcel_time - serialize_time;
                         action_data.num_parcels_ = 1;
-                        pp.add_received_data(
-                            p.get_action()->get_action_name(), action_data);
+                        pp.add_received_data(p.get_action_name(), action_data);
 #endif
                         // make sure this parcel ended up on the right locality
                         std::uint32_t here = agas::get_locality_id();
@@ -212,13 +211,21 @@ namespace hpx { namespace parcelset {
                         for (std::size_t i = 1; i != deferred_parcels.size();
                              ++i)
                         {
+                            auto f = [num_thread](parcel&& p) {
+                                if (p.schedule_action(num_thread))
+                                {
+                                    // route this parcel as the object
+                                    // was migrated
+                                    agas::route(HPX_MOVE(p),
+                                        &detail::parcel_route_handler,
+                                        threads::thread_priority::normal);
+                                }
+                            };
+
                             // schedule all but the first parcel on a new thread.
                             hpx::threads::thread_init_data data(
                                 hpx::threads::make_thread_function_nullary(
-                                    util::deferred_call(
-                                        [num_thread](parcel&& p) {
-                                            p.schedule_action(num_thread);
-                                        },
+                                    util::deferred_call(HPX_MOVE(f),
                                         HPX_MOVE(deferred_parcels[i]))),
                                 "schedule_parcel",
                                 threads::thread_priority::boost,
@@ -228,9 +235,16 @@ namespace hpx { namespace parcelset {
                                 threads::thread_schedule_state::pending, true);
                             hpx::threads::register_thread(data);
                         }
+
                         // If we are the first deferred parcel, we don't need to spin
-                        // a new thread...
-                        deferred_parcels[0].schedule_action(num_thread);
+                        // up a new thread...
+                        if (deferred_parcels[0].schedule_action(num_thread))
+                        {
+                            // route this parcel as the object was migrated
+                            agas::route(HPX_MOVE(deferred_parcels[0]),
+                                &detail::parcel_route_handler,
+                                threads::thread_priority::normal);
+                        }
                     }
                 }
 

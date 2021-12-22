@@ -1,4 +1,4 @@
-# Copyright (c) 2007-2017 Hartmut Kaiser
+# Copyright (c) 2007-2021 Hartmut Kaiser
 # Copyright (c) 2014-2015 Thomas Heller
 #
 # SPDX-License-Identifier: BSL-1.0
@@ -54,7 +54,8 @@ endforeach()
 
 configure_file(
   "${PROJECT_SOURCE_DIR}/cmake/templates/static_parcelports.hpp.in"
-  "${PROJECT_BINARY_DIR}/hpx/runtime/parcelset/static_parcelports.hpp" @ONLY
+  "${PROJECT_BINARY_DIR}/libs/full/parcelset/include/hpx/parcelset/static_parcelports.hpp"
+  @ONLY
 )
 
 # ------------------------------------------------------------------------------
@@ -64,7 +65,8 @@ configure_file(
 write_config_defines_file(
   TEMPLATE ""
   NAMESPACE "parcelport"
-  FILENAME "${PROJECT_BINARY_DIR}/hpx/config/parcelport_defines.hpp"
+  FILENAME
+    "${PROJECT_BINARY_DIR}/libs/full/parcelset/include/hpx/parcelset/config/parcelport_defines.hpp"
 )
 
 # write config to install dir

@@ -20,9 +20,8 @@
 #include <hpx/runtime/parcelset/detail/data_point.hpp>
 #include <hpx/runtime/parcelset/detail/gatherer.hpp>
 #include <hpx/runtime/parcelset/detail/per_action_data_counter.hpp>
-#include <hpx/runtime/parcelset/locality.hpp>
-#include <hpx/runtime/parcelset/parcel.hpp>
-#include <hpx/runtime_distributed/applier_fwd.hpp>
+#include <hpx/naming_base/locality.hpp>
+#include <hpx/parcelset/parcel.hpp>
 #include <hpx/synchronization/spinlock.hpp>
 
 #include <atomic>
@@ -278,11 +277,6 @@ namespace hpx { namespace parcelset
 #endif
 
         ///////////////////////////////////////////////////////////////////////
-        void set_applier(applier::applier * applier)
-        {
-            applier_ = applier;
-        }
-
         /// Update performance counter data
         void add_received_data(
             performance_counters::parcels::data_point const& data);
@@ -333,8 +327,6 @@ namespace hpx { namespace parcelset
     protected:
         /// mutex for all of the member data
         mutable lcos::local::spinlock mtx_;
-
-        hpx::applier::applier *applier_;
 
         /// The cache for pending parcels
         typedef hpx::tuple<

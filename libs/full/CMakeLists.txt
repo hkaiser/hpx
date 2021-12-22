@@ -32,6 +32,7 @@ set(_hpx_full_modules
     lcos_distributed
     naming
     naming_base
+    parcelset
     performance_counters
     resiliency_distributed
     runtime_components

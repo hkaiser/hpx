@@ -19,8 +19,7 @@
 #include <hpx/components_base/pinned_ptr.hpp>
 
 #if defined(HPX_HAVE_NETWORKING)
-#include <hpx/runtime/parcelset_fwd.hpp>
-
+#include <hpx/components_base/parcel_interface.hpp>
 #include <hpx/coroutines/thread_enums.hpp>
 #include <hpx/coroutines/thread_id_type.hpp>
 #include <hpx/naming_base/id_type.hpp>
@@ -106,15 +105,17 @@ namespace hpx { namespace actions {
         virtual std::pair<bool, components::pinned_ptr> was_object_migrated(
             hpx::naming::gid_type const&, naming::address_type) = 0;
 
+#if defined(HPX_HAVE_NETWORKING)
         /// Return a pointer to the filter to be used while serializing an
         /// instance of this action type.
         virtual serialization::binary_filter* get_serialization_filter(
             parcelset::parcel const& p) const = 0;
 
         /// Return a pointer to the message handler to be used for this action.
-        virtual parcelset::policies::message_handler* get_message_handler(
-            parcelset::parcelhandler* ph, parcelset::locality const& loc,
-            parcelset::parcel const& p) const = 0;
+        //virtual parcelset::policies::message_handler* get_message_handler(
+        //    parcelset::parcelhandler* ph, parcelset::locality const& loc,
+        //    parcelset::parcel const& p) const = 0;
+#endif
 
         virtual void load(serialization::input_archive& ar) = 0;
         virtual void save(serialization::output_archive& ar) = 0;

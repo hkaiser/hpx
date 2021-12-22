@@ -268,13 +268,13 @@ namespace hpx { namespace actions {
         }
 
         /// Return a pointer to the message handler to be used for this action.
-        parcelset::policies::message_handler* get_message_handler(
-            parcelset::parcelhandler* ph, parcelset::locality const& loc,
-            parcelset::parcel const& p) const override
-        {
-            return traits::action_message_handler<derived_type>::call(
-                ph, loc, p);
-        }
+        //parcelset::policies::message_handler* get_message_handler(
+        //    parcelset::parcelhandler* ph, parcelset::locality const& loc,
+        //    parcelset::parcel const& p) const override
+        //{
+        //    return traits::action_message_handler<derived_type>::call(
+        //        ph, loc, p);
+        //}
 
     public:
         /// retrieve the N's argument

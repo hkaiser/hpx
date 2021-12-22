@@ -1,5 +1,5 @@
 //  Copyright (c)      2014 Thomas Heller
-//  Copyright (c) 2007-2017 Hartmut Kaiser
+//  Copyright (c) 2007-2021 Hartmut Kaiser
 //  Copyright (c)      2011 Bryce Lelbach
 //
 //  SPDX-License-Identifier: BSL-1.0
@@ -11,18 +11,19 @@
 #include <hpx/config.hpp>
 
 #if defined(HPX_HAVE_NETWORKING)
-#include <hpx/agas/agas_fwd.hpp>
 #include <hpx/assert.hpp>
+#include <hpx/components_base/component_type.hpp>
+#include <hpx/components_base/parcel_interface.hpp>
 #include <hpx/functional/bind_front.hpp>
+#include <hpx/functional/function.hpp>
 #include <hpx/modules/errors.hpp>
 #include <hpx/modules/logging.hpp>
+#include <hpx/modules/threadmanager.hpp>
 #include <hpx/naming_base/address.hpp>
 #include <hpx/naming_base/id_type.hpp>
-#include <hpx/runtime/parcelset/locality.hpp>
+#include <hpx/naming_base/locality.hpp>
+#include <hpx/parcelset/parcelset_fwd.hpp>
 #include <hpx/runtime/parcelset/parcelport.hpp>
-#include <hpx/runtime/parcelset_fwd.hpp>
-#include <hpx/runtime_distributed/applier.hpp>
-#include <hpx/runtime_distributed/runtime_fwd.hpp>
 #include <hpx/synchronization/spinlock.hpp>
 #include <hpx/timing/high_resolution_timer.hpp>
 
@@ -73,17 +74,7 @@ namespace hpx { namespace parcelset {
         typedef parcelport::read_handler_type read_handler_type;
         typedef parcelport::write_handler_type write_handler_type;
 
-        /// Construct a new \a parcelhandler initializing it from a AGAS client
-        /// instance (parameter \a resolver) and the parcelport to be used for
-        /// parcel send and receive (parameter \a pp).
-        ///
-        /// \param resolver [in] A reference to the AGAS client to use for
-        ///                 address translation requests to be made by the
-        ///                 parcelhandler.
-        /// \param pp       [in] A reference to the \a parcelport this \a
-        ///                 parcelhandler is connected to. This \a parcelport
-        ///                 instance will be used for any parcel related
-        ///                 transport operations the parcelhandler carries out.
+        /// Construct a new \a parcelhandler.
         parcelhandler(util::runtime_configuration& cfg);
 
         ~parcelhandler() = default;
@@ -94,8 +85,7 @@ namespace hpx { namespace parcelset {
 
         std::shared_ptr<parcelport> get_bootstrap_parcelport() const;
 
-        void initialize(
-            naming::resolver_client& resolver, applier::applier* applier);
+        void initialize();
 
         void flush_parcels();
 
@@ -108,14 +98,6 @@ namespace hpx { namespace parcelset {
         bool do_background_work(std::size_t num_thread = 0,
             bool stop_buffering = false,
             parcelport_background_mode mode = parcelport_background_mode_all);
-
-        /// \brief Allow access to AGAS resolver instance.
-        ///
-        /// This accessor returns a reference to the AGAS resolver client
-        /// object the parcelhandler has been initialized with (see
-        /// parcelhandler constructors). This is the same resolver instance
-        /// this parcelhandler has been initialized with.
-        naming::resolver_client& get_resolver();
 
         /// Return the list of all remote localities supporting the given
         /// component type
@@ -394,6 +376,10 @@ namespace hpx { namespace parcelset {
             return f;
         }
 
+        bool enum_parcelports(
+            hpx::util::unique_function_nonser<bool(std::string const&)> const&
+                f) const;
+
     protected:
         std::int64_t get_incoming_queue_length(bool /*reset*/) const
         {
@@ -406,10 +392,6 @@ namespace hpx { namespace parcelset {
         find_appropriate_destination(naming::gid_type const& dest_gid);
         locality find_endpoint(
             endpoints_type const& eps, std::string const& name);
-
-        void register_counter_types(std::string const& pp_type);
-        void register_connection_cache_counter_types(
-            std::string const& pp_type);
 
     private:
         int get_priority(std::string const& name) const
@@ -433,9 +415,6 @@ namespace hpx { namespace parcelset {
 
         /// \brief Attach the given parcel port to this handler
         void attach_parcelport(std::shared_ptr<parcelport> const& pp);
-
-        /// The AGAS client
-        naming::resolver_client* resolver_;
 
         /// the parcelport this handler is associated with
         using pports_type =
@@ -473,6 +452,11 @@ namespace hpx { namespace parcelset {
         bool is_networking_enabled_;
 
     public:
+        bool is_networking_enabled() const
+        {
+            return is_networking_enabled_;
+        }
+
         static std::vector<plugins::parcelport_factory_base*>&
         get_parcelport_factories();
 
@@ -483,6 +467,11 @@ namespace hpx { namespace parcelset {
     };
 
     std::vector<std::string> load_runtime_configuration();
+
+    ///////////////////////////////////////////////////////////////////////////
+    HPX_EXPORT policies::message_handler* get_message_handler(
+        parcel const& p, parcelhandler const* ph, locality const& loc);
+
 }}    // namespace hpx::parcelset
 
 #include <hpx/config/warnings_suffix.hpp>

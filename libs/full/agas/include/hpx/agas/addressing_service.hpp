@@ -20,7 +20,7 @@
 #include <hpx/modules/runtime_configuration.hpp>
 #include <hpx/naming_base/address.hpp>
 #include <hpx/naming_base/id_type.hpp>
-#include <hpx/runtime/parcelset_fwd.hpp>
+#include <hpx/parcelset/parcelset_fwd.hpp>
 #include <hpx/synchronization/spinlock.hpp>
 
 #include <boost/dynamic_bitset.hpp>

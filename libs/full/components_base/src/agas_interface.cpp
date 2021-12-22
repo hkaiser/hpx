@@ -8,7 +8,9 @@
 #include <hpx/async_base/launch_policy.hpp>
 #include <hpx/components_base/agas_interface.hpp>
 #include <hpx/components_base/detail/agas_interface_functions.hpp>
+#include <hpx/components_base/parcel_interface.hpp>
 #include <hpx/components_base/pinned_ptr.hpp>
+#include <hpx/coroutines/thread_enums.hpp>
 #include <hpx/functional/unique_function.hpp>
 #include <hpx/futures/future_fwd.hpp>
 #include <hpx/modules/errors.hpp>
@@ -262,6 +264,18 @@ namespace hpx { namespace agas {
     }
 
     ///////////////////////////////////////////////////////////////////////////
+    parcelset::endpoints_type const& resolve_locality(
+        naming::gid_type const& gid, error_code& ec)
+    {
+        return detail::resolve_locality(gid, ec);
+    }
+
+    void remove_resolved_locality(naming::gid_type const& gid)
+    {
+        return detail::remove_resolved_locality(gid);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
     naming::gid_type get_next_id(std::size_t count, error_code& ec)
     {
         return detail::get_next_id(count, ec);
@@ -376,4 +390,23 @@ namespace hpx { namespace agas {
         return detail::destroy_component(gid, addr);
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    void route(parcelset::parcel&& p,
+        util::function_nonser<void(
+            std::error_code const&, parcelset::parcel const&)>&& f,
+        threads::thread_priority local_priority)
+    {
+        return detail::route(HPX_MOVE(p), HPX_MOVE(f), local_priority);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    naming::address_type get_primary_ns_lva()
+    {
+        return detail::get_primary_ns_lva();
+    }
+
+    naming::address_type get_symbol_ns_lva()
+    {
+        return detail::get_symbol_ns_lva();
+    }
 }}    // namespace hpx::agas

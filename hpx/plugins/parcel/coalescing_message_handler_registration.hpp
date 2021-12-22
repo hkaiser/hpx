@@ -20,7 +20,7 @@
 #include <hpx/preprocessor/stringize.hpp>
 #include <hpx/runtime/message_handler_fwd.hpp>
 #include <hpx/runtime/parcelset/policies/message_handler.hpp>
-#include <hpx/runtime/parcelset_fwd.hpp>
+#include <hpx/parcelset/parcelset_fwd.hpp>
 #include <hpx/traits/action_message_handler.hpp>
 
 #include <cstddef>

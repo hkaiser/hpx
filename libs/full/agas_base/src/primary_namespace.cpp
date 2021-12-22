@@ -13,6 +13,7 @@
 #include <hpx/async_distributed/base_lco_with_value.hpp>
 #include <hpx/async_distributed/continuation.hpp>
 #include <hpx/components_base/agas_interface.hpp>
+#include <hpx/components_base/parcel_interface.hpp>
 #include <hpx/modules/async_distributed.hpp>
 #include <hpx/modules/errors.hpp>
 #include <hpx/serialization/vector.hpp>

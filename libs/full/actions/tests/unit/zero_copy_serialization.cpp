@@ -15,7 +15,7 @@
 #include <hpx/include/runtime.hpp>
 #include <hpx/modules/testing.hpp>
 #include <hpx/modules/timing.hpp>
-#include <hpx/runtime/parcelset/parcel.hpp>
+#include <hpx/parcelset/parcel.hpp>
 #include <hpx/serialization/array.hpp>
 #include <hpx/serialization/detail/preprocess_container.hpp>
 #include <hpx/serialization/serialize.hpp>
@@ -148,12 +148,9 @@ void test_parcel_serialization(hpx::parcelset::parcel outp,
     HPX_TEST_EQ(outp.destination_locality(), inp.destination_locality());
     HPX_TEST_EQ(outp.start_time(), inp.start_time());
 
-    hpx::actions::base_action* outact = outp.get_action();
-    hpx::actions::base_action* inact = inp.get_action();
-
-    HPX_TEST_EQ(outact->get_component_type(), inact->get_component_type());
-    HPX_TEST_EQ(outact->get_action_name(), inact->get_action_name());
-    HPX_TEST_EQ(int(outact->get_action_type()), int(inact->get_action_type()));
+    HPX_TEST_EQ(outp.get_component_type(), inp.get_component_type());
+    HPX_TEST_EQ(outp.get_action_name(), inact->inp.get_action_name());
+    HPX_TEST_EQ(int(outp.get_action_type()), int(inp.get_action_type()));
     HPX_TEST_EQ(
         outact->get_parent_locality_id(), inact->get_parent_locality_id());
     HPX_TEST_EQ(outact->get_parent_thread_id(), inact->get_parent_thread_id());

@@ -6,8 +6,13 @@
 
 # Default location is $HPX_ROOT/libs/naming_base/include
 set(naming_base_headers
-    hpx/naming_base/address.hpp hpx/naming_base/gid_type.hpp
-    hpx/naming_base/id_type.hpp hpx/naming_base/naming_base.hpp
+    hpx/naming_base/address.hpp
+    hpx/naming_base/detail/locality_interface_functions.hpp
+    hpx/naming_base/gid_type.hpp
+    hpx/naming_base/id_type.hpp
+    hpx/naming_base/naming_base.hpp
+    hpx/naming_base/locality.hpp
+    hpx/naming_base/locality_interface.hpp
     hpx/naming_base/unmanaged.hpp
 )
 
@@ -16,10 +21,19 @@ set(naming_base_compat_headers
     hpx/runtime/naming/address.hpp => hpx/modules/naming_base.hpp
     hpx/runtime/naming/id_type.hpp => hpx/modules/naming_base.hpp
     hpx/runtime/naming/unmanaged.hpp => hpx/modules/naming_base.hpp
+    hpx/runtime/parcelset/locality.hpp => hpx/modules/naming_base.hpp
 )
 # cmake-format: on
 
-set(naming_base_sources address.cpp gid_type.cpp id_type.cpp unmanaged.cpp)
+set(naming_base_sources
+    address.cpp
+    detail/locality_interface_functions.cpp
+    gid_type.cpp
+    id_type.cpp
+    locality.cpp
+    locality_interface.cpp
+    unmanaged.cpp
+)
 
 include(HPX_AddModule)
 add_hpx_module(

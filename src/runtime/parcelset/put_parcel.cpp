@@ -7,7 +7,7 @@
 #include <hpx/config.hpp>
 
 #if defined(HPX_HAVE_NETWORKING)
-#include <hpx/runtime/parcelset/parcelhandler.hpp>
+#include <hpx/parcelset/parcelhandler.hpp>
 #include <hpx/runtime/parcelset/put_parcel.hpp>
 #include <hpx/runtime_distributed.hpp>
 

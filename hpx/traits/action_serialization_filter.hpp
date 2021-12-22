@@ -9,7 +9,7 @@
 #include <hpx/config.hpp>
 
 #if defined(HPX_HAVE_NETWORKING)
-#include <hpx/runtime/parcelset_fwd.hpp>
+#include <hpx/parcelset/parcelset_fwd.hpp>
 #include <hpx/serialization/serialization_fwd.hpp>
 
 namespace hpx { namespace traits

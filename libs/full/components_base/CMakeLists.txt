@@ -16,6 +16,7 @@ set(components_base_headers
     hpx/components_base/component_startup_shutdown.hpp
     hpx/components_base/detail/agas_interface_functions.hpp
     hpx/components_base/generate_unique_ids.hpp
+    hpx/components_base/parcel_interface.hpp
     hpx/components_base/pinned_ptr.hpp
     hpx/components_base/server/abstract_component_base.hpp
     hpx/components_base/server/abstract_migration_support.hpp
@@ -92,6 +93,7 @@ set(components_base_sources
     component_type.cpp
     detail/agas_interface_functions.cpp
     generate_unique_ids.cpp
+    parcel_interface.cpp
     server/component_base.cpp
     server/one_size_heap_list.cpp
     server/wrapper_heap.cpp

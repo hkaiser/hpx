@@ -5,6 +5,7 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include <hpx/modules/errors.hpp>
+#include <hpx/modules/format.hpp>
 #include <hpx/naming_base/address.hpp>
 #include <hpx/serialization/serialize.hpp>
 
@@ -32,4 +33,11 @@ namespace hpx { namespace naming {
 
     template HPX_EXPORT void address::load(
         serialization::input_archive&, unsigned int);
+
+    std::ostream& operator<<(std::ostream& os, address const& addr)
+    {
+        return hpx::util::format_to(
+            os, "({}:{}:{})", addr.locality_, addr.type_, addr.address_);
+    }
+
 }}    // namespace hpx::naming

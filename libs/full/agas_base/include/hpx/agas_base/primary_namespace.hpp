@@ -11,10 +11,10 @@
 #include <hpx/config.hpp>
 #include <hpx/agas_base/agas_fwd.hpp>
 #include <hpx/agas_base/gva.hpp>
+#include <hpx/components_base/parcel_interface.hpp>
 #include <hpx/datastructures/tuple.hpp>
 #include <hpx/futures/future.hpp>
 #include <hpx/naming_base/address.hpp>
-#include <hpx/runtime/parcelset_fwd.hpp>
 
 #include <cstdint>
 #include <memory>
