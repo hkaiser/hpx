@@ -24,6 +24,7 @@ set(execution_headers
     hpx/execution/algorithms/split.hpp
     hpx/execution/algorithms/start_detached.hpp
     hpx/execution/algorithms/sync_wait.hpp
+    hpx/execution/algorithms/system_scheduler.hpp
     hpx/execution/algorithms/then.hpp
     hpx/execution/algorithms/transfer.hpp
     hpx/execution/algorithms/transfer_just.hpp
