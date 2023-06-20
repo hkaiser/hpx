@@ -9,7 +9,6 @@
 
 #include <hpx/config.hpp>
 
-#include <cstdlib>
 #include <string>
 #include <type_traits>
 #include <typeinfo>

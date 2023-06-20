@@ -1,5 +1,5 @@
 //  Copyright (c) 2015 Anton Bikineev
-//  Copyright (c) 2020-2021 Hartmut Kaiser
+//  Copyright (c) 2020-2023 Hartmut Kaiser
 //
 //  SPDX-License-Identifier: BSL-1.0
 //  Distributed under the Boost Software License, Version 1.0.
@@ -18,8 +18,7 @@
 /// static it is or not). The generated trait ends up in a namespace where the
 /// macro itself has been placed.
 #define HPX_HAS_MEMBER_XXX_TRAIT_DEF(MEMBER)                                   \
-    namespace HPX_PP_CAT(HPX_PP_CAT(has_, MEMBER), _detail)                    \
-    {                                                                          \
+    namespace HPX_PP_CAT(HPX_PP_CAT(has_, MEMBER), _detail) {                  \
         struct helper                                                          \
         {                                                                      \
             void MEMBER(...);                                                  \
@@ -50,7 +49,7 @@
         };                                                                     \
     }                                                                          \
                                                                                \
-    template <typename T, typename Enable = void>                              \
+    HPX_CPP_EXPORT template <typename T, typename Enable = void>               \
     struct HPX_PP_CAT(has_, MEMBER)                                            \
       : std::false_type                                                        \
     {                                                                          \
@@ -62,11 +61,11 @@
     {                                                                          \
     };                                                                         \
                                                                                \
-    template <typename T>                                                      \
+    HPX_CPP_EXPORT template <typename T>                                       \
     using HPX_PP_CAT(HPX_PP_CAT(has_, MEMBER), _t) =                           \
         typename HPX_PP_CAT(has_, MEMBER)<T>::type;                            \
                                                                                \
-    template <typename T>                                                      \
+    HPX_CPP_EXPORT template <typename T>                                       \
     inline constexpr bool HPX_PP_CAT(HPX_PP_CAT(has_, MEMBER), _v) =           \
         HPX_PP_CAT(has_, MEMBER)<T>::value;                                    \
     /**/

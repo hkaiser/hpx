@@ -99,14 +99,13 @@ namespace hpx::debug {
     // ------------------------------------------------------------------
     struct ptr
     {
-        HPX_CORE_EXPORT explicit ptr(void const* v) noexcept;
-        HPX_CORE_EXPORT explicit ptr(std::uintptr_t v) noexcept;
+        explicit ptr(void const* v) noexcept;
+        explicit ptr(std::uintptr_t v) noexcept;
 
         void const* data_;
-
-        HPX_CORE_EXPORT friend std::ostream& operator<<(
-            std::ostream& os, ptr const& d);
     };
+
+    HPX_CORE_EXPORT std::ostream& operator<<(std::ostream& os, ptr const& d);
 
     // ------------------------------------------------------------------
     // format as zero padded hex
@@ -225,17 +224,16 @@ namespace hpx::debug {
     // ------------------------------------------------------------------
     // format as ip address
     // ------------------------------------------------------------------
-    struct ipaddr
+    struct HPX_CORE_EXPORT ipaddr
     {
-        HPX_CORE_EXPORT explicit ipaddr(void const* a) noexcept;
-        HPX_CORE_EXPORT explicit ipaddr(std::uint32_t a) noexcept;
+        explicit ipaddr(void const* a) noexcept;
+        explicit ipaddr(std::uint32_t a) noexcept;
 
         std::uint8_t const* data_;
         std::uint32_t const ipdata_;
-
-        HPX_CORE_EXPORT friend std::ostream& operator<<(
-            std::ostream& os, ipaddr const& p);
     };
+
+    HPX_CORE_EXPORT std::ostream& operator<<(std::ostream& os, ipaddr const& p);
 
     // ------------------------------------------------------------------
     // helper class for printing time since start
@@ -244,12 +242,13 @@ namespace hpx::debug {
 
         struct current_time_print_helper
         {
-            HPX_CORE_EXPORT friend std::ostream& operator<<(
-                std::ostream& os, current_time_print_helper);
         };
+
+        HPX_CORE_EXPORT std::ostream& operator<<(
+            std::ostream& os, current_time_print_helper);
     }    // namespace detail
 
-    // ------------------------------------------------------------------
+         // ------------------------------------------------------------------
     // helper function for printing CRC32
     // ------------------------------------------------------------------
     [[nodiscard]] constexpr std::uint32_t crc32(
@@ -263,18 +262,17 @@ namespace hpx::debug {
     // useful for debugging corruptions in buffers during
     // rma or other transfers
     // ------------------------------------------------------------------
-    struct mem_crc32
+    struct HPX_CORE_EXPORT mem_crc32
     {
-        HPX_CORE_EXPORT mem_crc32(
-            void const* a, std::size_t len, char const* txt) noexcept;
+        mem_crc32(void const* a, std::size_t len, char const* txt) noexcept;
 
         std::uint64_t const* addr_;
         std::size_t const len_;
         char const* txt_;
-
-        HPX_CORE_EXPORT friend std::ostream& operator<<(
-            std::ostream& os, mem_crc32 const& p);
     };
+
+    HPX_CORE_EXPORT std::ostream& operator<<(
+        std::ostream& os, mem_crc32 const& p);
 
     namespace detail {
 
@@ -297,14 +295,14 @@ namespace hpx::debug {
         // ------------------------------------------------------------------
         // helper class for printing time since start
         // ------------------------------------------------------------------
-        struct hostname_print_helper
+        struct HPX_CORE_EXPORT hostname_print_helper
         {
-            [[nodiscard]] HPX_CORE_EXPORT char const* get_hostname() const;
-            [[nodiscard]] HPX_CORE_EXPORT int guess_rank() const;
-
-            HPX_CORE_EXPORT friend std::ostream& operator<<(
-                std::ostream& os, hostname_print_helper h);
+            [[nodiscard]] char const* get_hostname() const;
+            [[nodiscard]] int guess_rank() const;
         };
+
+        HPX_CORE_EXPORT std::ostream& operator<<(
+            std::ostream& os, hostname_print_helper h);
 
         ///////////////////////////////////////////////////////////////////////
         HPX_CORE_EXPORT void register_print_info(void (*)(std::ostream&));

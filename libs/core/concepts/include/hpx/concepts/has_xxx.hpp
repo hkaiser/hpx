@@ -1,4 +1,5 @@
 //  Copyright (c) 2016 Agustin Berge
+//  Copyright (c) 2020-2023 Hartmut Kaiser
 //
 //  SPDX-License-Identifier: BSL-1.0
 //  Distributed under the Boost Software License, Version 1.0.
@@ -17,7 +18,7 @@
 /// type member x::name. The generated trait ends up in a namespace where the
 /// macro itself has been placed.
 #define HPX_HAS_XXX_TRAIT_DEF(Name)                                            \
-    template <typename T, typename Enable = void>                              \
+    HPX_CPP_EXPORT template <typename T, typename Enable = void>               \
     struct HPX_PP_CAT(has_, Name)                                              \
       : std::false_type                                                        \
     {                                                                          \
@@ -29,11 +30,11 @@
     {                                                                          \
     };                                                                         \
                                                                                \
-    template <typename T>                                                      \
+    HPX_CPP_EXPORT template <typename T>                                       \
     using HPX_PP_CAT(HPX_PP_CAT(has_, Name), _t) =                             \
         typename HPX_PP_CAT(has_, Name)<T>::type;                              \
                                                                                \
-    template <typename T>                                                      \
+    HPX_CPP_EXPORT template <typename T>                                       \
     inline constexpr bool HPX_PP_CAT(HPX_PP_CAT(has_, Name), _v) =             \
         HPX_PP_CAT(has_, Name)<T>::value;                                      \
     /**/

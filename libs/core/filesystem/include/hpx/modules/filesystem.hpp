@@ -64,7 +64,9 @@ namespace hpx::filesystem {
         }
     }
 }    // namespace hpx::filesystem
+
 #else
+
 #include <hpx/config/detail/compat_error_code.hpp>
 
 #include <boost/filesystem.hpp>
@@ -103,4 +105,5 @@ namespace hpx::filesystem {
         return is_regular_file(p, compat_error_code(ec));
     }
 }    // namespace hpx::filesystem
+
 #endif

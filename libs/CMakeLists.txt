@@ -389,3 +389,5 @@ if(HPX_WITH_MODULES_AS_STATIC_LIBRARIES OR HPX_WITH_STATIC_LINKING)
     target_link_libraries(hpx_core PUBLIC Boost::filesystem)
   endif()
 endif()
+
+add_subdirectory(modules)

@@ -16,6 +16,9 @@ include("${CMAKE_CURRENT_LIST_DIR}/HPXCacheVariables.cmake")
 # include HPX cmake utilities
 include("${CMAKE_CURRENT_LIST_DIR}/HPXMacros.cmake")
 
+# include C++20 module targets
+include("${CMAKE_CURRENT_LIST_DIR}/HPXModuleTargets.cmake")
+
 # include exported targets
 
 # Asio can be installed by HPX or externally installed. In the first case we use

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021 The STE||AR-Group
+# Copyright (c) 2019-2023 The STE||AR-Group
 #
 # SPDX-License-Identifier: BSL-1.0
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -19,7 +19,9 @@ set(debugging_compat_headers
 )
 # cmake-format: on
 
-set(debugging_sources attach_debugger.cpp backtrace.cpp print.cpp)
+set(debugging_sources attach_debugger.cpp backtrace.cpp
+                      backtrace/backtrace_impl.cpp print.cpp
+)
 
 include(HPX_AddModule)
 add_hpx_module(
