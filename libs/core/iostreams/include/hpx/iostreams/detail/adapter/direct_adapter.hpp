@@ -265,4 +265,4 @@ namespace hpx::iostreams::detail {
     }
 }    // namespace hpx::iostreams::detail
 
-#include <boost/iostreams/detail/config/enable_warnings.hpp>
+#include <hpx/config/warnings_suffix.hpp>

@@ -8,7 +8,7 @@
 // See http://www.boost.org/libs/iostreams for documentation.
 //
 // Defines a large collection of closable filters and devices that
-// execute instances of boost::iostreams::test::operation upon
+// execute instances of hpx::iostreams::test::operation upon
 // closre(). Used to verify that filters and devices are closed
 // correctly by the iostreams library
 //

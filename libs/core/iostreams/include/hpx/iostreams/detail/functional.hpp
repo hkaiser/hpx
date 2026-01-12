@@ -7,7 +7,7 @@
 
 // See http://www.boost.org/libs/iostreams for documentation.
 
-// File:        boost/iostreams/detail/functional.hpp
+// File:        hpx/iostreams/detail/functional.hpp
 // Date:        Sun Dec 09 05:38:03 MST 2007
 // Copyright:   2007-2008 CodeRage, LLC
 // Author:      Jonathan Turkanis

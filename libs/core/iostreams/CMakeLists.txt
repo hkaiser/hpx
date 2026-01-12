@@ -33,6 +33,7 @@ set(iostreams_headers
     hpx/iostreams/detail/access_control.hpp
     hpx/iostreams/detail/adapter/concept_adapter.hpp
     hpx/iostreams/detail/adapter/direct_adapter.hpp
+    hpx/iostreams/detail/adapter/filter_adapter.hpp
     hpx/iostreams/detail/adapter/mode_adapter.hpp
     hpx/iostreams/detail/adapter/non_blocking_adapter.hpp
     hpx/iostreams/detail/adapter/output_iterator_adapter.hpp
@@ -52,6 +53,7 @@ set(iostreams_headers
     hpx/iostreams/device/array.hpp
     hpx/iostreams/device/back_inserter.hpp
     hpx/iostreams/device/file.hpp
+    hpx/iostreams/device/file_descriptor.hpp
     hpx/iostreams/device/mapped_file.hpp
     hpx/iostreams/device/null.hpp
     hpx/iostreams/filter/symmetric.hpp
@@ -70,11 +72,13 @@ set(iostreams_headers
     hpx/iostreams/seek.hpp
     hpx/iostreams/stream.hpp
     hpx/iostreams/stream_buffer.hpp
+    hpx/iostreams/tee.hpp
     hpx/iostreams/traits.hpp
     hpx/iostreams/write.hpp
 )
 
-set(iostreams_sources)
+set(iostreams_sources file_descriptor.cpp)
+
 set(additional_dependencies)
 set(additional_include_directories)
 

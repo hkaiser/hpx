@@ -253,7 +253,7 @@ namespace hpx::iostreams::detail {
     }
 
     template <typename Ch, typename Alloc>
-    inline void buffer<Ch, Alloc>::swap(buffer& rhs) noexcept
+    void buffer<Ch, Alloc>::swap(buffer& rhs) noexcept
     {
         base::swap(rhs);
 

@@ -6,15 +6,15 @@
 //
 // See http://www.boost.org/libs/iostreams for documentation.
 //
-// File:        boost/iostreams/detail/execute.hpp
+// File:        hpx/iostreams/detail/execute.hpp
 // Date:        Thu Dec 06 13:21:54 MST 2007
 // Copyright:   2007-2008 CodeRage, LLC
 // Author:      Jonathan Turkanis
 // Contact:     turkanis at coderage dot com
 
 // Defines the overloaded function template
-// boost::iostreams::detail::execute_all() and the function template
-// boost::iostreams::detail::execute_foreach().
+// hpx::iostreams::detail::execute_all() and the function template
+// hpx::iostreams::detail::execute_foreach().
 //
 // execute_all() invokes a primary operation and performs a sequence of cleanup
 // operations, returning the result of the primary operation if no exceptions

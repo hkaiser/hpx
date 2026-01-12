@@ -11,7 +11,7 @@
 // See http://www.boost.org/libs/iostreams for documentation.
 //
 // Defines the classes operation_sequence and operation, in the namespace
-// boost::iostreams::test, for verifying that all elements of a sequence of
+// hpx::iostreams::test, for verifying that all elements of a sequence of
 // operations are executed, and that they are executed in the correct order.
 //
 // File:        libs/iostreams/test/detail/operation_sequence.hpp

@@ -7,7 +7,7 @@
 
 //  See http://www.boost.org/libs/iostreams for documentation.
 //
-//  Tests the boolean type traits defined in boost/iostreams/traits.hpp.
+//  Tests the boolean type traits defined in hpx/iostreams/traits.hpp.
 //
 //  File:        libs/iostreams/test/bool_trait_test.cpp
 //  Date:        Sun Feb 17 17:52:59 MST 2008

@@ -113,7 +113,8 @@ namespace hpx::iostreams {
         template <typename Alloc>
         struct bzip2_allocator_traits
         {
-            using type = Alloc::template rebind<char>::other;
+            using type =
+                std::allocator_traits<Alloc>::template rebind_alloc<char>;
         };
 
         template <typename Alloc>

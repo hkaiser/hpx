@@ -112,16 +112,13 @@ namespace hpx::iostreams {
     public:
         stream() = default;
 
-        explicit stream(Device const& t, std::streamsize const buffer_size = -1,
+        template <typename T>
+            requires(std::same_as<std::decay_t<T>, Device>)
+        explicit stream(T&& t, std::streamsize const buffer_size = -1,
             std::streamsize const pback_size = -1)
         {
-            this->open_impl(detail::wrap(t), buffer_size, pback_size);
-        }
-
-        explicit stream(Device& t, std::streamsize const buffer_size = -1,
-            std::streamsize const pback_size = -1)
-        {
-            this->open_impl(detail::wrap(t), buffer_size, pback_size);
+            this->open_impl(
+                detail::wrap(HPX_FORWARD(T, t)), buffer_size, pback_size);
         }
 
         explicit stream(std::reference_wrapper<Device> const& ref,
@@ -131,16 +128,20 @@ namespace hpx::iostreams {
             this->open_impl(ref, buffer_size, pback_size);
         }
 
-        void open(Device const& t, std::streamsize const buffer_size = -1,
-            std::streamsize const pback_size = -1)
+        template <typename U, typename... Us>
+            requires(!std::same_as<std::decay_t<U>, Device>)
+        explicit stream(U&& u, Us&&... us)
         {
-            this->open_impl(detail::wrap(t), buffer_size, pback_size);
+            this->open_impl(Device(HPX_FORWARD(U, u), HPX_FORWARD(Us, us)...));
         }
 
-        void open(Device& t, std::streamsize const buffer_size = -1,
+        template <typename T>
+            requires(std::same_as<std::decay_t<T>, Device>)
+        void open(T&& t, std::streamsize const buffer_size = -1,
             std::streamsize const pback_size = -1)
         {
-            this->open_impl(detail::wrap(t), buffer_size, pback_size);
+            this->open_impl(
+                detail::wrap(HPX_FORWARD(T, t)), buffer_size, pback_size);
         }
 
         void open(std::reference_wrapper<Device> const& ref,
@@ -151,14 +152,7 @@ namespace hpx::iostreams {
         }
 
         template <typename U, typename... Us>
-            requires(!std::same_as<U, Device>)
-        explicit stream(U&& u, Us&&... us)
-        {
-            this->open_impl(Device(HPX_FORWARD(U, u), HPX_FORWARD(Us, us)...));
-        }
-
-        template <typename U, typename... Us>
-            requires(!std::same_as<U, Device>)
+            requires(!std::same_as<std::decay_t<U>, Device>)
         void open(U&& u, Us&&... us)
         {
             this->open_impl(Device(HPX_FORWARD(U, u), HPX_FORWARD(Us, us)...));

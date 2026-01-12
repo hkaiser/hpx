@@ -18,6 +18,7 @@ set(tests
     dual_seekable
     execute_all
     file
+    file_descriptor
     filtering_stream
     filters
     flush_streams
@@ -29,6 +30,7 @@ set(tests
     sequence_streams
     stream_state
     symmetric_filter
+    tee_streams
     write_failure
 )
 

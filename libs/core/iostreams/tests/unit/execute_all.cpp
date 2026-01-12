@@ -7,8 +7,8 @@
 
 // See http://www.boost.org/libs/iostreams for documentation.
 //
-// Tests the function templates boost::iostreams::detail::execute_all and
-// boost::iostreams::detail::execute_foreach
+// Tests the function templates hpx::iostreams::detail::execute_all and
+// hpx::iostreams::detail::execute_foreach
 //
 // File:        libs/iostreams/test/execute_test.cpp
 // Date:        Thu Dec 06 13:21:54 MST 2007
