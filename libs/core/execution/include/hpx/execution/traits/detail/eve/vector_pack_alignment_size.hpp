@@ -63,13 +63,20 @@ namespace hpx::parallel::traits {
     HPX_CXX_CORE_EXPORT template <typename T, typename Enable>
     struct vector_pack_size
     {
-        static constexpr std::size_t const value = 1;
+        static constexpr std::size_t value = 1;
     };
 
     HPX_CXX_CORE_EXPORT template <typename T, typename Abi>
     struct vector_pack_size<eve::wide<T, Abi>>
     {
-        static constexpr std::size_t const value = eve::wide<T, Abi>::size();
+        static constexpr std::size_t value = eve::wide<T, Abi>::size();
+    };
+
+    HPX_CXX_CORE_EXPORT template <typename T, typename Abi>
+    struct vector_pack_size<eve::logical<eve::wide<T, Abi>>>
+    {
+        static constexpr std::size_t value =
+            eve::logical<eve::wide<T, Abi>>::size();
     };
 }    // namespace hpx::parallel::traits
 

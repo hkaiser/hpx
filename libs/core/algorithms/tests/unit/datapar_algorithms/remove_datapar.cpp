@@ -4,6 +4,8 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#define HPX_HAVE_FORCE_NO_CXX_MODULES
+
 #include <hpx/algorithm.hpp>
 #include <hpx/datapar.hpp>
 #include <hpx/execution.hpp>
@@ -26,8 +28,8 @@ void test_remove(ExPolicy policy, IteratorTag)
     static_assert(hpx::is_execution_policy<ExPolicy>::value,
         "hpx::is_execution_policy<ExPolicy>::value");
 
-    typedef std::vector<int>::iterator base_iterator;
-    typedef test::test_iterator<base_iterator, IteratorTag> iterator;
+    using base_iterator = std::vector<int>::iterator;
+    using iterator = test::test_iterator<base_iterator, IteratorTag>;
 
     std::vector<int> c(10007);
     std::vector<int> d(c.size());
@@ -50,8 +52,8 @@ void test_remove(ExPolicy policy, IteratorTag)
 template <typename ExPolicy, typename IteratorTag>
 void test_remove_async(ExPolicy p, IteratorTag)
 {
-    typedef std::vector<int>::iterator base_iterator;
-    typedef test::test_iterator<base_iterator, IteratorTag> iterator;
+    using base_iterator = std::vector<int>::iterator;
+    using iterator = test::test_iterator<base_iterator, IteratorTag>;
 
     std::vector<int> c(10007);
     std::vector<int> d(c.size());

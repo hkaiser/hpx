@@ -27,6 +27,17 @@ namespace hpx::parallel::traits {
         }
         return -1;
     }
+
+    HPX_CXX_CORE_EXPORT template <typename Mask>
+    HPX_HOST_DEVICE HPX_FORCEINLINE int find_last_of(Mask const& msk) noexcept
+    {
+        auto tmp = eve::last_true(msk);
+        if (tmp.has_value())
+        {
+            return tmp.value();
+        }
+        return -1;
+    }
 }    // namespace hpx::parallel::traits
 
 #endif

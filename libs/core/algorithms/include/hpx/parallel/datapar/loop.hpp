@@ -263,6 +263,45 @@ namespace hpx::parallel::util {
         };
 
         ///////////////////////////////////////////////////////////////////////
+        HPX_CXX_CORE_EXPORT struct datapar_loop2_n
+        {
+            template <typename InIter1, typename InIter2, typename F>
+            HPX_HOST_DEVICE
+                HPX_FORCEINLINE static constexpr std::pair<InIter1, InIter2>
+                call(InIter1 it1, InIter2 it2, std::size_t count, F&& f)
+            {
+                using iterator_type = std::decay_t<InIter1>;
+                using value_type =
+                    std::iterator_traits<iterator_type>::value_type;
+
+                using V = traits::vector_pack_type_t<value_type>;
+
+                std::size_t len = count;
+                for (/* */; count != 0 &&
+                    (!is_data_aligned(it1) || !is_data_aligned(it2));
+                    --len)
+                {
+                    datapar_loop_step2<InIter1, InIter2>::call1(f, it1, it2);
+                }
+
+                constexpr std::size_t size = traits::vector_pack_size_v<V>;
+
+                while (len > static_cast<std::ptrdiff_t>(size + 1))
+                {
+                    datapar_loop_step2<InIter1, InIter2>::callv(f, it1, it2);
+                    len -= size;
+                }
+
+                for (/* */; len != 0; --len)
+                {
+                    datapar_loop_step2<InIter1, InIter2>::call1(f, it1, it2);
+                }
+
+                return std::make_pair(HPX_MOVE(it1), HPX_MOVE(it2));
+            }
+        };
+
+        ///////////////////////////////////////////////////////////////////////
         HPX_CXX_CORE_EXPORT template <typename Iterator, bool IsConst = false,
             typename Enable = void>
         struct datapar_loop_n;
@@ -629,6 +668,31 @@ namespace hpx::parallel::util {
 
             return loop2<base_policy_type>(
                 first1, last1, first2, HPX_FORWARD(F, f));
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    HPX_CXX_CORE_EXPORT template <typename ExPolicy, typename Iter1,
+        typename Iter2, typename F>
+        requires(hpx::is_vectorpack_execution_policy_v<ExPolicy>)
+    HPX_HOST_DEVICE HPX_FORCEINLINE std::pair<Iter1, Iter2> tag_invoke(
+        hpx::parallel::util::loop2_n_t<ExPolicy>, Iter1 first1, Iter2 first2,
+        std::size_t count, F&& f)
+    {
+        if constexpr (detail::iterator_datapar_compatible_v<Iter1> &&
+            detail::iterator_datapar_compatible_v<Iter2>)
+        {
+            return detail::datapar_loop2_n::call(
+                first1, first2, count, HPX_FORWARD(F, f));
+        }
+        else
+        {
+            using base_policy_type =
+                decltype(hpx::execution::experimental::to_non_simd(
+                    std::declval<ExPolicy>()));
+
+            return loop2_n<base_policy_type>(
+                first1, first2, count, HPX_FORWARD(F, f));
         }
     }
 

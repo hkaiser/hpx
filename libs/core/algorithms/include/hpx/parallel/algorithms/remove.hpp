@@ -26,7 +26,7 @@ namespace hpx {
     ///         the operator==().
     ///
     /// \tparam FwdIter     The type of the source iterators used (deduced).
-    ///                     This iterator type must meet the requirements of an
+    ///                     This iterator type must meet the requirements of a
     ///                     forward iterator.
     /// \tparam T           The type of the value to remove (deduced).
     ///                     This value type must meet the requirements of
@@ -64,7 +64,7 @@ namespace hpx {
     ///                     of the algorithm may be parallelized and the manner
     ///                     in which it executes the assignments.
     /// \tparam FwdIter     The type of the source iterators used (deduced).
-    ///                     This iterator type must meet the requirements of an
+    ///                     This iterator type must meet the requirements of a
     ///                     forward iterator.
     /// \tparam T           The type of the value to remove (deduced).
     ///                     This value type must meet the requirements of
@@ -110,7 +110,7 @@ namespace hpx {
     ///         the predicate \a pred.
     ///
     /// \tparam FwdIter     The type of the source iterators used (deduced).
-    ///                     This iterator type must meet the requirements of an
+    ///                     This iterator type must meet the requirements of a
     ///                     forward iterator.
     /// \tparam Pred        The type of the function/function object to use
     ///                     (deduced). Unlike its sequential form, the parallel
@@ -123,7 +123,7 @@ namespace hpx {
     ///                     algorithm will be applied to.
     /// \param pred         Specifies the function (or function object) which
     ///                     will be invoked for each of the elements in the
-    ///                     sequence specified by [first, last).This is an
+    ///                     sequence specified by [first, last).This is a
     ///                     unary predicate which returns \a true for the
     ///                     required elements. The signature of this predicate
     ///                     should be equivalent to:
@@ -160,7 +160,7 @@ namespace hpx {
     ///                     of the algorithm may be parallelized and the manner
     ///                     in which it executes the assignments.
     /// \tparam FwdIter     The type of the source iterators used (deduced).
-    ///                     This iterator type must meet the requirements of an
+    ///                     This iterator type must meet the requirements of a
     ///                     forward iterator.
     /// \tparam Pred        The type of the function/function object to use
     ///                     (deduced). Unlike its sequential form, the parallel
@@ -175,7 +175,7 @@ namespace hpx {
     ///                     algorithm will be applied to.
     /// \param pred         Specifies the function (or function object) which
     ///                     will be invoked for each of the elements in the
-    ///                     sequence specified by [first, last).This is an
+    ///                     sequence specified by [first, last).This is a
     ///                     unary predicate which returns \a true for the
     ///                     required elements. The signature of this predicate
     ///                     should be equivalent to:
@@ -214,14 +214,14 @@ namespace hpx {
 #else    // DOXYGEN
 
 #include <hpx/config.hpp>
-#include <hpx/algorithms/traits/projected.hpp>
-#include <hpx/execution/traits/vector_pack_conditionals.hpp>
 #include <hpx/modules/concepts.hpp>
 #include <hpx/modules/execution.hpp>
 #include <hpx/modules/executors.hpp>
 #include <hpx/modules/functional.hpp>
 #include <hpx/modules/iterator_support.hpp>
 #include <hpx/modules/type_support.hpp>
+
+#include <hpx/algorithms/traits/projected.hpp>
 #include <hpx/parallel/algorithms/detail/dispatch.hpp>
 #include <hpx/parallel/algorithms/detail/distance.hpp>
 #include <hpx/parallel/algorithms/detail/find.hpp>
@@ -247,7 +247,7 @@ namespace hpx::parallel {
 
         /// \cond NOINTERNAL
         HPX_CXX_CORE_EXPORT template <typename FwdIter>
-        struct remove_if : public algorithm<remove_if<FwdIter>, FwdIter>
+        struct remove_if : algorithm<remove_if<FwdIter>, FwdIter>
         {
             constexpr remove_if() noexcept
               : algorithm<remove_if, FwdIter>("remove_if")
@@ -259,9 +259,9 @@ namespace hpx::parallel {
             static constexpr Iter sequential(ExPolicy&& policy, Iter first,
                 Sent last, Pred&& pred, Proj&& proj)
             {
-                return sequential_remove_if<ExPolicy>(
-                    HPX_FORWARD(ExPolicy, policy), first, last,
-                    HPX_FORWARD(Pred, pred), HPX_FORWARD(Proj, proj));
+                return sequential_remove_if(HPX_FORWARD(ExPolicy, policy),
+                    first, last, HPX_FORWARD(Pred, pred),
+                    HPX_FORWARD(Proj, proj));
             }
 
             template <typename ExPolicy, typename Iter, typename Sent,
@@ -269,22 +269,22 @@ namespace hpx::parallel {
             static decltype(auto) parallel(ExPolicy&& policy, Iter first,
                 Sent last, Pred&& pred, Proj&& proj)
             {
-                using inner_policy_type = std::decay_t<ExPolicy>;
-                constexpr bool vectorpack_policy =
-                    hpx::is_vectorpack_execution_policy_v<inner_policy_type>;
+                //using inner_policy_type = std::decay_t<ExPolicy>;
+                //constexpr bool vectorpack_policy =
+                //    hpx::is_vectorpack_execution_policy_v<inner_policy_type>;
 
-                if constexpr (vectorpack_policy)
-                {
-                    return sequential_remove_if<ExPolicy>(
-                        HPX_FORWARD(ExPolicy, policy), first, last,
-                        HPX_FORWARD(Pred, pred), HPX_FORWARD(Proj, proj));
-                }
+                //if constexpr (vectorpack_policy)
+                //{
+                //    return sequential_remove_if<ExPolicy>(
+                //        HPX_FORWARD(ExPolicy, policy), first, last,
+                //        HPX_FORWARD(Pred, pred), HPX_FORWARD(Proj, proj));
+                //}
 
                 using zip_iterator = hpx::util::zip_iterator<Iter, bool*>;
                 using algorithm_result =
                     util::detail::algorithm_result<ExPolicy, Iter>;
                 using difference_type =
-                    typename std::iterator_traits<Iter>::difference_type;
+                    std::iterator_traits<Iter>::difference_type;
                 constexpr bool has_scheduler_executor =
                     hpx::execution_policy_has_scheduler_executor_v<ExPolicy>;
 
@@ -295,9 +295,9 @@ namespace hpx::parallel {
                     if (count == 0)
                         return algorithm_result::get(HPX_MOVE(first));
                 }
-                std::shared_ptr<bool[]> flags(new bool[count]);
 
                 using hpx::get;
+                auto flags = std::make_shared<bool[]>(count);
 
                 // Note: replacing the invoke() with HPX_INVOKE()
                 // below makes gcc generate errors
@@ -306,43 +306,30 @@ namespace hpx::parallel {
                               zip_iterator part_begin,
                               std::size_t part_size) -> void {
                     // MSVC complains if pred or proj is captured by ref below
-                    util::const_loop_n<inner_policy_type>(part_begin, part_size,
-                        [pred, proj](zip_iterator it) mutable {
-                            get<1>(*it) = hpx::invoke(
-                                pred, hpx::invoke(proj, get<0>(*it)));
+                    auto it1 = get<0>(part_begin.get_iterator_tuple());
+                    auto it2 = get<1>(part_begin.get_iterator_tuple());
+
+                    util::loop2_n<std::decay_t<ExPolicy>>(it1, it2, part_size,
+                        [pred, proj](auto it1, auto it2) mutable {
+                            /**it2 = */hpx::invoke(pred, hpx::invoke(proj, *it1));
+                            return std::make_pair(it1, it2);
                         });
                 };
 
                 auto f2 = [flags, first, count](auto&&...) mutable -> Iter {
-                    auto part_begin = zip_iterator(first, flags.get());
                     auto dest = first;
-                    auto part_size = count;
 
-                    if (dest == get<0>(part_begin.get_iterator_tuple()))
-                    {
-                        // Self-assignment must be detected.
-                        util::const_loop_n<execution_policy_type>(
-                            part_begin, part_size, [&dest](zip_iterator it) {
-                                if (!get<1>(*it))
+                    util::const_loop2_n<std::decay_t<ExPolicy>>(first,
+                        flags.get(), count, [&dest](auto it1, auto it2) {
+                            if (!*it2)
+                            {
+                                if (dest != it1)
                                 {
-                                    if (dest != get<0>(it.get_iterator_tuple()))
-                                        *dest++ = std::ranges::iter_move(
-                                            get<0>(it.get_iterator_tuple()));
-                                    else
-                                        ++dest;
+                                    *dest = std::ranges::iter_move(it1);
                                 }
-                            });
-                    }
-                    else
-                    {
-                        // Self-assignment can't be performed.
-                        util::const_loop_n<execution_policy_type>(
-                            part_begin, part_size, [&dest](zip_iterator it) {
-                                if (!get<1>(*it))
-                                    *dest++ = std::ranges::iter_move(
-                                        get<0>(it.get_iterator_tuple()));
-                            });
-                    }
+                                ++dest;
+                            }
+                        });
                     return dest;
                 };
 
@@ -418,35 +405,29 @@ namespace hpx {
     {
     private:
         template <typename FwdIter,
-            typename T = typename std::iterator_traits<FwdIter>::value_type>
-        // clang-format off
-            requires (
-                hpx::traits::is_iterator_v<FwdIter>
-            )
-        // clang-format on
+            typename T = std::iterator_traits<FwdIter>::value_type>
+            requires(hpx::traits::is_iterator_v<FwdIter>)
         friend FwdIter tag_fallback_invoke(
             hpx::remove_t, FwdIter first, FwdIter last, T const& value)
         {
-            using Type = typename std::iterator_traits<FwdIter>::value_type;
+            using Type = std::iterator_traits<FwdIter>::value_type;
 
             return hpx::remove_if(hpx::execution::seq, first, last,
-                [value](Type const& a) -> bool { return value == a; });
+                [value](Type const& a) -> bool {
+                    return static_cast<Type>(value) == a;
+                });
         }
 
         template <typename ExPolicy, typename FwdIter,
-            typename T = typename std::iterator_traits<FwdIter>::value_type>
-        // clang-format off
-            requires (
-                hpx::is_execution_policy_v<ExPolicy> &&
-                hpx::traits::is_iterator_v<FwdIter>
-            )
-        // clang-format on
+            typename T = std::iterator_traits<FwdIter>::value_type>
+            requires(hpx::is_execution_policy_v<ExPolicy> &&
+                hpx::traits::is_iterator_v<FwdIter>)
         friend decltype(auto) tag_fallback_invoke(hpx::remove_t,
             ExPolicy&& policy, FwdIter first, FwdIter last, T const& value)
         {
             return hpx::remove_if(HPX_FORWARD(ExPolicy, policy), first, last,
-                [value](Type const& a) -> bool {
-                    return static_cast<Type>(value) == a;
+                [value](auto const& a) {
+                    return static_cast<decltype(a)>(value) == a;
                 });
         }
     } remove{};

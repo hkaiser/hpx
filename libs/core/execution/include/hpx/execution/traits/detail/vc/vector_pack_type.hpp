@@ -77,7 +77,7 @@ namespace hpx::parallel::traits {
     struct vector_pack_mask_type<T,
         std::enable_if_t<Vc::Traits::is_simd_vector<T>::value>>
     {
-        using type = typename T::mask_type;
+        using type = T::mask_type;
     };
 }    // namespace hpx::parallel::traits
 

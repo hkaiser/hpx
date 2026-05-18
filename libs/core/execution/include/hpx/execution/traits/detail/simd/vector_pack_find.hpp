@@ -25,6 +25,17 @@ namespace hpx::parallel::traits {
         }
         return -1;
     }
+
+    HPX_CXX_CORE_EXPORT template <typename T, typename Abi>
+    HPX_HOST_DEVICE HPX_FORCEINLINE int find_last_of(
+        datapar::experimental::simd_mask<T, Abi> const& msk) noexcept
+    {
+        if (datapar::experimental::any_of(msk))
+        {
+            return datapar::experimental::find_last_set(msk);
+        }
+        return -1;
+    }
 }    // namespace hpx::parallel::traits
 
 #endif

@@ -494,6 +494,22 @@ namespace hpx::parallel::util::detail {
         }
     };
 
+    HPX_CXX_CORE_EXPORT template <typename T1, typename T2>
+    struct vector_pack_or_mask
+    {
+        using type = traits::vector_pack_type_t<T1>;
+    };
+
+    template <typename T1>
+    struct vector_pack_or_mask<T1, bool>
+    {
+        using type =
+            traits::vector_pack_mask_type_t<traits::vector_pack_type_t<T1>>;
+    };
+
+    HPX_CXX_CORE_EXPORT template <typename T1, typename T2>
+    using vector_pack_or_mask_t = vector_pack_or_mask<T1, T2>::type;
+
     HPX_CXX_CORE_EXPORT template <typename Iter1, typename Iter2>
     struct datapar_loop_step2
     {
@@ -504,23 +520,19 @@ namespace hpx::parallel::util::detail {
         using V12 = traits::vector_pack_type_t<value2_type, 1>;
 
         using V1 = traits::vector_pack_type_t<value1_type>;
-        using V2 = traits::vector_pack_type_t<value2_type>;
+        using V2 = vector_pack_or_mask_t<value1_type, value2_type>;
 
         template <typename F>
-        HPX_HOST_DEVICE
-            HPX_FORCEINLINE static constexpr hpx::util::invoke_result<F, V11*,
-                V12*>
-            call1(F&& f, Iter1& it1, Iter2& it2)
+        HPX_HOST_DEVICE HPX_FORCEINLINE static constexpr decltype(auto) call1(
+            F&& f, Iter1& it1, Iter2& it2)
         {
             return invoke_vectorized_in2<V11, V12>::call_unaligned(
                 HPX_FORWARD(F, f), it1, it2);
         }
 
         template <typename F>
-        HPX_HOST_DEVICE
-            HPX_FORCEINLINE static constexpr hpx::util::invoke_result<F, V1*,
-                V2*>
-            callv(F&& f, Iter1& it1, Iter2& it2)
+        HPX_HOST_DEVICE HPX_FORCEINLINE static constexpr decltype(auto) callv(
+            F&& f, Iter1& it1, Iter2& it2)
         {
             HPX_ASSERT(is_data_aligned(it1) && is_data_aligned(it2));
             return invoke_vectorized_in2<V1, V2>::call_aligned(
@@ -538,7 +550,7 @@ namespace hpx::parallel::util::detail {
         using V12 = traits::vector_pack_type_t<value2_type, 1>;
 
         using V1 = traits::vector_pack_type_t<value1_type>;
-        using V2 = traits::vector_pack_type_t<value2_type>;
+        using V2 = vector_pack_or_mask_t<value1_type, value2_type>;
 
         template <typename F>
         HPX_HOST_DEVICE HPX_FORCEINLINE static constexpr auto call1(
@@ -802,7 +814,7 @@ namespace hpx::parallel::util::detail {
             using value2_type = std::iterator_traits<InIter2>::value_type;
 
             using V1 = traits::vector_pack_type_t<value1_type>;
-            using V2 = traits::vector_pack_type_t<value2_type>;
+            using V2 = vector_pack_or_mask_t<value1_type, value2_type>;
 
             HPX_ASSERT(is_data_aligned(it1) && is_data_aligned(it2) &&
                 is_data_aligned(dest));
@@ -863,7 +875,7 @@ namespace hpx::parallel::util::detail {
             using value2_type = std::iterator_traits<InIter2>::value_type;
 
             using V1 = traits::vector_pack_type_t<value1_type>;
-            using V2 = traits::vector_pack_type_t<value2_type>;
+            using V2 = vector_pack_or_mask_t<value1_type, value2_type>;
 
             HPX_ASSERT(is_data_aligned(it1) && is_data_aligned(it2) &&
                 is_data_aligned(dest));

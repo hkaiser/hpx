@@ -76,14 +76,13 @@ namespace hpx::parallel::traits {
     HPX_CXX_CORE_EXPORT template <typename T, typename Enable>
     struct vector_pack_alignment
     {
-        static constexpr std::size_t const value =
-            Vc::Vector<T>::MemoryAlignment;
+        static constexpr std::size_t value = Vc::Vector<T>::MemoryAlignment;
     };
 
     HPX_CXX_CORE_EXPORT template <typename T, typename Abi>
     struct vector_pack_alignment<Vc::Vector<T, Abi>>
     {
-        static constexpr std::size_t const value =
+        static constexpr std::size_t value =
             Vc::Vector<T, Abi>::MemoryAlignment;
     };
 
@@ -91,14 +90,14 @@ namespace hpx::parallel::traits {
         std::size_t W>
     struct vector_pack_alignment<Vc::SimdArray<T, N, V, W>>
     {
-        static constexpr std::size_t const value =
+        static constexpr std::size_t value =
             Vc::SimdArray<T, N, V, W>::MemoryAlignment;
     };
 
     HPX_CXX_CORE_EXPORT template <typename T>
     struct vector_pack_alignment<Vc::Scalar::Vector<T>>
     {
-        static constexpr std::size_t const value =
+        static constexpr std::size_t value =
             Vc::Scalar::Vector<T>::MemoryAlignment;
     };
 
@@ -106,26 +105,26 @@ namespace hpx::parallel::traits {
     HPX_CXX_CORE_EXPORT template <typename T, typename Enable>
     struct vector_pack_size
     {
-        static std::size_t const value = Vc::Vector<T>::Size;
+        static std::size_t value = Vc::Vector<T>::Size;
     };
 
     HPX_CXX_CORE_EXPORT template <typename T, typename Abi>
     struct vector_pack_size<Vc::Vector<T, Abi>>
     {
-        static std::size_t const value = Vc::Vector<T, Abi>::Size;
+        static std::size_t value = Vc::Vector<T, Abi>::Size;
     };
 
     HPX_CXX_CORE_EXPORT template <typename T, std::size_t N, typename V,
         std::size_t W>
     struct vector_pack_size<Vc::SimdArray<T, N, V, W>>
     {
-        static std::size_t const value = Vc::SimdArray<T, N, V, W>::Size;
+        static std::size_t value = Vc::SimdArray<T, N, V, W>::Size;
     };
 
     HPX_CXX_CORE_EXPORT template <typename T>
     struct vector_pack_size<Vc::Scalar::Vector<T>>
     {
-        static std::size_t const value = Vc::Scalar::Vector<T>::Size;
+        static std::size_t value = Vc::Scalar::Vector<T>::Size;
     };
 }    // namespace hpx::parallel::traits
 

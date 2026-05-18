@@ -68,8 +68,15 @@ namespace hpx::parallel::traits {
     template <typename T, typename Abi>
     struct vector_pack_size<datapar::experimental::simd<T, Abi>>
     {
-        static constexpr std::size_t const value =
+        static constexpr std::size_t value =
             datapar::experimental::simd<T, Abi>::size();
+    };
+
+    template <typename T, typename Abi>
+    struct vector_pack_size<datapar::experimental::simd_mask<T, Abi>>
+    {
+        static constexpr std::size_t value =
+            datapar::experimental::simd_mask<T, Abi>::size();
     };
 }    // namespace hpx::parallel::traits
 

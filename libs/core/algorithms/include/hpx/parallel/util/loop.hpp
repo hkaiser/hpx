@@ -385,6 +385,75 @@ namespace hpx::parallel::util {
     ///////////////////////////////////////////////////////////////////////////
     namespace detail {
 
+        // Helper class to repeatedly call a function starting from a given
+        // iterator position.
+        HPX_CXX_CORE_EXPORT template <typename Iter1, typename Iter2>
+        struct loop2_n
+        {
+            ///////////////////////////////////////////////////////////////////
+            template <typename Begin1, typename Begin2, typename F>
+            HPX_HOST_DEVICE
+                HPX_FORCEINLINE static constexpr std::pair<Begin1, Begin2>
+                call(Begin1 it1, Begin2 it2, std::size_t count, F&& f)
+            {
+                for (/**/; count != 0; (void) ++it1, ++it2, --count)
+                {
+                    HPX_INVOKE(f, it1, it2);
+                }
+                return std::make_pair(it1, it2);
+            }
+        };
+    }    // namespace detail
+
+    HPX_CXX_CORE_EXPORT template <typename ExPolicy, bool IsConst = false>
+    struct loop2_n_t final
+      : hpx::functional::detail::tag_fallback<loop2_n_t<ExPolicy, IsConst>>
+    {
+    private:
+        template <typename Begin1, typename Begin2, typename F>
+        friend HPX_HOST_DEVICE
+            HPX_FORCEINLINE constexpr std::pair<Begin1, Begin2>
+            tag_fallback_invoke(
+                hpx::parallel::util::loop2_n_t<ExPolicy, IsConst>,
+                Begin1 begin1, Begin2 begin2, std::size_t count, F&& f)
+        {
+            return detail::loop2_n<Begin1, Begin2>::call(
+                begin1, begin2, count, HPX_FORWARD(F, f));
+        }
+    };
+
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+    HPX_CXX_CORE_EXPORT template <typename ExPolicy>
+    inline constexpr loop2_n_t<ExPolicy> loop2_n = loop2_n_t<ExPolicy>{};
+#else
+    HPX_CXX_CORE_EXPORT template <typename ExPolicy, typename Begin1,
+        typename Begin2, typename F>
+    HPX_HOST_DEVICE HPX_FORCEINLINE constexpr decltype(auto) loop2(
+        Begin1 begin1, Begin2 begin2, std::size_t count, F&& f)
+    {
+        return hpx::parallel::util::loop2_n_t<ExPolicy>{}(
+            begin1, begin2, count, HPX_FORWARD(F, f));
+    }
+#endif
+
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+    HPX_CXX_CORE_EXPORT template <typename ExPolicy>
+    inline constexpr loop2_n_t<ExPolicy, true> const_loop2_n =
+        loop2_n_t<ExPolicy, true>{};
+#else
+    HPX_CXX_CORE_EXPORT template <typename ExPolicy, typename Begin1,
+        typename Begin2, typename F>
+    HPX_HOST_DEVICE HPX_FORCEINLINE constexpr decltype(auto) const_loop2_n(
+        Begin1 begin1, Begin2 begin2, std::size_t count, F&& f)
+    {
+        return hpx::parallel::util::loop2_n_t<ExPolicy, true>{}(
+            begin1, begin2, count, HPX_FORWARD(F, f));
+    }
+#endif
+
+    ///////////////////////////////////////////////////////////////////////////
+    namespace detail {
+
         // Helper class to repeatedly call a function a given number of times
         // starting from a given iterator position.
         HPX_CXX_CORE_EXPORT template <bool IsConst = false>
@@ -525,7 +594,7 @@ namespace hpx::parallel::util {
 
     HPX_CXX_CORE_EXPORT template <typename ExPolicy>
     struct const_loop_n_t final
-      : hpx::functional::detail::tag_fallback<loop_n_t<ExPolicy>>
+      : hpx::functional::detail::tag_fallback<const_loop_n_t<ExPolicy>>
     {
     private:
         template <typename Iter, typename F>
