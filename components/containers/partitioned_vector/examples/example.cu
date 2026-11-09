@@ -1,5 +1,4 @@
 #include <hpx/hpx_main.hpp>
-#include <hpx/iostream.hpp>
 #include <iostream>
 #include <hpx/algorithm.hpp>
 
@@ -18,7 +17,7 @@ int main(int argc, char** argv)
     // test 1 (compiles but won't run)
     v.set_value(0,42);
     int answer = v.get_value(0).get();
-    hpx::cout << "Answer is: " << answer << std::endl;
+    std::cout << "Answer is: " << answer << std::endl;
 
     // test 2 (will not compile)
     //hpx::fill(hpx::thrust::thrust_device_policy{}, v.begin(), v.end(), 42);
@@ -26,7 +25,7 @@ int main(int argc, char** argv)
     // test 3 (compiles but won't run)
     hpx::thrust::segmented_fill(hpx::thrust::thrust_device_policy{}, v.begin(), v.end(), 42);
 
-    hpx::cout << "Answer is: " << v.get_value(0).get() << std::endl;
+    std::cout << "Answer is: " << v.get_value(0).get() << std::endl;
 
 
     return 0;
