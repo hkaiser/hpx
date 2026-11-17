@@ -82,6 +82,12 @@ namespace hpx::parcelset {
 
         void initialize();
 
+        /// Called on each OS thread the runtime starts, before it runs any
+        /// work; forwards to all parcelports (parcelport::on_start_thread).
+        void on_start_thread(std::size_t local_thread_num,
+            std::size_t global_thread_num, char const* pool_name,
+            char const* postfix) const;
+
         void flush_parcels() const;
 
         /// \brief Stop all parcel ports associated with this parcelhandler
