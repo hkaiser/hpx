@@ -34,11 +34,13 @@ namespace hpx::parcelset::detail {
 
         // NOLINTNEXTLINE(bugprone-crtp-constructor-accessibility)
         parcel_await_base(Parcel&& parcel, Handler&& handler,
-            std::uint32_t archive_flags, put_parcel_type pp) noexcept
+            std::uint32_t archive_flags, put_parcel_type pp,
+            std::size_t zero_copy_serialization_threshold) noexcept
           : put_parcel_(HPX_MOVE(pp))
           , parcel_(HPX_MOVE(parcel))
           , handler_(HPX_MOVE(handler))
-          , archive_(data_, archive_flags)
+          , archive_(data_, archive_flags, nullptr, nullptr,
+                zero_copy_serialization_threshold)
           , overhead_(archive_.bytes_written())
         {
         }
@@ -51,6 +53,16 @@ namespace hpx::parcelset::detail {
         bool apply_single(parcelset::parcel& p)
         {
             archive_.reset();
+
+            // buffers from an earlier preprocessing of this parcel (e.g. by
+            // post() before handing it to the parcelport) are reused
+            if (auto const& keep_alive = p.keep_alive(); !keep_alive.empty())
+            {
+                archive_
+                    .get_extra_data<
+                        serialization::detail::preprocess_keep_alive>()
+                    .add_buffers(keep_alive);
+            }
 
             archive_ << p;
 
@@ -83,6 +95,16 @@ namespace hpx::parcelset::detail {
                 p.set_split_gids(split_gids->move_split_gids());
             }
 
+            // buffers created during preprocessing that zero-copy chunks of
+            // this parcel will refer to; the parcel keeps them alive until it
+            // has been sent
+            auto* keep_alive = archive_.try_get_extra_data<
+                serialization::detail::preprocess_keep_alive>();
+            if (keep_alive && !keep_alive->empty())
+            {
+                p.set_keep_alive(keep_alive->move_buffers());
+            }
+
             return true;
         }
 
@@ -101,8 +123,10 @@ namespace hpx::parcelset::detail {
             write_handler_type, parcel_await>;
 
         parcel_await(parcelset::parcel&& p, write_handler_type&& f,
-            std::uint32_t archive_flags, put_parcel_type pp) noexcept
-          : base_type(HPX_MOVE(p), HPX_MOVE(f), archive_flags, HPX_MOVE(pp))
+            std::uint32_t archive_flags, put_parcel_type pp,
+            std::size_t zero_copy_serialization_threshold) noexcept
+          : base_type(HPX_MOVE(p), HPX_MOVE(f), archive_flags, HPX_MOVE(pp),
+                zero_copy_serialization_threshold)
         {
         }
 
@@ -124,8 +148,10 @@ namespace hpx::parcelset::detail {
 
         parcels_await(std::vector<parcelset::parcel>&& p,
             std::vector<write_handler_type>&& f, std::uint32_t archive_flags,
-            put_parcel_type pp) noexcept
-          : base_type(HPX_MOVE(p), HPX_MOVE(f), archive_flags, HPX_MOVE(pp))
+            put_parcel_type pp,
+            std::size_t zero_copy_serialization_threshold) noexcept
+          : base_type(HPX_MOVE(p), HPX_MOVE(f), archive_flags, HPX_MOVE(pp),
+                zero_copy_serialization_threshold)
           , idx_(0)
         {
         }
@@ -145,19 +171,22 @@ namespace hpx::parcelset::detail {
 
     ///////////////////////////////////////////////////////////////////////////
     void parcel_await_apply(parcelset::parcel&& p, write_handler_type&& f,
-        std::uint32_t archive_flags, put_parcel_type pp)
+        std::uint32_t archive_flags, put_parcel_type pp,
+        std::size_t zero_copy_serialization_threshold)
     {
-        auto const ptr = std::make_shared<parcel_await>(
-            HPX_MOVE(p), HPX_MOVE(f), archive_flags, HPX_MOVE(pp));
+        auto const ptr =
+            std::make_shared<parcel_await>(HPX_MOVE(p), HPX_MOVE(f),
+                archive_flags, HPX_MOVE(pp), zero_copy_serialization_threshold);
         ptr->apply();
     }
 
     void parcels_await_apply(std::vector<parcelset::parcel>&& p,
         std::vector<write_handler_type>&& f, std::uint32_t archive_flags,
-        put_parcels_type pp)
+        put_parcels_type pp, std::size_t zero_copy_serialization_threshold)
     {
-        auto const ptr = std::make_shared<parcels_await>(
-            HPX_MOVE(p), HPX_MOVE(f), archive_flags, HPX_MOVE(pp));
+        auto const ptr =
+            std::make_shared<parcels_await>(HPX_MOVE(p), HPX_MOVE(f),
+                archive_flags, HPX_MOVE(pp), zero_copy_serialization_threshold);
         ptr->apply();
     }
 }    // namespace hpx::parcelset::detail
