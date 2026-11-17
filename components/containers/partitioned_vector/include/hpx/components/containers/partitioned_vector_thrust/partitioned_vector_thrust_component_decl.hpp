@@ -9,10 +9,10 @@
 #pragma once
 
 #include <hpx/config.hpp>
+#include <hpx/modules/thrust.hpp>    // serialization of the thrust vectors
 
-#include <hpx/components/containers/partitioned_vector/partitioned_vector_fwd.hpp>
 #include <hpx/components/containers/partitioned_vector/partitioned_vector_component_decl.hpp>
-#include <hpx/components/containers/partitioned_vector_thrust/thrust_serialization.hpp>
+#include <hpx/components/containers/partitioned_vector/partitioned_vector_fwd.hpp>
 
 #include <thrust/device_vector.h>
 

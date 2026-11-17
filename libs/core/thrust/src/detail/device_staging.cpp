@@ -12,7 +12,7 @@
 #include <hpx/modules/serialization.hpp>
 #include <hpx/modules/synchronization.hpp>
 
-#include <hpx/components/containers/partitioned_vector_thrust/device_staging.hpp>
+#include <hpx/thrust/serialization/detail/device_staging.hpp>
 
 #include <cuda_runtime.h>
 
@@ -128,8 +128,8 @@ namespace hpx::serialization::detail {
         // more than small and medium transfers take. They are blocking
         // streams, which orders them after the legacy default stream only,
         // not after per-thread default streams or other streams. The data
-        // must be complete before it is serialized (see device_vector in
-        // thrust_serialization.hpp).
+        // must be complete before it is serialized (see
+        // hpx/thrust/serialization/device_vector.hpp).
         cudaStream_t staging_stream()
         {
             struct streams
@@ -248,9 +248,9 @@ namespace hpx::serialization::detail {
             post_receive_actions::done_type done)
         {
             cudaStream_t const stream = staging_stream();
-            hpx::cuda::experimental::check_cuda_error(cudaMemcpyAsync(
-                device_data, staging->data(), size, cudaMemcpyHostToDevice,
-                stream));
+            hpx::cuda::experimental::check_cuda_error(
+                cudaMemcpyAsync(device_data, staging->data(), size,
+                    cudaMemcpyHostToDevice, stream));
 
             hpx::future<void> f;
             try
@@ -271,16 +271,16 @@ namespace hpx::serialization::detail {
 
             // the continuation holds the state to read a CUDA error; the
             // state drops it after running the continuation
-            state->set_on_completed([state, staging = HPX_MOVE(staging),
-                                        done = HPX_MOVE(done)]() {
-                if (state->has_exception())
-                {
-                    // the arguments are incomplete, don't run it
-                    hpx::report_error(state->get_exception_ptr());
-                    return;
-                }
-                done();
-            });
+            state->set_on_completed(
+                [state, staging = HPX_MOVE(staging), done = HPX_MOVE(done)]() {
+                    if (state->has_exception())
+                    {
+                        // the arguments are incomplete, don't run it
+                        hpx::report_error(state->get_exception_ptr());
+                        return;
+                    }
+                    done();
+                });
         }
     }    // namespace
 

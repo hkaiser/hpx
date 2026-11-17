@@ -42,21 +42,17 @@ set(partitioned_vector_sources
     partitioned_vector_component_std_string.cpp
 )
 
-# partitioned_vector with thrust containers as partition data; the source
-# moves thrust::device_vector data through the archives (pinned staging
-# buffers, asynchronous copies)
+# partitioned_vector with thrust containers as partition data; their
+# serialization is in the thrust module
 if(HPX_WITH_CUDA AND HPX_WITH_THRUST)
   list(
     APPEND
     partitioned_vector_headers
-    hpx/components/containers/partitioned_vector_thrust/device_staging.hpp
     hpx/components/containers/partitioned_vector_thrust/partitioned_vector_thrust.hpp
     hpx/components/containers/partitioned_vector_thrust/partitioned_vector_thrust_algorithms.hpp
     hpx/components/containers/partitioned_vector_thrust/partitioned_vector_thrust_component_decl.hpp
     hpx/components/containers/partitioned_vector_thrust/partitioned_vector_thrust_component_impl.hpp
-    hpx/components/containers/partitioned_vector_thrust/thrust_serialization.hpp
   )
-  list(APPEND partitioned_vector_sources partitioned_vector_thrust_staging.cpp)
 endif()
 
 add_hpx_component(
