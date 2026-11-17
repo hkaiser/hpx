@@ -1,0 +1,359 @@
+//  Copyright (c) 2026 Hartmut Kaiser
+//
+//  SPDX-License-Identifier: BSL-1.0
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#include <hpx/config.hpp>
+#include <hpx/modules/async_cuda.hpp>
+#include <hpx/modules/errors.hpp>
+#include <hpx/modules/futures.hpp>
+#include <hpx/modules/runtime_local.hpp>
+#include <hpx/modules/serialization.hpp>
+#include <hpx/modules/synchronization.hpp>
+
+#include <hpx/components/containers/partitioned_vector_thrust/device_staging.hpp>
+
+#include <cuda_runtime.h>
+
+#include <array>
+#include <atomic>
+#include <cstddef>
+#include <cstdio>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+namespace hpx::serialization::detail {
+
+    namespace {
+
+        // Pinned host memory is expensive to allocate (cudaMallocHost takes
+        // milliseconds for a few MiB), more than a transfer of that size
+        // over the network. Buffers are reused, by power-of-two size class;
+        // at most max_cached bytes are kept for reuse.
+        class pinned_buffer_pool
+        {
+        public:
+            static constexpr std::size_t min_size_class = 4096;
+            static constexpr std::size_t max_cached = std::size_t(256) << 20;
+
+            static pinned_buffer_pool& instance()
+            {
+                static pinned_buffer_pool pool;
+                return pool;
+            }
+
+            pinned_buffer_pool() = default;
+            pinned_buffer_pool(pinned_buffer_pool const&) = delete;
+            pinned_buffer_pool(pinned_buffer_pool&&) = delete;
+            pinned_buffer_pool& operator=(pinned_buffer_pool const&) = delete;
+            pinned_buffer_pool& operator=(pinned_buffer_pool&&) = delete;
+
+            ~pinned_buffer_pool()
+            {
+                // errors are ignored, the CUDA runtime may be gone already
+                for (auto& [size_class, buffers] : free_)
+                {
+                    for (void* p : buffers)
+                    {
+                        cudaFreeHost(p);
+                    }
+                }
+            }
+
+            // returns a buffer of at least 'size' bytes and its size class
+            std::pair<void*, std::size_t> acquire(std::size_t const size)
+            {
+                std::size_t const size_class = size_class_of(size);
+                {
+                    std::lock_guard<hpx::spinlock> l(mtx_);
+                    if (auto it = free_.find(size_class);
+                        it != free_.end() && !it->second.empty())
+                    {
+                        void* p = it->second.back();
+                        it->second.pop_back();
+                        cached_ -= size_class;
+                        return {p, size_class};
+                    }
+                }
+
+                void* p = nullptr;
+                hpx::cuda::experimental::check_cuda_error(
+                    cudaMallocHost(&p, size_class));
+                return {p, size_class};
+            }
+
+            void release(void* p, std::size_t const size_class) noexcept
+            {
+                try
+                {
+                    std::lock_guard<hpx::spinlock> l(mtx_);
+                    if (cached_ + size_class <= max_cached)
+                    {
+                        free_[size_class].push_back(p);
+                        cached_ += size_class;
+                        return;
+                    }
+                }
+                catch (...)
+                {
+                    // could not keep it, free it instead
+                }
+                cudaFreeHost(p);
+            }
+
+        private:
+            static std::size_t size_class_of(std::size_t const size) noexcept
+            {
+                std::size_t size_class = min_size_class;
+                while (size_class < size)
+                {
+                    size_class *= 2;
+                }
+                return size_class;
+            }
+
+            hpx::spinlock mtx_;
+            std::map<std::size_t, std::vector<void*>> free_;
+            std::size_t cached_ = 0;
+        };
+
+        // A few CUDA streams for the staging copies, created on first use
+        // (on the device current then; one GPU per locality) and kept for
+        // the lifetime of the process: creating a stream per transfer costs
+        // more than small and medium transfers take. They are blocking
+        // streams, which orders them after the legacy default stream only,
+        // not after per-thread default streams or other streams. The data
+        // must be complete before it is serialized (see device_vector in
+        // thrust_serialization.hpp).
+        cudaStream_t staging_stream()
+        {
+            struct streams
+            {
+                streams()
+                {
+                    for (auto& stream : streams_)
+                    {
+                        hpx::cuda::experimental::check_cuda_error(
+                            cudaStreamCreate(&stream));
+                    }
+                }
+
+                std::array<cudaStream_t, 4> streams_{};
+                std::atomic<std::size_t> next_{0};
+            };
+
+            static streams pool;
+            return pool.streams_[pool.next_++ % pool.streams_.size()];
+        }
+
+        // Pinned host memory from the pool, the staging area between the
+        // network and the device in both directions.
+        class pinned_host_buffer
+        {
+        public:
+            explicit pinned_host_buffer(std::size_t const size)
+            {
+                std::tie(data_, size_class_) =
+                    pinned_buffer_pool::instance().acquire(size);
+            }
+
+            pinned_host_buffer(pinned_host_buffer const&) = delete;
+            pinned_host_buffer(pinned_host_buffer&&) = delete;
+            pinned_host_buffer& operator=(pinned_host_buffer const&) = delete;
+            pinned_host_buffer& operator=(pinned_host_buffer&&) = delete;
+
+            ~pinned_host_buffer()
+            {
+                pinned_buffer_pool::instance().release(data_, size_class_);
+            }
+
+            [[nodiscard]] void* data() const noexcept
+            {
+                return data_;
+            }
+
+        private:
+            void* data_ = nullptr;
+            std::size_t size_class_ = 0;
+        };
+
+        // Pinned host copy of device memory, filled asynchronously on a
+        // staging stream. A zero-copy chunk of a serialized device_vector
+        // refers to it, and the parcel keeps it alive until the parcel has
+        // been sent.
+        class device_host_copy
+        {
+        public:
+            device_host_copy(void const* device_data, std::size_t const size)
+              : buffer_(size)
+              , stream_(staging_stream())
+            {
+                hpx::cuda::experimental::check_cuda_error(
+                    cudaMemcpyAsync(buffer_.data(), device_data, size,
+                        cudaMemcpyDeviceToHost, stream_));
+                try
+                {
+                    ready_ = hpx::cuda::experimental::detail::
+                        get_future_with_callback(stream_);
+                }
+                catch (...)
+                {
+                    // the buffer goes back to the pool, never under a copy
+                    cudaStreamSynchronize(stream_);
+                    throw;
+                }
+            }
+
+            device_host_copy(device_host_copy const&) = delete;
+            device_host_copy(device_host_copy&&) = delete;
+            device_host_copy& operator=(device_host_copy const&) = delete;
+            device_host_copy& operator=(device_host_copy&&) = delete;
+
+            ~device_host_copy()
+            {
+                // normally the copy is done (the parcel waited for it); the
+                // buffer goes back to the pool, never under a copy
+                if (ready_.valid() && !ready_.is_ready())
+                {
+                    cudaStreamSynchronize(stream_);
+                }
+            }
+
+            [[nodiscard]] void const* data() const noexcept
+            {
+                return buffer_.data();
+            }
+
+            [[nodiscard]] hpx::future<void>& ready() noexcept
+            {
+                return ready_;
+            }
+
+        private:
+            pinned_host_buffer buffer_;
+            cudaStream_t stream_;
+            hpx::future<void> ready_;
+        };
+
+        // Copies a received staging buffer to device memory asynchronously
+        // on a staging stream and calls 'done' once the copy has finished.
+        // The CUDA future hands that continuation to an HPX thread.
+        void copy_to_device(void* device_data,
+            std::shared_ptr<pinned_host_buffer> staging, std::size_t const size,
+            post_receive_actions::done_type done)
+        {
+            cudaStream_t const stream = staging_stream();
+            hpx::cuda::experimental::check_cuda_error(cudaMemcpyAsync(
+                device_data, staging->data(), size, cudaMemcpyHostToDevice,
+                stream));
+
+            hpx::future<void> f;
+            try
+            {
+                f = hpx::cuda::experimental::detail::get_future_with_callback(
+                    stream);
+            }
+            catch (...)
+            {
+                // the staging buffer goes back to the pool, never under a copy
+                cudaStreamSynchronize(stream);
+                throw;
+            }
+
+            auto state =
+                hpx::traits::future_access<hpx::future<void>>::get_shared_state(
+                    f);
+
+            // the continuation holds the state to read a CUDA error; the
+            // state drops it after running the continuation
+            state->set_on_completed([state, staging = HPX_MOVE(staging),
+                                        done = HPX_MOVE(done)]() {
+                if (state->has_exception())
+                {
+                    // the arguments are incomplete, don't run it
+                    hpx::report_error(state->get_exception_ptr());
+                    return;
+                }
+                done();
+            });
+        }
+    }    // namespace
+
+    keep_alive_buffer const* device_host_copy_of(output_archive& ar,
+        void const* key, void const* device_data, std::size_t const bytes)
+    {
+        if (bytes < ar.get_zero_copy_serialization_threshold())
+        {
+            return nullptr;
+        }
+
+        if (!ar.is_preprocessing())
+        {
+            auto const* keep_alive =
+                ar.try_get_extra_data<preprocess_keep_alive>();
+            return keep_alive ? keep_alive->find(key) : nullptr;
+        }
+
+        auto& keep_alive = ar.get_extra_data<preprocess_keep_alive>();
+        if (auto const* buffer = keep_alive.find(key))
+        {
+            // an earlier preprocessing round has created it already
+            return buffer;
+        }
+
+#if defined(HPX_DEBUG)
+        warn_if_device_busy();
+#endif
+        auto copy = std::make_shared<device_host_copy>(device_data, bytes);
+
+        if (auto& f = copy->ready(); !f.is_ready())
+        {
+            auto shared_state =
+                hpx::traits::future_access<hpx::future<void>>::get_shared_state(
+                    f);
+            hpx::lcos::detail::preprocess_future(ar, *shared_state);
+        }
+
+        void const* data = copy->data();
+        keep_alive.add(key, keep_alive_buffer{HPX_MOVE(copy), data, bytes});
+        return keep_alive.find(key);
+    }
+
+    void* stage_device_receive(
+        input_archive& ar, void* device_data, std::size_t const bytes)
+    {
+        auto staging = std::make_shared<pinned_host_buffer>(bytes);
+        void* data = staging->data();
+
+        ar.get_extra_data<post_receive_actions>().add(
+            [staging = HPX_MOVE(staging), device_data, bytes](
+                post_receive_actions::done_type done) {
+                copy_to_device(device_data, staging, bytes, HPX_MOVE(done));
+            });
+        return data;
+    }
+
+    void warn_if_device_busy() noexcept
+    {
+        if (cudaStreamQuery(cudaStreamPerThread) != cudaErrorNotReady &&
+            cudaStreamQuery(cudaStreamLegacy) != cudaErrorNotReady)
+        {
+            return;
+        }
+
+        static std::atomic<bool> warned{false};
+        if (!warned.exchange(true))
+        {
+            std::fputs("hpx: a thrust::device_vector is serialized while the "
+                       "device still has work queued on a default stream; "
+                       "wait for the work producing its data to finish "
+                       "before sending it\n",
+                stderr);
+        }
+    }
+}    // namespace hpx::serialization::detail
