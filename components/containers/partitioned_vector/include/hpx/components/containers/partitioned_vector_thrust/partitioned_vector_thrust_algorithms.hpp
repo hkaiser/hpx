@@ -72,15 +72,12 @@ namespace hpx::thrust {
             hpx::identity_v, std::true_type{});
     }
 
-    // this does not compile yet. If it did, you could simply call hpx::fill()
-    // on a partitioned device vector instead of having to explicitly use
-    // hpx::thrust::segmented_fill()
     HPX_CXX_EXPORT template <typename Policy, typename SegIter, typename T>
         requires(is_thrust_execution_policy_v<std::decay_t<Policy>> &&
             hpx::traits::is_iterator_v<SegIter> &&
             hpx::traits::is_segmented_iterator_v<SegIter>)
     SegIter hpx_invoke(
-        hpx::fill_t, Policy&& policy, SegIter first, SegIter last, T const& value)
+        hpx::fill_t, Policy&& policy, SegIter first, SegIter last, T&& value)
     {
         return segmented_fill(HPX_FORWARD(Policy, policy), HPX_MOVE(first),
             HPX_MOVE(last), value);
