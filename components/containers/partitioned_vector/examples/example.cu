@@ -19,8 +19,8 @@ int main(int argc, char** argv)
     int answer = v.get_value(0).get();
     std::cout << "Answer is: " << answer << std::endl;
 
-    // test 2 (will not compile)
-    //hpx::fill(hpx::thrust::thrust_device_policy{}, v.begin(), v.end(), 42);
+    // test 2
+    hpx::fill(hpx::thrust::thrust_device_policy{}, v.begin(), v.end(), 42);
 
     // test 3 (compiles but won't run)
     hpx::thrust::segmented_fill(hpx::thrust::thrust_device_policy{}, v.begin(), v.end(), 42);

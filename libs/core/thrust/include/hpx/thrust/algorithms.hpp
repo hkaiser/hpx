@@ -7,7 +7,6 @@
 #pragma once
 
 #include <hpx/config.hpp>
-#include <hpx/modules/iterator_support.hpp>
 #include <hpx/thrust/detail/algorithm_map.hpp>
 #include <hpx/thrust/policy.hpp>
 
@@ -15,12 +14,6 @@
 #include <utility>
 
 namespace hpx::thrust {
-
-    namespace detail {
-        template <typename... Args>
-        concept is_not_segmented =
-            (!hpx::traits::is_segmented_iterator_v<std::decay_t<Args>> && ...);
-    }
 
     /// \brief ADL hook dispatching HPX algorithm CPOs to Thrust backends.
     ///
@@ -41,7 +34,6 @@ namespace hpx::thrust {
     ///   policies.
     template <typename Tag, typename ThrustPolicy, typename... Args>
         requires(is_thrust_execution_policy_v<std::decay_t<ThrustPolicy>> &&
-            detail::is_not_segmented<Args...> &&
             detail::is_algorithm_mapped<Tag, ThrustPolicy, Args...>)
     decltype(auto) hpx_invoke(Tag tag, ThrustPolicy&& policy, Args&&... args)
     {

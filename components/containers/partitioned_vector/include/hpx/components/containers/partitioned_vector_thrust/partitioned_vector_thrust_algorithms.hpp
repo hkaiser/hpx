@@ -72,12 +72,20 @@ namespace hpx::thrust {
             hpx::identity_v, std::true_type{});
     }
 
+    // hpx::fill() on a partitioned device vector dispatches here.
+    //
+    // Two other hpx_invoke overloads match the same call: the generic one in
+    // hpx/thrust/algorithms.hpp (Args&&...) and the segmented fill for all
+    // execution policies (hpx::segmented, same parameters as this one). The
+    // value is taken by value so that this overload binds the arguments as
+    // well as both of them do, it is more specialized than the generic one,
+    // and thrust_execution_policy makes it more constrained than the
+    // segmented one, so it is selected for any value category.
     HPX_CXX_EXPORT template <typename Policy, typename SegIter, typename T>
-        requires(is_thrust_execution_policy_v<std::decay_t<Policy>> &&
-            hpx::traits::is_iterator_v<SegIter> &&
-            hpx::traits::is_segmented_iterator_v<SegIter>)
+        requires(
+            thrust_execution_policy<Policy> && hpx::segmented_iterator<SegIter>)
     SegIter hpx_invoke(
-        hpx::fill_t, Policy&& policy, SegIter first, SegIter last, T&& value)
+        hpx::fill_t, Policy&& policy, SegIter first, SegIter last, T value)
     {
         return segmented_fill(HPX_FORWARD(Policy, policy), HPX_MOVE(first),
             HPX_MOVE(last), value);
